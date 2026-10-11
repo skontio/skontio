@@ -7,34 +7,32 @@ There is deliberately no bypass (ADR 0001).
 
 from __future__ import annotations
 
-_MESSAGE = "skontio: document is finalized and immutable"
-
 SQLITE = [
-    f"""
+    """
     CREATE TRIGGER IF NOT EXISTS skontio_document_no_update BEFORE UPDATE ON documents_document
     FOR EACH ROW WHEN OLD.status <> 'draft'
-    BEGIN SELECT RAISE(ABORT, '{_MESSAGE}'); END;
+    BEGIN SELECT RAISE(ABORT, 'skontio: document is finalized and immutable'); END;
     """,
-    f"""
+    """
     CREATE TRIGGER IF NOT EXISTS skontio_document_no_delete BEFORE DELETE ON documents_document
     FOR EACH ROW WHEN OLD.status <> 'draft'
-    BEGIN SELECT RAISE(ABORT, '{_MESSAGE}'); END;
+    BEGIN SELECT RAISE(ABORT, 'skontio: document is finalized and immutable'); END;
     """,
-    f"""
+    """
     CREATE TRIGGER IF NOT EXISTS skontio_line_no_insert BEFORE INSERT ON documents_documentline
     FOR EACH ROW WHEN (SELECT status FROM documents_document WHERE id = NEW.document_id) <> 'draft'
-    BEGIN SELECT RAISE(ABORT, '{_MESSAGE}'); END;
+    BEGIN SELECT RAISE(ABORT, 'skontio: document is finalized and immutable'); END;
     """,
-    f"""
+    """
     CREATE TRIGGER IF NOT EXISTS skontio_line_no_update BEFORE UPDATE ON documents_documentline
     FOR EACH ROW WHEN (SELECT status FROM documents_document WHERE id = OLD.document_id) <> 'draft'
                    OR (SELECT status FROM documents_document WHERE id = NEW.document_id) <> 'draft'
-    BEGIN SELECT RAISE(ABORT, '{_MESSAGE}'); END;
+    BEGIN SELECT RAISE(ABORT, 'skontio: document is finalized and immutable'); END;
     """,
-    f"""
+    """
     CREATE TRIGGER IF NOT EXISTS skontio_line_no_delete BEFORE DELETE ON documents_documentline
     FOR EACH ROW WHEN (SELECT status FROM documents_document WHERE id = OLD.document_id) <> 'draft'
-    BEGIN SELECT RAISE(ABORT, '{_MESSAGE}'); END;
+    BEGIN SELECT RAISE(ABORT, 'skontio: document is finalized and immutable'); END;
     """,
 ]
 
