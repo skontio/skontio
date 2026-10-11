@@ -1,0 +1,61 @@
+# Skontio on TrueNAS (Apps → Discover → "Install via YAML").
+#
+# Before installing, create these datasets and give UID/GID 568 (apps) read/write access:
+#   /mnt/POOL/apps/skontio/data      SQLite database, configuration
+#   /mnt/POOL/apps/skontio/archive   finalized PDFs/XML and receipts (revisionssicher, 8–10 Jahre)
+#   /mnt/POOL/apps/skontio/backups   nightly application backups
+#   /mnt/POOL/apps/skontio-secrets   read-only for 568: secret_key, oidc_client_secret
+#                                    (keep a copy in your password manager – backups are useless without it)
+# Replace POOL and NAS_LAN_IP. Caddy (TrueNAS app) proxies https://skontio.example.org to NAS_LAN_IP:8085.
+
+services:
+  skontio:
+    image: ghcr.io/skontio/skontio:0.1
+    command: ["web"]
+    user: "568:568"
+    restart: unless-stopped
+    ports:
+      - "NAS_LAN_IP:8085:8000"   # LAN only; never expose directly to the internet
+    environment:
+      SKONTIO_PUBLIC_URL: https://skontio.example.org
+      SKONTIO_ALLOWED_HOSTS: skontio.example.org
+      SKONTIO_TRUSTED_PROXIES: 172.16.0.0/12   # Docker bridge range as seen by Skontio; verify with `skontio doctor proxy`
+      SKONTIO_SECRET_KEY_FILE: /secrets/secret_key
+      SKONTIO_OIDC_ISSUER: https://id.example.org
+      SKONTIO_OIDC_CLIENT_ID: CHANGE_ME
+      SKONTIO_OIDC_CLIENT_SECRET_FILE: /secrets/oidc_client_secret
+      SKONTIO_TIME_ZONE: Europe/Berlin
+      SKONTIO_WEB_WORKERS: "2"
+    volumes:
+      - /mnt/POOL/apps/skontio/data:/data
+      - /mnt/POOL/apps/skontio/archive:/archive
+      - /mnt/POOL/apps/skontio/backups:/backups
+      - /mnt/POOL/apps/skontio-secrets:/secrets:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+
+  skontio-worker:
+    image: ghcr.io/skontio/skontio:0.1
+    command: ["worker"]
+    user: "568:568"
+    restart: unless-stopped
+    depends_on: [skontio]
+    environment:
+      SKONTIO_PUBLIC_URL: https://skontio.example.org
+      SKONTIO_SECRET_KEY_FILE: /secrets/secret_key
+      SKONTIO_TIME_ZONE: Europe/Berlin
+    volumes:
+      - /mnt/POOL/apps/skontio/data:/data
+      - /mnt/POOL/apps/skontio/archive:/archive
+      - /mnt/POOL/apps/skontio/backups:/backups
+      - /mnt/POOL/apps/skontio-secrets:/secrets:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]

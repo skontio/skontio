@@ -1,0 +1,29 @@
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# local runtime data and secrets
+var/
+*.sqlite3
+*.sqlite3-*
+.env
+secrets/
+*.key
+
+# downloaded validators (fetched by tools/validators/fetch.sh)
+tools/validators/.cache/
+
+# editor / OS
+.idea/
+.vscode/
+.DS_Store
+
+# local Claude Code settings
+.claude/settings.local.json

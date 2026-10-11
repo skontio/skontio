@@ -1,0 +1,40 @@
+# Skontio behind Caddy (TrueNAS app). Copy into your Caddy configuration and adjust:
+#   NAS_LAN_IP  – LAN address of the TrueNAS host where Skontio publishes port 8085
+#
+# Anthropic outbound range for remote MCP connectors (Claude.ai, Desktop, mobile):
+#   160.79.104.0/21 – source: https://platform.claude.com/docs/en/api/ip-addresses (checked 2026-10-11)
+# Re-check that page periodically; Anthropic announces changes there.
+
+skontio.example.org {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "same-origin"
+		-Server
+	}
+
+	# /mcp: only Anthropic's connector egress and your own networks (Claude Code via LAN/VPN)
+	@mcp path /mcp /mcp/*
+	@mcp_allowed {
+		path /mcp /mcp/*
+		remote_ip 160.79.104.0/21 private_ranges
+	}
+	handle @mcp_allowed {
+		reverse_proxy NAS_LAN_IP:8085
+	}
+	handle @mcp {
+		respond "Forbidden" 403
+	}
+
+	# Everything else (UI, /auth, /oauth, /.well-known) is public; login is via Pocket ID passkeys.
+	handle {
+		reverse_proxy NAS_LAN_IP:8085
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}

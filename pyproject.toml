@@ -1,0 +1,59 @@
+[project]
+name = "skontio"
+version = "0.1.0"
+description = "Open-Source-Rechnungen und CRM für Selbstständige – selbst hostbar, E-Rechnung inklusive"
+authors = [
+    { name = "Artur Dick", email = "4679329+unix0r@users.noreply.github.com" }
+]
+license = "AGPL-3.0-or-later"
+license-files = ["LICENSE"]
+requires-python = ">=3.13"
+dependencies = [
+    "authlib>=1.8",
+    "django>=6.1,<6.2",
+    "django-oauth-toolkit>=3.4",
+    "drafthorse>=2025.2",
+    "factur-x>=7.5",
+    "granian>=2",
+    "httpx>=0.28",
+    "psycopg[binary]>=3.2",
+    "segno>=1.6",
+    "weasyprint>=70",
+]
+
+[project.scripts]
+skontio = "skontio:main"
+
+[build-system]
+requires = ["uv_build>=0.12.19,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "hypothesis>=6.169.0",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "pytest-django>=4.14.0",
+    "ruff>=0.17.0",
+    "testcontainers[postgres]>=4.15.0",
+]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "skontio.settings"
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+    "einvoice: needs external validators (KoSIT/veraPDF); skipped when unavailable",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "DJ", "S", "BLE"]
+ignore = ["S101"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S", "DJ008"]
+"**/migrations/**" = ["E501"]
