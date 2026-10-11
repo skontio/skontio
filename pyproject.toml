@@ -16,6 +16,7 @@ dependencies = [
     "factur-x>=7.5",
     "granian>=2",
     "httpx>=0.28",
+    "joserfc>=1.7",
     "psycopg[binary]>=3.2",
     "segno>=1.6",
     "weasyprint>=70",
