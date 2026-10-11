@@ -18,6 +18,7 @@ from django.utils import timezone
 
 from skontio.catalog.models import Item, Unit
 from skontio.documents.models import Document, DocumentLine, DocumentLocked, PartySnapshot
+from skontio.documents.renditions import RenditionError, create_renditions
 from skontio.numbering.models import NumberSequence
 from skontio.numbering.services import allocate_number
 from skontio.tax.engine import LineInput, Regime, ResolvedTax, TaxError, TaxTreatment, Totals, calculate, resolve
@@ -238,7 +239,11 @@ def _seller_data(company) -> dict:
         "name street postcode city country tax_number vat_id seller_identifier "
         "email phone contact_name iban bic account_holder"
     ).split()
-    return {f: getattr(company, f) for f in fields}
+    data = {f: getattr(company, f) for f in fields}
+    if not data["vat_id"] and not data["seller_identifier"]:
+        # BR-CO-26 needs BT-29/30/31; without USt-IdNr. the Steuernummer serves as seller identifier (ADR 0001)
+        data["seller_identifier"] = data["tax_number"]
+    return data
 
 
 def _buyer_data(customer) -> dict:
@@ -263,6 +268,8 @@ def _validate(document: Document) -> None:
             problems.append("Vollständige Anschrift der eigenen Firma fehlt")
         if not (company.tax_number or company.vat_id):
             problems.append("Steuernummer oder USt-IdNr. der eigenen Firma fehlt")
+        if document.doc_type == Type.INVOICE and not company.iban:
+            problems.append("IBAN der eigenen Firma fehlt (Zahlungsangaben der E-Rechnung)")
     if problems:
         raise DocumentError("; ".join(problems))
 
@@ -308,6 +315,10 @@ def _seal(
     document.status = Document.Status.FINALIZED
     document.locked_at = timezone.now()
     document.save()
+    try:
+        create_renditions(document)
+    except (RenditionError, ValueError) as exc:
+        raise DocumentError(str(exc)) from exc  # rolls back the whole finalize transaction
     return document
 
 
@@ -320,6 +331,8 @@ def finalize(document: Document) -> Document:
         if not doc.lines.exists():
             raise DocumentError("Ein Dokument ohne Positionen kann nicht festgeschrieben werden")
         _validate(doc)
+        if doc.doc_type == Type.INVOICE and doc.due_date is None:
+            doc.due_date = doc.issue_date + dt.timedelta(days=doc.customer.payment_terms_days)  # BR-CO-25
         regime = _regime(doc)
         lines, inputs = _line_inputs(doc, regime)
         totals = _calculate(doc, inputs)

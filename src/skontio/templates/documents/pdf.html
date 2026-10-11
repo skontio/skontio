@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="{{ language }}">
+<head>
+<meta charset="utf-8">
+<title>{{ title }} {{ doc.number }}</title>
+<style>
+  @page {
+    size: A4;
+    margin: 20mm 18mm 28mm 22mm;
+    @bottom-left {
+      content: element(footer);
+      width: 170mm;
+      vertical-align: top;
+    }
+  }
+  :root { --accent: {{ accent_color }}; --text: #1d2125; --muted: #5b636b; --rule: #d6dadf; }
+  body { font-family: "DejaVu Sans", "Liberation Sans", sans-serif; font-size: 9.5pt; color: var(--text); line-height: 1.4; }
+  header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14mm; }
+  .brand { font-size: 15pt; font-weight: bold; color: var(--accent); }
+  .sender-line { font-size: 7pt; color: var(--muted); border-bottom: 0.5pt solid var(--rule); padding-bottom: 1mm; margin-bottom: 2mm; }
+  .address { width: 85mm; min-height: 32mm; }
+  .meta { width: 70mm; }
+  .meta table td { padding: 0.6mm 0; }
+  .meta table td:first-child { color: var(--muted); padding-right: 4mm; }
+  .top { display: flex; justify-content: space-between; margin-bottom: 10mm; }
+  h1 { font-size: 14pt; margin: 0 0 4mm; }
+  .intro, .closing { margin: 4mm 0; white-space: pre-line; }
+  table.lines { width: 100%; border-collapse: collapse; margin: 4mm 0; }
+  table.lines th { text-align: left; font-size: 8pt; color: var(--muted); border-bottom: 1pt solid var(--accent); padding: 1.5mm 1mm; }
+  table.lines td { border-bottom: 0.5pt solid var(--rule); padding: 1.5mm 1mm; vertical-align: top; }
+  table.lines .num { text-align: right; white-space: nowrap; }
+  .desc { color: var(--muted); font-size: 8.5pt; white-space: pre-line; }
+  table.totals { margin-left: auto; width: 80mm; border-collapse: collapse; }
+  table.totals td { padding: 1mm; }
+  table.totals td.num { text-align: right; white-space: nowrap; }
+  table.totals tr.grand td { border-top: 1pt solid var(--accent); font-weight: bold; font-size: 10.5pt; }
+  .note { margin-top: 5mm; padding: 2.5mm 3mm; background: #f3f5f7; border-left: 2pt solid var(--accent); }
+  .payment { display: flex; gap: 6mm; align-items: center; margin-top: 6mm; }
+  .payment img { width: 28mm; height: 28mm; }
+  footer { position: running(footer); width: 170mm; font-size: 7pt; color: var(--muted); border-top: 0.5pt solid var(--rule); padding-top: 2mm; display: flex; justify-content: space-between; gap: 4mm; }
+  footer div { flex: 1; }
+</style>
+</head>
+<body>
+<footer>
+  <div>{{ seller.name }}<br>{{ seller.street }}<br>{{ seller.postcode }} {{ seller.city }}</div>
+  <div>{% if seller.email %}{{ seller.email }}<br>{% endif %}{% if seller.phone %}{{ seller.phone }}{% endif %}</div>
+  <div>{% if seller.tax_number %}Steuernummer: {{ seller.tax_number }}<br>{% endif %}{% if seller.vat_id %}USt-IdNr.: {{ seller.vat_id }}{% endif %}</div>
+  <div>{% if seller.iban %}IBAN: {{ iban_formatted }}<br>{% endif %}{% if seller.bic %}BIC: {{ seller.bic }}{% endif %}</div>
+</footer>
+
+<header>
+  <div class="brand">{{ seller.name }}</div>
+</header>
+
+<div class="top">
+  <div class="address">
+    <div class="sender-line">{{ seller.name }} · {{ seller.street }} · {{ seller.postcode }} {{ seller.city }}</div>
+    <div>{{ buyer.name }}<br>{{ buyer.street }}<br>{{ buyer.postcode }} {{ buyer.city }}{% if buyer.country != "DE" %}<br>{{ buyer.country }}{% endif %}</div>
+  </div>
+  <div class="meta">
+    <table>
+      <tr><td>{{ title }}-Nr.</td><td>{{ doc.number }}</td></tr>
+      <tr><td>Datum</td><td>{{ issue_date }}</td></tr>
+      {% if service %}<tr><td>{{ service_label }}</td><td>{{ service }}</td></tr>{% endif %}
+      {% if buyer.number %}<tr><td>Kundennummer</td><td>{{ buyer.number }}</td></tr>{% endif %}
+      {% if buyer.vat_id %}<tr><td>USt-IdNr. Kunde</td><td>{{ buyer.vat_id }}</td></tr>{% endif %}
+      {% if valid_until %}<tr><td>Gültig bis</td><td>{{ valid_until }}</td></tr>{% endif %}
+      {% if due_date %}<tr><td>Fällig am</td><td>{{ due_date }}</td></tr>{% endif %}
+    </table>
+  </div>
+</div>
+
+<h1>{{ title }} {{ doc.number }}</h1>
+{% if reference %}<p>{{ reference }}</p>{% endif %}
+{% if doc.intro_text %}<div class="intro">{{ doc.intro_text }}</div>{% endif %}
+
+<table class="lines">
+  <thead>
+    <tr><th>Pos.</th><th>Bezeichnung</th><th class="num">Menge</th><th>Einheit</th><th class="num">Einzelpreis</th>{% if has_discounts %}<th class="num">Rabatt</th>{% endif %}<th class="num">Betrag</th>{% if show_rates %}<th class="num">USt</th>{% endif %}</tr>
+  </thead>
+  <tbody>
+    {% for line in lines %}
+    <tr>
+      <td>{{ line.position }}</td>
+      <td>{{ line.text }}{% if line.description %}<div class="desc">{{ line.description }}</div>{% endif %}</td>
+      <td class="num">{{ line.quantity }}</td>
+      <td>{{ line.unit }}</td>
+      <td class="num">{{ line.unit_price }}</td>
+      {% if has_discounts %}<td class="num">{{ line.discount }}</td>{% endif %}
+      <td class="num">{{ line.net }}</td>
+      {% if show_rates %}<td class="num">{{ line.rate }}</td>{% endif %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<table class="totals">
+  <tr><td>Summe Positionen</td><td class="num">{{ totals.line_total }}</td></tr>
+  {% for subtotal in subtotals %}{% if subtotal.allowance %}<tr><td>Rabatt {{ doc_discount }}{% if show_rates %} ({{ subtotal.rate }}){% endif %}</td><td class="num">−{{ subtotal.allowance }}</td></tr>{% endif %}{% endfor %}
+  {% if show_rates %}
+    <tr><td>Nettobetrag</td><td class="num">{{ totals.tax_basis_total }}</td></tr>
+    {% for subtotal in subtotals %}<tr><td>USt {{ subtotal.rate }} auf {{ subtotal.basis }}</td><td class="num">{{ subtotal.tax }}</td></tr>{% endfor %}
+  {% endif %}
+  <tr class="grand"><td>{{ grand_label }}</td><td class="num">{{ totals.grand_total }} €</td></tr>
+</table>
+
+{% for note in tax_notes %}<div class="note">{{ note }}</div>{% endfor %}
+
+{% if payment_text %}
+<div class="payment">
+  {% if girocode %}<img src="{{ girocode }}" alt="GiroCode">{% endif %}
+  <div>{{ payment_text }}{% if seller.iban %}<br>IBAN {{ iban_formatted }}{% if seller.bic %} · BIC {{ seller.bic }}{% endif %}<br>Verwendungszweck: {{ doc.number }}{% endif %}</div>
+</div>
+{% endif %}
+
+{% if doc.closing_text %}<div class="closing">{{ doc.closing_text }}</div>{% endif %}
+</body>
+</html>

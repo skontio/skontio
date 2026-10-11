@@ -154,6 +154,26 @@ class DocumentLine(models.Model):
         return f"{self.document} · Pos. {self.position}"
 
 
+class Rendition(models.Model):
+    """Archived output of a finalized document (PDF/A, ZUGFeRD PDF, XRechnung XML)."""
+
+    class Kind(models.TextChoices):
+        PDF = "pdf", "PDF/A"
+        ZUGFERD_PDF = "zugferd_pdf", "ZUGFeRD-PDF (EN 16931)"
+        XRECHNUNG_XML = "xrechnung_xml", "XRechnung (CII)"
+
+    document = models.ForeignKey(Document, on_delete=models.PROTECT, related_name="renditions")
+    kind = models.CharField(max_length=16, choices=Kind.choices)
+    blob = models.ForeignKey("archive.Blob", on_delete=models.PROTECT, related_name="renditions")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["document", "kind"], name="uniq_rendition_kind")]
+
+    def __str__(self) -> str:
+        return f"{self.document} · {self.kind}"
+
+
 class PartySnapshot(models.Model):
     """Seller/buyer data as printed on a finalized document. Not locked: redactable after retention."""
 

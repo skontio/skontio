@@ -98,6 +98,7 @@ INSTALLED_APPS = [
     "oauth2_provider",
     "skontio.core",
     "skontio.numbering",
+    "skontio.archive",
     "skontio.documents",
     "skontio.taxstatus",
     "skontio.catalog",
@@ -139,6 +140,8 @@ LANGUAGE_CODE = "de-de"
 TIME_ZONE = os.environ.get("SKONTIO_TIME_ZONE", "Europe/Berlin")
 USE_I18N = True
 USE_TZ = True
+
+ARCHIVE_DIR = Path(os.environ.get("SKONTIO_ARCHIVE_DIR", BASE_DIR.parent.parent / "var" / "archive"))
 
 STATIC_URL = "static/"
 STATIC_ROOT = Path(os.environ.get("SKONTIO_STATIC_ROOT", BASE_DIR.parent.parent / "var" / "static"))

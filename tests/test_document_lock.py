@@ -20,7 +20,12 @@ from skontio.taxstatus.services import start_regime
 
 def make_company(name: str) -> Company:
     company = Company.objects.create(
-        name=name, street="Musterweg 1", postcode="12345", city="Musterstadt", tax_number="123/456/78901"
+        name=name,
+        street="Musterweg 1",
+        postcode="12345",
+        city="Musterstadt",
+        tax_number="123/456/78901",
+        iban="DE02120300000000202051",
     )
     start_regime(company, Regime.SMALL_BUSINESS, dt.date(2024, 1, 1))
     return company
