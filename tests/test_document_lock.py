@@ -10,21 +10,42 @@ import pytest
 from django.db import DatabaseError, connection, transaction
 
 from skontio.core.models import Company
+from skontio.crm.models import Customer
 from skontio.documents.models import Document, DocumentLine
 from skontio.documents.services import DocumentLocked, finalize
 from skontio.numbering.models import NumberSequence
+from skontio.tax.engine import Regime
+from skontio.taxstatus.services import start_regime
+
+
+def make_company(name: str) -> Company:
+    company = Company.objects.create(
+        name=name, street="Musterweg 1", postcode="12345", city="Musterstadt", tax_number="123/456/78901"
+    )
+    start_regime(company, Regime.SMALL_BUSINESS, dt.date(2024, 1, 1))
+    return company
 
 
 @pytest.fixture
 def company(db):
-    company = Company.objects.create(name="Testfirma")
+    company = make_company("Testfirma")
     NumberSequence.objects.create(company=company, doc_type="invoice", pattern="RE-{YYYY}-{####}")
     return company
 
 
 def make_draft(company, **kwargs) -> Document:
+    customer, _ = Customer.objects.get_or_create(
+        company=company,
+        number="K-1",
+        defaults={"name": "Kunde GmbH", "street": "Weg 5", "postcode": "54321", "city": "Köln"},
+    )
     doc = Document.objects.create(
-        company=company, doc_type="invoice", issue_date=kwargs.pop("issue_date", dt.date(2026, 10, 11)), **kwargs
+        company=company,
+        doc_type="invoice",
+        customer=customer,
+        issue_date=kwargs.pop("issue_date", dt.date(2026, 10, 11)),
+        service_date=dt.date(2026, 10, 9),
+        **kwargs,
     )
     DocumentLine.objects.create(
         document=doc, position=1, text="Beratung", quantity=Decimal("3"), unit_price=Decimal("80.00")
@@ -126,7 +147,7 @@ def test_concurrent_finalize_is_gap_free():
         # Django's test teardown flushes SQLite with DELETE, which the lock triggers refuse.
         # SQLite concurrency is covered by test_numbering (same BEGIN IMMEDIATE transaction).
         pytest.skip("runs on Postgres only (teardown flush vs. lock triggers)")
-    company = Company.objects.create(name="Parallel GmbH")
+    company = make_company("Parallel GmbH")
     NumberSequence.objects.create(company=company, doc_type="invoice", pattern="{#}")
     drafts = [make_draft(company) for _ in range(20)]
     errors: list[BaseException] = []
