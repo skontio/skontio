@@ -1,20 +1,16 @@
 """Syntax-neutral EN 16931 invoice data handed from the document module to the XML writers.
 
-Amounts are ``Decimal``; rounding happens here (BR-DEC: 2 decimals for amounts) so that
-CII, UBL and the PDF all show identical numbers.
+All amounts come from the tax engine (``skontio.tax.engine.calculate``) so CII, UBL, the PDF
+and the database show identical numbers. ``build_invoice`` is the only constructor callers use.
 """
 
 from __future__ import annotations
 
 import datetime as dt
 from dataclasses import dataclass, field
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import Decimal
 
-CENT = Decimal("0.01")
-
-
-def money(value: Decimal) -> Decimal:
-    return value.quantize(CENT, rounding=ROUND_HALF_UP)
+from skontio.tax.engine import LineInput, ResolvedTax, calculate
 
 
 @dataclass(frozen=True)
@@ -27,21 +23,9 @@ class Party:
     email: str | None = None
     phone: str | None = None
     contact_name: str | None = None
-    vat_id: str | None = None  # BT-31
-    tax_number: str | None = None  # BT-32
+    vat_id: str | None = None  # BT-31 / BT-48
+    tax_number: str | None = None  # BT-32 (seller only)
     identifier: str | None = None  # BT-29 Seller identifier
-
-
-@dataclass(frozen=True)
-class InvoiceLine:
-    name: str
-    quantity: Decimal
-    unit_code: str  # UN/ECE Rec 20, e.g. C62 (Stück), HUR (Stunde)
-    unit_price: Decimal
-
-    @property
-    def net_amount(self) -> Decimal:
-        return money(self.quantity * self.unit_price)
 
 
 @dataclass(frozen=True)
@@ -53,33 +37,103 @@ class PaymentInstructions:
 
 
 @dataclass(frozen=True)
+class PrecedingInvoice:  # BG-3, mandatory for cancellations/credit notes
+    number: str
+    issue_date: dt.date
+
+
+@dataclass(frozen=True)
+class LineData:
+    """Input line: what the document says before calculation."""
+
+    name: str
+    quantity: Decimal
+    unit_code: str  # UN/ECE Rec 20, e.g. C62 (Stück), HUR (Stunde)
+    unit_price: Decimal
+    tax: ResolvedTax
+    discount_percent: Decimal = Decimal("0")
+    description: str = ""
+
+
+@dataclass(frozen=True)
+class InvoiceLine:
+    name: str
+    description: str
+    quantity: Decimal
+    unit_code: str
+    unit_price: Decimal
+    discount_amount: Decimal  # BG-27 line allowance
+    net_amount: Decimal  # BT-131
+    tax_category: str
+    tax_rate: Decimal
+
+
+@dataclass(frozen=True)
+class TaxSubtotal:  # BG-23 plus the document-level allowance (BG-20) of that category
+    category: str
+    rate: Decimal
+    exemption_reason: str
+    allowance: Decimal
+    basis: Decimal
+    tax: Decimal
+
+
+@dataclass(frozen=True)
 class Invoice:
     number: str
     issue_date: dt.date
     seller: Party
     buyer: Party
     lines: list[InvoiceLine]
-    tax_category: str  # EN 16931 / UNCL5305: S, Z, E, AE, K, G, O
-    tax_rate: Decimal
+    tax_subtotals: list[TaxSubtotal]
+    line_total: Decimal
+    allowance_total: Decimal
+    tax_basis_total: Decimal
+    tax_total: Decimal
+    grand_total: Decimal
     payment: PaymentInstructions
     buyer_reference: str
     service_date: dt.date | None = None
+    service_period: tuple[dt.date, dt.date] | None = None
     due_date: dt.date | None = None
     payment_terms: str | None = None
-    tax_exemption_reason: str | None = None
-    type_code: str = "380"  # commercial invoice
+    type_code: str = "380"  # 380 commercial invoice, 381 credit note (Storno)
     currency: str = "EUR"
     notes: list[str] = field(default_factory=list)
+    preceding_invoice: PrecedingInvoice | None = None
+    document_discount_percent: Decimal = Decimal("0")
 
-    @property
-    def line_total(self) -> Decimal:
-        return money(sum((line.net_amount for line in self.lines), Decimal("0")))
 
-    @property
-    def tax_total(self) -> Decimal:
-        # BR-CO-17: VAT is calculated on the category total, not per line
-        return money(self.line_total * self.tax_rate / Decimal("100"))
-
-    @property
-    def grand_total(self) -> Decimal:
-        return self.line_total + self.tax_total
+def build_invoice(*, lines: list[LineData], document_discount_percent: Decimal = Decimal("0"), **fields) -> Invoice:
+    totals = calculate(
+        [LineInput(ln.quantity, ln.unit_price, ln.tax, ln.discount_percent) for ln in lines],
+        document_discount_percent=document_discount_percent,
+    )
+    invoice_lines = [
+        InvoiceLine(
+            name=data.name,
+            description=data.description,
+            quantity=data.quantity,
+            unit_code=data.unit_code,
+            unit_price=data.unit_price,
+            discount_amount=result.discount_amount,
+            net_amount=result.net_amount,
+            tax_category=result.tax.category,
+            tax_rate=result.tax.rate,
+        )
+        for data, result in zip(lines, totals.lines, strict=True)
+    ]
+    subtotals = [
+        TaxSubtotal(b.category, b.rate, b.exemption_reason, b.allowance, b.basis, b.tax) for b in totals.breakdown
+    ]
+    return Invoice(
+        lines=invoice_lines,
+        tax_subtotals=subtotals,
+        line_total=totals.line_total,
+        allowance_total=totals.allowance_total,
+        tax_basis_total=totals.tax_basis_total,
+        tax_total=totals.tax_total,
+        grand_total=totals.grand_total,
+        document_discount_percent=document_discount_percent,
+        **fields,
+    )
