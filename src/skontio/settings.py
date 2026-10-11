@@ -103,6 +103,7 @@ INSTALLED_APPS = [
     "skontio.taxstatus",
     "skontio.catalog",
     "skontio.crm",
+    "skontio.payments",
 ]
 
 MIDDLEWARE = [
