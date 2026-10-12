@@ -103,7 +103,10 @@ def test_ui_upload_download_delete(client, shop):
     client.post("/dateien/hochladen/", {"document": document.pk, "file": io.BytesIO(PDF), "note": "Auftrag"})
     attachment = Attachment.objects.get()
     assert attachment.document == document and attachment.customer == shop.org
-    assert f"/dateien/{attachment.pk}/" in client.get(f"/dokumente/{document.pk}/").content.decode()
+    page = client.get(f"/dokumente/{document.pk}/").content.decode()
+    assert page.count(f"/dateien/{attachment.pk}/") == 2  # download + delete, once each
+    title = page.split("<title>", 1)[1].split("</title>", 1)[0]
+    assert "<" not in title  # the attachment list once leaked into the title block
     response = client.get(f"/dateien/{attachment.pk}/")
     assert b"".join(response.streaming_content) == PDF
     assert "sandbox" in response["Content-Security-Policy"]

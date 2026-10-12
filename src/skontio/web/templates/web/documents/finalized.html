@@ -1,6 +1,5 @@
 {% extends "web/base.html" %}
-{% block title %}{{ doc.get_doc_type_display }} {{ doc.number }}{% include "web/_attachments.html" %}
-{% endblock %}
+{% block title %}{{ doc.get_doc_type_display }} {{ doc.number }}{% endblock %}
 {% block content %}
 <div class="heading">
   <h1>{{ doc.get_doc_type_display }} {{ doc.number }}</h1>
