@@ -60,3 +60,32 @@ def archive_item(item: Item) -> Item:
     item.archived_at = timezone.now()
     item.save(update_fields=["archived_at"])
     return item
+
+
+ITEM_FIELDS = {"name", "description", "sku", "net_price", "unit", "tax_treatment", "kind"}
+
+
+def update_item(item: Item, **changes) -> Item:
+    """Documents copy item data on use, so changing an item never alters existing documents."""
+    unknown = set(changes) - ITEM_FIELDS
+    if unknown:
+        raise ValueError(f"Nicht änderbar: {', '.join(sorted(unknown))}")
+    if "net_price" in changes and changes["net_price"] < 0:
+        raise ValueError("Der Preis darf nicht negativ sein")
+    if "unit" in changes:
+        try:
+            changes["unit"] = Unit.objects.get(code=changes["unit"])
+        except Unit.DoesNotExist as exc:
+            raise ValueError(f"Unbekannte Einheit {changes['unit']!r}") from exc
+    if "tax_treatment" in changes:
+        changes["tax_treatment"] = TaxTreatment(changes["tax_treatment"])
+    for field, value in changes.items():
+        setattr(item, field, value.strip() if isinstance(value, str) else value)
+    if not item.name:
+        raise ValueError("Eine Leistung braucht eine Bezeichnung")
+    try:
+        with transaction.atomic():
+            item.save()
+    except IntegrityError as exc:
+        raise ValueError(f"Artikelnummer {item.sku!r} ist bereits vergeben") from exc
+    return item

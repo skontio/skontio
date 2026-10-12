@@ -24,7 +24,7 @@ REDIRECT_URI = "http://127.0.0.1:33418/callback"
 
 @pytest.fixture
 def user(db):
-    return get_user_model().objects.create_user("inhaber", password=secrets.token_urlsafe())
+    return get_user_model().objects.create_user("inhaber", password=secrets.token_urlsafe(), is_staff=True)
 
 
 @pytest.fixture
@@ -118,12 +118,19 @@ class TestMcpEndpoint:
         assert "resource_metadata=" in challenge
 
     def test_valid_token_is_accepted(self, client, application, user):
+        from skontio.core.models import Company
+
+        Company.objects.create(name="Firma")
         tokens = obtain_token(client, application, user, resource=MCP_RESOURCE)
         client.logout()
         response = client.post(
-            "/mcp", content_type="application/json", data={}, HTTP_AUTHORIZATION=f"Bearer {tokens['access_token']}"
+            "/mcp",
+            content_type="application/json",
+            data={"jsonrpc": "2.0", "id": 1, "method": "ping"},
+            HTTP_AUTHORIZATION=f"Bearer {tokens['access_token']}",
         )
         assert response.status_code == 200
+        assert response.json() == {"jsonrpc": "2.0", "id": 1, "result": {}}
 
     def test_token_without_resource_is_rejected(self, client, application, user):
         tokens = obtain_token(client, application, user, resource=None)

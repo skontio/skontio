@@ -113,6 +113,8 @@ INSTALLED_APPS = [
     "skontio.web",
     "skontio.mail",
     "skontio.inbox",
+    "skontio.audit",
+    "skontio.mcp",
 ]
 
 MIDDLEWARE = [
@@ -223,6 +225,10 @@ MCP_SCOPES = {
     "documents:read": "Rechnungen und offene Posten lesen",
     "reports:read": "Auswertungen lesen",
 }
+# MCP privacy and abuse limits (plan §7.3): private customers pseudonymised unless switched off
+MCP_PSEUDONYMISE_PERSONS = env_bool("SKONTIO_MCP_PSEUDONYMISE_PERSONS", True)
+MCP_RATE_LIMIT_PER_MINUTE = int(os.environ.get("SKONTIO_MCP_RATE_LIMIT_PER_MINUTE", "120"))
+MCP_ALLOWED_ORIGINS = env_list("SKONTIO_MCP_ALLOWED_ORIGINS")
 OAUTH2_PROVIDER = {
     "SCOPES": MCP_SCOPES,
     "DEFAULT_SCOPES": ["catalog:read"],
@@ -238,6 +244,11 @@ OAUTH2_PROVIDER = {
     "OAUTH2_PROTECTED_RESOURCE_AUTHORIZATION_SERVERS": [PUBLIC_URL],
     "OAUTH2_PROTECTED_RESOURCE_NAME": "Skontio MCP",
     "RESOURCE_SERVER_TOKEN_RESOURCE_VALIDATOR": "skontio.mcp.auth.resource_matches_exactly",
+    # Client ID Metadata Documents (MCP's recommended registration) only from allowlisted hosts;
+    # Dynamic Client Registration stays off, other clients are registered with `skontio mcp_client`.
+    "CIMD_ENABLED": env_bool("SKONTIO_MCP_CIMD", True),
+    "CIMD_REGISTRATION_PERMISSION_CLASSES": ("oauth2_provider.cimd.HostAllowlistCIMDPermission",),
+    "CIMD_ALLOWED_HOSTS": env_list("SKONTIO_MCP_CIMD_HOSTS", "claude.ai,.claude.ai,claude.com,.claude.com"),
 }
 
 OIDC_ISSUER = os.environ.get("SKONTIO_OIDC_ISSUER", "")

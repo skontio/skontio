@@ -36,6 +36,9 @@ __all__ = [
     "finalize",
     "preview_totals",
     "redact_party_snapshot",
+    "replace_lines",
+    "update_draft",
+    "validation_problems",
 ]
 
 Type = Document.Type
@@ -163,6 +166,63 @@ def add_line_from_item(
     )
 
 
+EDITABLE_FIELDS = {
+    "issue_date",
+    "service_date",
+    "service_period_start",
+    "service_period_end",
+    "due_date",
+    "valid_until",
+    "intro_text",
+    "closing_text",
+    "payment_terms_text",
+    "document_discount_percent",
+}
+
+
+def update_draft(document: Document, *, origin: Document.Origin = Document.Origin.UI, **changes) -> Document:
+    """Change header fields of a draft. A change by an AI client requires a new human review."""
+    _require_draft(document)
+    unknown = set(changes) - EDITABLE_FIELDS
+    if unknown:
+        raise DocumentError(f"Nicht änderbar: {', '.join(sorted(unknown))}")
+    for field, value in changes.items():
+        setattr(document, field, value)
+    if document.service_date and (document.service_period_start or document.service_period_end):
+        raise DocumentError("Entweder Leistungsdatum oder Leistungszeitraum angeben, nicht beides")
+    if bool(document.service_period_start) != bool(document.service_period_end):
+        raise DocumentError("Der Leistungszeitraum braucht Beginn und Ende")
+    if document.service_period_start and document.service_period_end < document.service_period_start:
+        raise DocumentError("Der Leistungszeitraum endet vor seinem Beginn")
+    if not (Decimal("0") <= Decimal(document.document_discount_percent) <= Decimal("100")):
+        raise DocumentError("Der Rabatt muss zwischen 0 und 100 % liegen")
+    if origin in AI_ORIGINS:
+        _mark_ai_touched(document)
+    document.save()
+    return document
+
+
+def _mark_ai_touched(document: Document) -> None:
+    document.ai_review_required = True
+    document.ai_reviewed_by, document.ai_reviewed_at = None, None
+
+
+def replace_lines(document: Document, lines: list[dict], *, origin: Document.Origin = Document.Origin.UI) -> None:
+    """Replace all positions at once (``add_line`` / ``add_line_from_item`` arguments per entry)."""
+    _require_draft(document)
+    with transaction.atomic():
+        document.lines.all().delete()
+        for line in lines:
+            line = dict(line)
+            if (item := line.pop("item", None)) is not None:
+                add_line_from_item(document, item, **line)
+            else:
+                add_line(document, **line)
+        if origin in AI_ORIGINS:
+            _mark_ai_touched(document)
+            document.save(update_fields=["ai_review_required", "ai_reviewed_by", "ai_reviewed_at"])
+
+
 def confirm_ai_review(document: Document, user) -> Document:
     """A person confirms they checked a draft created via MCP or the assistant."""
     _require_draft(document)
@@ -251,7 +311,8 @@ def _buyer_data(customer) -> dict:
     return {f: getattr(customer, f) for f in fields}
 
 
-def _validate(document: Document) -> None:
+def validation_problems(document: Document) -> list[str]:
+    """Everything that would block finalizing, as readable messages (also used by draft_validate)."""
     problems: list[str] = []
     company, customer = document.company, document.customer
     if document.ai_review_required and document.ai_reviewed_at is None:
@@ -270,7 +331,13 @@ def _validate(document: Document) -> None:
             problems.append("Steuernummer oder USt-IdNr. der eigenen Firma fehlt")
         if document.doc_type == Type.INVOICE and not company.iban:
             problems.append("IBAN der eigenen Firma fehlt (Zahlungsangaben der E-Rechnung)")
-    if problems:
+    if not document.lines.exists():
+        problems.append("Das Dokument hat keine Positionen")
+    return problems
+
+
+def _validate(document: Document) -> None:
+    if problems := validation_problems(document):
         raise DocumentError("; ".join(problems))
 
 
@@ -367,6 +434,8 @@ def convert_quote_to_invoice(
     service_date: dt.date | None = None,
     service_period: tuple[dt.date, dt.date] | None = None,
     created_by=None,
+    origin: Document.Origin = Document.Origin.UI,
+    idempotency_key: str = "",
 ) -> Document:
     quote = Document.objects.select_related("company", "customer").get(pk=quote.pk)  # never trust stale objects
     if quote.doc_type != Type.QUOTE or quote.status != Document.Status.FINALIZED:
@@ -380,6 +449,8 @@ def convert_quote_to_invoice(
             service_date=service_date,
             service_period=service_period,
             created_by=created_by,
+            origin=origin,
+            idempotency_key=idempotency_key,
             intro_text=quote.intro_text,
             closing_text=quote.closing_text,
             document_discount_percent=quote.document_discount_percent,

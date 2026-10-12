@@ -18,6 +18,7 @@ dependencies = [
     "httpx>=0.28",
     "joserfc>=1.7",
     "psycopg[binary]>=3.2",
+    "pydantic>=2.12",
     "segno>=1.6",
     "weasyprint>=70",
 ]

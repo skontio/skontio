@@ -68,7 +68,7 @@ def rule_for(year: int) -> ThresholdRule:
     return max(applicable, key=lambda r: r.valid_from)
 
 
-def _net_receipts(company, year: int) -> list[tuple[dt.date, Decimal]]:
+def net_receipts(company, year: int) -> list[tuple[dt.date, Decimal]]:
     payments = (
         Payment.objects.filter(company=company, received_on__year=year)
         .select_related("document")
@@ -94,7 +94,7 @@ def _level(revenue: Decimal, limit: Decimal) -> Level:
 
 def small_business_status(company, today: dt.date) -> SmallBusinessStatus:
     rule = rule_for(today.year)
-    receipts = _net_receipts(company, today.year)
+    receipts = net_receipts(company, today.year)
     revenue, crossed_on = Decimal("0.00"), None
     for received_on, amount in receipts:
         revenue += amount
@@ -102,7 +102,7 @@ def small_business_status(company, today: dt.date) -> SmallBusinessStatus:
             crossed_on = received_on
     if revenue <= rule.current_year_limit:
         crossed_on = None  # a later reversal may bring the total back below the limit
-    previous = sum((amount for _, amount in _net_receipts(company, today.year - 1)), Decimal("0.00"))
+    previous = sum((amount for _, amount in net_receipts(company, today.year - 1)), Decimal("0.00"))
     return SmallBusinessStatus(
         year=today.year,
         revenue=revenue,

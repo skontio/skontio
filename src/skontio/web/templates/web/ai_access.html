@@ -1,0 +1,35 @@
+{% extends "web/base.html" %}
+{% block title %}KI-Zugriff{% endblock %}
+{% block content %}
+<div class="heading"><h1>KI-Zugriff (MCP)</h1></div>
+<p>MCP-Adresse für Claude &amp; Co.: <code>{{ mcp_url }}</code>. Assistenten können nur Entwürfe anlegen;
+   Festschreiben, Versenden und Zahlungen bleiben bei dir.
+   Pseudonym-Modus für Privatkunden: <strong>{% if pseudonymised %}an{% else %}aus{% endif %}</strong>.</p>
+
+<h2>Verbundene Clients</h2>
+{% if clients %}
+<div class="table-scroll"><table class="list">
+  <thead><tr><th>Client</th><th class="hide-small">Zuletzt</th><th></th></tr></thead>
+  <tbody>
+  {% for client in clients %}
+    <tr><td>{{ client.name }}</td><td class="hide-small">{{ client.last_used|date:"d.m.Y H:i"|default:"–" }}</td>
+      <td><form method="post" action="/einstellungen/ki-zugriff/{{ client.pk }}/widerrufen/">{% csrf_token %}
+        <button type="submit" class="danger">Widerrufen</button></form></td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% else %}<p>Kein Client verbunden.</p>{% endif %}
+
+<h2>Letzte KI-Aktionen</h2>
+{% if events %}
+<div class="table-scroll"><table class="list">
+  <thead><tr><th>Zeit</th><th>Aktion</th><th class="hide-small">Objekt</th></tr></thead>
+  <tbody>
+  {% for event in events %}
+    <tr><td>{{ event.created_at|date:"d.m.Y H:i" }}</td><td>{{ event.tool_name|default:event.action }}{% if ".rejected" in event.action %} (abgelehnt){% endif %}</td>
+      <td class="hide-small">{% if event.entity == "document" %}<a href="/dokumente/{{ event.entity_id }}/">Dokument {{ event.entity_id }}</a>{% else %}{{ event.entity }} {{ event.entity_id }}{% endif %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% else %}<p>Noch keine KI-Aktionen.</p>{% endif %}
+{% endblock %}

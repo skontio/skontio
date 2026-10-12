@@ -66,6 +66,28 @@ Danach `https://skontio.example.org` öffnen, mit dem Passkey anmelden und die E
 dann **aus dem Heimnetz** `https://skontio.example.org/auth/local/` öffnen. Von außen ist dieser
 Login gesperrt (Skontio erkennt die echte Client-IP über Caddy; `SKONTIO_TRUSTED_PROXIES` muss stimmen).
 
+## 5a. Claude über MCP verbinden
+
+MCP-Adresse: `https://skontio.example.org/mcp` (Protokoll 2026-07-28, ältere Clients mit `initialize`
+werden ebenfalls bedient). In Claude: *Einstellungen → Konnektoren → Eigenen Konnektor hinzufügen* und die
+Adresse eintragen. Claude meldet sich per OAuth an; Skontio zeigt eine Zustimmungsseite (nur für Admins) mit
+den angefragten Berechtigungen.
+
+- **Registrierung:** Claude kann sich über ein Client-ID-Metadatendokument selbst ausweisen (erlaubt sind nur
+  Adressen unter `claude.ai`/`claude.com`, änderbar mit `SKONTIO_MCP_CIMD_HOSTS`). Klappt das nicht, Client
+  vorab anlegen und die ausgegebene Client-ID in Claudes erweiterten Einstellungen eintragen:
+  `docker exec -it <container> skontio mcp_client --name Claude --redirect-uri https://claude.ai/api/mcp/auth_callback`
+- **Was Claude darf:** Kunden und Leistungen suchen/anlegen, Angebots- und Rechnungs**entwürfe** anlegen und
+  ändern, Rechnungen und offene Posten lesen, Umsatz und Kleinunternehmergrenze abfragen. Festschreiben,
+  Versenden, Stornieren, Löschen und Zahlungen buchen geht nur in Skontio selbst. KI-Entwürfe brauchen vor dem
+  Festschreiben deine Prüfbestätigung.
+- **Datenschutz:** Privatkunden werden als „Privatperson K-…“ übermittelt (`SKONTIO_MCP_PSEUDONYMISE_PERSONS`),
+  Kontaktdaten, Anschriften und IBAN nie. Für Claude Pro gibt es keinen Auftragsverarbeitungsvertrag.
+- **Kontrolle:** *Einstellungen → KI-Zugriff* zeigt verbundene Clients, die letzten KI-Aktionen und erlaubt den
+  Widerruf. Jede KI-Aktion steht im hashverketteten Änderungsprotokoll (`skontio verify_audit`).
+- Caddy lässt `/mcp` nur aus Anthropics Netz `160.79.104.0/21` und privaten Netzen zu; `/oauth` und
+  `/.well-known` sind öffentlich.
+
 ## 6. Backups
 
 TrueNAS: *System → Advanced → Cron Jobs* → täglich 02:30:
