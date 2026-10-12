@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Skontio – Notfall-Login</title>
+</head>
+<body>
+<main>
+  <h1>Notfall-Login</h1>
+  <p>Nur aus dem lokalen Netz. Für die normale Anmeldung bitte <a href="/auth/login">über Pocket ID anmelden</a>.</p>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Anmelden</button>
+  </form>
+</main>
+</body>
+</html>

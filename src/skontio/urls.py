@@ -4,6 +4,7 @@ from django.http import JsonResponse
 from django.urls import include, path
 from oauth2_provider import urls as oauth2_urls
 
+from skontio.accounts import views as accounts
 from skontio.mcp.auth import mcp_endpoint
 
 
@@ -21,4 +22,8 @@ urlpatterns = [
     path("", include((oauth2_urls.metadata_urlpatterns, "oauth2_metadata"))),
     path("oauth/", include((oauth2_urls.base_urlpatterns, "oauth2_provider"))),
     path("mcp", mcp_endpoint, name="mcp"),
+    path("auth/login", accounts.oidc_login, name="login"),
+    path("auth/callback", accounts.oidc_callback, name="oidc_callback"),
+    path("auth/logout", accounts.oidc_logout, name="logout"),
+    path("auth/local/", accounts.LocalLoginView.as_view(), name="local_login"),
 ]

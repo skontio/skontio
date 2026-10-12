@@ -104,6 +104,7 @@ INSTALLED_APPS = [
     "skontio.catalog",
     "skontio.crm",
     "skontio.payments",
+    "skontio.accounts",
 ]
 
 MIDDLEWARE = [
@@ -186,6 +187,15 @@ OAUTH2_PROVIDER = {
 OIDC_ISSUER = os.environ.get("SKONTIO_OIDC_ISSUER", "")
 OIDC_CLIENT_ID = os.environ.get("SKONTIO_OIDC_CLIENT_ID", "")
 OIDC_CLIENT_SECRET = read_secret("SKONTIO_OIDC_CLIENT_SECRET", "")
+OIDC_REQUIRED_GROUP = os.environ.get("SKONTIO_OIDC_REQUIRED_GROUP", "skontio")
+OIDC_ADMIN_GROUP = os.environ.get("SKONTIO_OIDC_ADMIN_GROUP", "skontio-admin")
+# break-glass password login (plan §10): private networks only
+LOCAL_LOGIN_NETWORKS = env_list(
+    "SKONTIO_LOCAL_LOGIN_NETWORKS", "127.0.0.0/8,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,::1/128,fc00::/7"
+)
+LOGIN_URL = "/auth/login"
+LOGIN_REDIRECT_URL = "/"
+LOGOUT_REDIRECT_URL = "/"
 
 LOGGING = {
     "version": 1,
