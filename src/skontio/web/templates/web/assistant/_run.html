@@ -1,0 +1,9 @@
+<div id="run"{% if pending %} hx-get="/assistent/{{ run.pk }}/" hx-trigger="every 2s" hx-swap="outerHTML"{% endif %}>
+  {% if pending %}<p class="muted" role="status">{{ run.get_status_display }} … Schritt {{ run.steps }}</p>{% endif %}
+  {% if run.error %}<p class="danger" role="alert">{{ run.error }}</p>{% endif %}
+  {% if run.answer %}<section class="card"><h2>Antwort</h2><p>{{ run.answer|linebreaksbr }}</p></section>{% endif %}
+  {% if documents %}<h2>Angelegte Entwürfe – bitte prüfen</h2>
+  <ul class="plain">{% for d in documents %}<li><a href="/dokumente/{{ d.pk }}/">{{ d.get_doc_type_display }} für {{ d.customer.name }}</a> <span class="badge">KI-Entwurf</span></li>{% endfor %}</ul>{% endif %}
+  {% if steps %}<details><summary>Schritte ({{ steps|length }})</summary>
+    <ul class="plain">{% for s in steps %}<li><code>{{ s.name }}</code> <span class="muted">{{ s.content|truncatechars:160 }}</span></li>{% endfor %}</ul></details>{% endif %}
+</div>

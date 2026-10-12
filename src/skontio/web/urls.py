@@ -1,5 +1,6 @@
 from django.urls import path
 
+from skontio.web import assistant_views as assistant
 from skontio.web import banking_views as banking
 from skontio.web import document_views as docs
 from skontio.web import dunning_views as dunning
@@ -64,6 +65,8 @@ urlpatterns = [
     path("bank/import/", banking.bank_import, name="bank_import"),
     path("bank/<int:pk>/zuordnen/", banking.bank_match, name="bank_match"),
     path("bank/<int:pk>/ignorieren/", banking.bank_ignore, name="bank_ignore"),
+    path("assistent/", assistant.assistant, name="assistant"),
+    path("assistent/<int:pk>/", assistant.assistant_run, name="assistant_run"),
     path("", views.dashboard, name="dashboard"),
     path("einrichtung/", views.setup, name="setup"),
     path("kunden/", views.customer_list, name="customer_list"),

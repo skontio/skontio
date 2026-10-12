@@ -1,0 +1,7 @@
+{% extends "web/base.html" %}
+{% block title %}Assistent{% endblock %}
+{% block content %}
+<div class="heading"><h1>Assistent</h1><a class="button secondary" href="/assistent/">Neue Frage</a></div>
+<p class="card">{{ run.prompt|linebreaksbr }}</p>
+{% include "web/assistant/_run.html" %}
+{% endblock %}

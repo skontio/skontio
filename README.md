@@ -47,7 +47,8 @@ Der vollständige Plan steht in [`docs/plan.md`](docs/plan.md), Architekturentsc
 | Wiederkehrende Rechnungen als Entwürfe (Nachholen ohne Doppelte, Cron-Befehl) | ✅ 2 |
 | Bankumsätze aus CAMT.053/CSV, Vorschläge und Zuordnung zu Rechnungen und Ausgaben | ✅ 2 |
 | USt-Voranmeldung (Ist): Kennzahlen mit Kopier-Knöpfen für Mein ELSTER, Frist, § 13b, Übermittlung vermerken | ✅ 2 |
-| Assistent, DATEV, Web Push, mehrere Firmen, PSD2/FinTS | Phase 2–3 |
+| KI-Assistent in der App (Ollama lokal, OpenAI-kompatibel, Anthropic) mit denselben Entwurfs-Werkzeugen wie MCP | ✅ 2 |
+| DATEV, Web Push, mehrere Firmen, PSD2/FinTS | Phase 2–3 |
 
 Betrieb auf TrueNAS: [`docs/betrieb.md`](docs/betrieb.md).
 

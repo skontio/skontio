@@ -1,0 +1,16 @@
+{% extends "web/base.html" %}
+{% block title %}Assistent{% endblock %}
+{% block content %}
+<div class="heading"><h1>Assistent</h1>{% if user.is_staff %}<a class="button secondary" href="/einstellungen/assistent/">Einstellungen</a>{% endif %}</div>
+{% if not configured %}<p class="warn">Noch kein KI-Anbieter eingerichtet.{% if user.is_staff %} <a href="/einstellungen/assistent/">Jetzt einrichten</a>{% endif %}</p>{% endif %}
+<p class="muted">Beispiele: „Rechnung an Kunde Müller über 3 Stunden Beratung vom letzten Dienstag“ · „Welche Rechnungen sind offen?“ ·
+   „Wie viel Umsatz hatte ich im September?“ Der Assistent legt nur Entwürfe an – du prüfst und schreibst fest.</p>
+<form method="post" class="form">
+  {% csrf_token %}
+  <label for="prompt">Was soll ich tun?</label>
+  <textarea id="prompt" name="prompt" rows="3" maxlength="4000" required></textarea>
+  <button type="submit"{% if not configured %} disabled{% endif %}>Fragen</button>
+</form>
+{% if runs %}<h2>Letzte Anfragen</h2>
+<ul class="plain">{% for r in runs %}<li><a href="/assistent/{{ r.pk }}/">{{ r.prompt|truncatechars:90 }}</a> <span class="muted">· {{ r.created_at|date:"d.m. H:i" }} · {{ r.get_status_display }}</span></li>{% endfor %}</ul>{% endif %}
+{% endblock %}

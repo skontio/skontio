@@ -126,6 +126,23 @@ Das Mahnwesen (*Übersicht → Mahnwesen*) schlägt fällige Zahlungserinnerunge
 und Gebühren unter *Mahnwesen → Mahnstufen*. Mahnschreiben werden als PDF archiviert und zusammen mit der
 Rechnung per E-Mail verschickt.
 
+## 5d. KI-Assistent in Skontio
+
+*Einstellungen → Assistent*: Anbieter wählen und **Verbindung testen** (zeigt Modelle, ob das Modell Werkzeuge
+aufruft, und die Antwortzeit).
+
+- **Ollama im Heimnetz** (Daten bleiben lokal): Adresse z. B. `http://192.168.1.20:11434/v1`, Modell z. B.
+  `qwen3:8b`. Kleine Modelle auf schwacher Hardware brauchen pro Schritt leicht mehrere Minuten; der Assistent
+  läuft deshalb im Hintergrund (Timeout je Schritt 300 s, insgesamt 10 Minuten).
+- **Anthropic API / OpenAI-kompatibel**: API-Schlüssel eintragen (wird verschlüsselt gespeichert). Privatkunden
+  gehen pseudonymisiert hinaus, Kontaktdaten und IBAN nie.
+- Alternativ per Umgebung (hat Vorrang): `SKONTIO_LLM_PROVIDER` (`ollama`, `openai_compatible`, `anthropic`),
+  `SKONTIO_LLM_BASE_URL`, `SKONTIO_LLM_MODEL`, `SKONTIO_LLM_API_KEY_FILE`, `SKONTIO_LLM_TIMEOUT`.
+
+Der Assistent nutzt dieselben Werkzeuge wie MCP: lesen und **Entwürfe** anlegen. Festschreiben, Versenden und
+Zahlungen bleiben bei dir; jeder KI-Entwurf ist markiert und braucht deine Prüfung. Jeder Werkzeugaufruf steht im
+Änderungsprotokoll.
+
 ## 6. Backups
 
 TrueNAS: *System → Advanced → Cron Jobs* → täglich 02:30:

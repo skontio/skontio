@@ -120,6 +120,7 @@ INSTALLED_APPS = [
     "skontio.dunning",
     "skontio.recurring",
     "skontio.banking",
+    "skontio.assistant",
 ]
 
 MIDDLEWARE = [
@@ -233,6 +234,16 @@ MCP_SCOPES = {
 # MCP privacy and abuse limits (plan §7.3): private customers pseudonymised unless switched off
 MCP_PSEUDONYMISE_PERSONS = env_bool("SKONTIO_MCP_PSEUDONYMISE_PERSONS", True)
 MCP_RATE_LIMIT_PER_MINUTE = int(os.environ.get("SKONTIO_MCP_RATE_LIMIT_PER_MINUTE", "120"))
+
+# In-app assistant (plan §7.4): environment wins over the settings page
+LLM_ENV = {
+    "kind": os.environ.get("SKONTIO_LLM_PROVIDER", ""),
+    "base_url": os.environ.get("SKONTIO_LLM_BASE_URL", ""),
+    "model": os.environ.get("SKONTIO_LLM_MODEL", ""),
+    "api_key": read_secret("SKONTIO_LLM_API_KEY") or "",
+    "timeout": int(os.environ.get("SKONTIO_LLM_TIMEOUT", "300")),
+}
+ASSISTANT_SYNC = env_bool("SKONTIO_ASSISTANT_SYNC", False)  # tests: run inline instead of in a thread
 MCP_ALLOWED_ORIGINS = env_list("SKONTIO_MCP_ALLOWED_ORIGINS")
 OAUTH2_PROVIDER = {
     "SCOPES": MCP_SCOPES,

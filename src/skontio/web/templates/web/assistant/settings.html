@@ -1,0 +1,18 @@
+{% extends "web/base.html" %}
+{% block title %}Assistent einrichten{% endblock %}
+{% block content %}
+<div class="heading"><h1>KI-Assistent einrichten</h1><a class="button secondary" href="/assistent/">Assistent</a></div>
+<p><strong>Datenschutz:</strong> Mit Ollama bleiben alle Daten im eigenen Netz. Bei Cloud-Anbietern gehen Anfragen und
+   gefilterte Daten (Privatkunden pseudonymisiert, keine Kontaktdaten oder IBAN) an den Anbieter – für die Anthropic API
+   und OpenAI gibt es Auftragsverarbeitungsverträge, für Claude Pro nicht.</p>
+{% if source == "env" %}<p class="warn">Die Einstellungen kommen aus der Umgebung (SKONTIO_LLM_*) und lassen sich hier nicht ändern.</p>{% else %}
+<form method="post" class="form">
+  {% csrf_token %}
+  {% include "web/_fields.html" %}
+  {% if has_key %}<p class="muted">Ein API-Schlüssel ist gespeichert (verschlüsselt).</p>{% endif %}
+  <button type="submit">Speichern</button>
+</form>{% endif %}
+{% if kind != "none" %}
+<form method="post" action="/einstellungen/assistent/test/">{% csrf_token %}<button type="submit" class="secondary">Verbindung testen</button></form>
+{% endif %}
+{% endblock %}
