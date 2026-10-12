@@ -134,5 +134,23 @@
 <h2>Folgedokumente</h2>
 <ul class="plain">{% for child in children %}<li><a href="/dokumente/{{ child.pk }}/">{{ child.get_doc_type_display }} {{ child }}</a></li>{% endfor %}</ul>
 {% endif %}
+{% if dunning_notices %}
+<section class="card" id="mahnungen">
+  <h2>Mahnungen</h2>
+  <ul class="plain">{% for n in dunning_notices %}
+    <li><a href="/mahnwesen/{{ n.pk }}/pdf/" target="_blank" rel="noopener">{{ n.title }} {{ n.number }}</a> vom {{ n.issued_on|date:"d.m.Y" }} · {{ n.total|floatformat:"2g" }} € bis {{ n.pay_by|date:"d.m.Y" }}{% if n.sent_at %} · versendet {{ n.sent_at|date:"d.m.Y" }}{% else %} · <span class="badge">nicht versendet</span>{% endif %}</li>
+  {% endfor %}</ul>
+  {% if dunning_mail and not dunning_mail.notice.sent_at %}
+  <details open><summary>{{ dunning_mail.notice.title }} per E-Mail senden</summary>
+    <form method="post" action="/mahnwesen/{{ dunning_mail.notice.pk }}/senden/" class="form">
+      {% csrf_token %}
+      <label for="dunning-to">An</label><input id="dunning-to" name="to" value="{{ doc.customer.email }}" required>
+      <label for="dunning-subject">Betreff</label><input id="dunning-subject" name="subject" value="{{ dunning_mail.subject }}" required>
+      <label for="dunning-body">Text</label><textarea id="dunning-body" name="body" rows="8">{{ dunning_mail.body }}</textarea>
+      <button type="submit">Senden</button>
+    </form>
+  </details>{% endif %}
+</section>
+{% endif %}
 {% include "web/_attachments.html" %}
 {% endblock %}

@@ -35,6 +35,7 @@ from skontio.documents.services import (
     preview_totals,
     remove_deduction,
 )
+from skontio.dunning.services import default_mail as dunning_mail
 from skontio.mail.services import MailError, default_message, send_document
 from skontio.payments.services import PaymentError, open_amount, payment_status, record_payment
 from skontio.tax.engine import TaxTreatment
@@ -192,6 +193,11 @@ def _finalized_context(doc: Document, **extra) -> dict:
     }
     context |= _deduction_context(doc)
     context["replacement"] = doc.replaced_by.order_by("-pk").first()
+    notices = list(doc.dunning_notices.order_by("level"))
+    context["dunning_notices"] = notices
+    if notices:
+        subject, body = dunning_mail(notices[-1])
+        context["dunning_mail"] = {"notice": notices[-1], "subject": subject, "body": body}
     if doc.replaces_id:
         transferable = sum((p.amount for p in transferable_payments(doc)), Decimal("0"))
         context["transferable"] = de_amount(transferable) if transferable else ""

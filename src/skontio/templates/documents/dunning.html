@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="{{ language }}">
+<head>
+<meta charset="utf-8">
+<title>{{ notice.title }} {{ notice.number }}</title>
+<style>
+  @page {
+    size: A4;
+    margin: 20mm 18mm 28mm 22mm;
+    @bottom-left {
+      content: element(footer);
+      width: 170mm;
+      vertical-align: top;
+    }
+  }
+  :root { --accent: {{ accent_color }}; --text: #1d2125; --muted: #5b636b; --rule: #d6dadf; }
+  body { font-family: "DejaVu Sans", "Liberation Sans", sans-serif; font-size: 9.5pt; color: var(--text); line-height: 1.4; }
+  header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14mm; }
+  .brand { font-size: 15pt; font-weight: bold; color: var(--accent); }
+  .sender-line { font-size: 7pt; color: var(--muted); border-bottom: 0.5pt solid var(--rule); padding-bottom: 1mm; margin-bottom: 2mm; }
+  .address { width: 85mm; min-height: 32mm; }
+  .meta { width: 70mm; }
+  .meta table td { padding: 0.6mm 0; }
+  .meta table td:first-child { color: var(--muted); padding-right: 4mm; }
+  .top { display: flex; justify-content: space-between; margin-bottom: 10mm; }
+  h1 { font-size: 14pt; margin: 0 0 4mm; }
+  .intro, .closing { margin: 4mm 0; white-space: pre-line; }
+  table.lines { width: 100%; border-collapse: collapse; margin: 4mm 0; }
+  table.lines th { text-align: left; font-size: 8pt; color: var(--muted); border-bottom: 1pt solid var(--accent); padding: 1.5mm 1mm; }
+  table.lines td { border-bottom: 0.5pt solid var(--rule); padding: 1.5mm 1mm; vertical-align: top; }
+  table.lines .num { text-align: right; white-space: nowrap; }
+  .desc { color: var(--muted); font-size: 8.5pt; white-space: pre-line; }
+  table.totals { margin-left: auto; width: 80mm; border-collapse: collapse; }
+  table.totals td { padding: 1mm; }
+  table.totals td.num { text-align: right; white-space: nowrap; }
+  table.totals .muted { color: var(--muted); font-size: 7.5pt; }
+  table.totals tr.grand td { border-top: 1pt solid var(--accent); font-weight: bold; font-size: 10.5pt; }
+  .note { margin-top: 5mm; padding: 2.5mm 3mm; background: #f3f5f7; border-left: 2pt solid var(--accent); }
+  .payment { display: flex; gap: 6mm; align-items: center; margin-top: 6mm; }
+  .payment img { width: 28mm; height: 28mm; }
+  footer { position: running(footer); width: 170mm; font-size: 7pt; color: var(--muted); border-top: 0.5pt solid var(--rule); padding-top: 2mm; display: flex; justify-content: space-between; gap: 4mm; }
+  footer div { flex: 1; }
+  footer { flex-wrap: wrap; }
+  footer .footer-note { flex-basis: 100%; margin-top: 1.5mm; }
+  .logo { max-width: 60mm; max-height: 22mm; }
+  .layout-modern header { background: var(--accent); color: #ffffff; margin: -20mm -18mm 12mm -22mm; padding: 9mm 18mm 7mm 22mm; align-items: center; }
+  .layout-modern .brand { color: #ffffff; }
+  .layout-modern .logo { max-height: 16mm; background: #ffffff; padding: 1.5mm; }
+  .layout-modern h1 { color: var(--accent); }
+  .layout-modern table.lines th { background: var(--accent); color: #ffffff; border-bottom: none; }
+  .draft-mark { position: fixed; top: 105mm; left: 0; width: 170mm; text-align: center; transform: rotate(-30deg);
+                font-size: 34pt; font-weight: bold; color: rgba(164, 38, 44, 0.18); }
+</style>
+</head>
+<body class="layout-{{ layout }}">
+<footer>
+  <div>{{ seller.name }}<br>{{ seller.street }}<br>{{ seller.postcode }} {{ seller.city }}</div>
+  <div>{% if seller.email %}{{ seller.email }}<br>{% endif %}{% if seller.phone %}{{ seller.phone }}{% endif %}</div>
+  <div>{% if seller.tax_number %}{{ t.tax_number }}: {{ seller.tax_number }}<br>{% endif %}{% if seller.vat_id %}{{ t.vat_id }}: {{ seller.vat_id }}{% endif %}</div>
+  <div>{% if seller.iban %}IBAN: {{ iban_formatted }}<br>{% endif %}{% if seller.bic %}BIC: {{ seller.bic }}{% endif %}</div>
+  {% if footer_text %}<div class="footer-note">{{ footer_text }}</div>{% endif %}
+</footer>
+
+<header>
+  {% if logo %}<img class="logo" src="{{ logo }}" alt="{{ seller.name }}">{% if layout == "modern" %}<div class="brand">{{ seller.name }}</div>{% endif %}{% else %}<div class="brand">{{ seller.name }}</div>{% endif %}
+</header>
+
+<div class="top">
+  <div class="address">
+    <div class="sender-line">{{ seller.name }} · {{ seller.street }} · {{ seller.postcode }} {{ seller.city }}</div>
+    <div>{{ buyer.name }}<br>{{ buyer.street }}<br>{{ buyer.postcode }} {{ buyer.city }}{% if buyer.country != "DE" %}<br>{{ buyer.country }}{% endif %}</div>
+  </div>
+  <div class="meta">
+    <table>
+      <tr><td>{{ t.dunning_number }}</td><td>{{ notice.number }}</td></tr>
+      <tr><td>{{ t.date }}</td><td>{{ issued_on }}</td></tr>
+      {% if buyer.number %}<tr><td>{{ t.customer_number }}</td><td>{{ buyer.number }}</td></tr>{% endif %}
+    </table>
+  </div>
+</div>
+
+<h1>{{ notice.title }}</h1>
+<p>{{ t.dunning_salutation }}</p>
+<p>{{ intro }}</p>
+{% if custom_text %}<div class="intro">{{ custom_text }}</div>{% endif %}
+
+<table class="totals" style="width: 100%">
+  <tr><td>{{ invoice_line }}</td><td class="num"></td></tr>
+  <tr><td>{{ t.dunning_open }}</td><td class="num">{{ open_amount }}</td></tr>
+  {% if fee %}<tr><td>{{ t.dunning_fee }}</td><td class="num">{{ fee }}</td></tr>{% endif %}
+  <tr class="grand"><td>{{ t.dunning_total }}</td><td class="num">{{ total }}</td></tr>
+</table>
+{% if previous %}<p class="desc">{{ previous }}</p>{% endif %}
+
+<div class="payment">
+  {% if girocode %}<img src="{{ girocode }}" alt="GiroCode">{% endif %}
+  <div>{{ pay_text }}{% if seller.iban %}<br>IBAN {{ iban_formatted }}{% if seller.bic %} · BIC {{ seller.bic }}{% endif %}<br>{{ t.payment_reference }}: {{ notice.invoice.number }}{% endif %}</div>
+</div>
+
+<p>{{ t.dunning_ignore }}</p>
+<p>{{ t.mail_regards }}<br>{{ seller.contact_name|default:seller.name }}</p>
+</body>
+</html>

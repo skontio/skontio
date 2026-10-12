@@ -21,6 +21,7 @@
     <h2>Offene Posten</h2>
     <p class="big">{{ open_total }} €</p>
     {% if overdue %}<p class="danger">{{ overdue|length }} überfällig</p>{% endif %}
+    {% if dunning_due %}<p><a class="button secondary" href="/mahnwesen/">{{ dunning_due }} Mahnung{{ dunning_due|pluralize:"en" }} fällig</a></p>{% endif %}
     <ul class="plain">
       {% for doc, amount in open_items %}
       <li><a href="/dokumente/{{ doc.pk }}/">{{ doc.number }}</a> · {{ doc.customer.name }} · {{ amount }} € {% if doc.due_date and doc.due_date < today %}<span class="badge danger">fällig {{ doc.due_date|date:"d.m." }}</span>{% endif %}</li>

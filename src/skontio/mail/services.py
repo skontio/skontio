@@ -76,7 +76,11 @@ def send_document(
     body: str,
     cc: list[str] | None = None,
     sent_by=None,
+    attachments: list[tuple[str, bytes, str]] | None = None,
+    activity_text: str = "",
 ) -> MailLog:
+    """Send a finalized document. ``attachments`` (name, content, mime) replace its own files – e.g. a
+    reminder letter plus the invoice PDF; ``activity_text`` replaces the customer-history entry."""
     if document.status != Document.Status.FINALIZED:
         raise MailError("Nur festgeschriebene Dokumente können versendet werden")
     if not smtp_configured():
@@ -88,12 +92,13 @@ def send_document(
         raise MailError("Der Betreff darf keine Zeilenumbrüche enthalten")
 
     renditions = {r.kind: r for r in document.renditions.select_related("blob")}
-    attachments = []
-    for kind, suffix in ATTACHMENT_ORDER:
-        rendition = renditions.get(kind)
-        if rendition is None or (kind == Rendition.Kind.PDF and Rendition.Kind.ZUGFERD_PDF in renditions):
-            continue
-        attachments.append((f"{document.number}{suffix}", load(rendition.blob), rendition.blob.mime))
+    if attachments is None:
+        attachments = []
+        for kind, suffix in ATTACHMENT_ORDER:
+            rendition = renditions.get(kind)
+            if rendition is None or (kind == Rendition.Kind.PDF and Rendition.Kind.ZUGFERD_PDF in renditions):
+                continue
+            attachments.append((f"{document.number}{suffix}", load(rendition.blob), rendition.blob.mime))
 
     sender_domain = settings.DEFAULT_FROM_EMAIL.rsplit("@", 1)[-1].strip(">") or None
     message_id = make_msgid(domain=sender_domain)
@@ -130,7 +135,8 @@ def send_document(
         log_activity(
             document.customer,
             kind=Activity.Kind.EMAIL,
-            text=f"{TITLES[Document.Type(document.doc_type)]} {document.number} an {', '.join(recipients)} gesendet",
+            text=activity_text
+            or f"{TITLES[Document.Type(document.doc_type)]} {document.number} an {', '.join(recipients)} gesendet",
             document=document,
             user=sent_by,
         )

@@ -1,0 +1,35 @@
+{% extends "web/base.html" %}
+{% block title %}Mahnwesen{% endblock %}
+{% block content %}
+<div class="heading"><h1>Mahnwesen</h1>{% if user.is_staff %}<a class="button secondary" href="/mahnwesen/stufen/">Mahnstufen</a>{% endif %}</div>
+<p>Skontio schlägt nur vor – jedes Schreiben erstellst und versendest du selbst. Mahngebühren stehen im Schreiben,
+   werden aber nicht als Forderung gebucht; Verzugszinsen berechnet Skontio nicht.</p>
+
+<h2>Jetzt fällig</h2>
+{% if due %}
+<div class="table-scroll"><table class="list">
+  <thead><tr><th>Rechnung</th><th class="hide-small">Kunde</th><th class="num">Offen</th><th>Überfällig</th><th>Nächste Stufe</th><th></th></tr></thead>
+  <tbody>{% for r in due %}
+    <tr><td><a href="/dokumente/{{ r.invoice.pk }}/">{{ r.invoice.number }}</a></td><td class="hide-small">{{ r.invoice.customer.name }}</td>
+      <td class="num">{{ r.open }} €</td><td>{{ r.days }} Tage{% if r.last %}<br><span class="muted">zuletzt {{ r.last.title }} {{ r.last.issued_on|date:"d.m." }}</span>{% endif %}</td>
+      <td>{{ r.next.name }}</td>
+      <td><form method="post" action="/mahnwesen/rechnung/{{ r.invoice.pk }}/">{% csrf_token %}<button type="submit" class="secondary">Erstellen</button></form></td></tr>
+  {% endfor %}</tbody>
+</table></div>
+{% else %}<p class="muted">Keine Mahnung fällig.</p>{% endif %}
+
+{% if waiting %}
+<h2>Überfällig, noch in der Wartezeit</h2>
+<ul class="plain">{% for r in waiting %}
+  <li><a href="/dokumente/{{ r.invoice.pk }}/">{{ r.invoice.number }}</a> · {{ r.invoice.customer.name }} · {{ r.open }} € ·
+    {% if r.next %}{{ r.next.name }} ab {{ r.due_on|date:"d.m.Y" }}{% else %}alle Stufen ausgeschöpft{% endif %}</li>
+{% endfor %}</ul>
+{% endif %}
+
+{% if recent %}
+<h2>Letzte Schreiben</h2>
+<ul class="plain">{% for n in recent %}
+  <li><a href="/mahnwesen/{{ n.pk }}/pdf/">{{ n.number }}</a> · {{ n.title }} zu <a href="/dokumente/{{ n.invoice.pk }}/">{{ n.invoice.number }}</a> · {{ n.issued_on|date:"d.m.Y" }}{% if n.sent_at %} · versendet{% else %} · <span class="badge">nicht versendet</span>{% endif %}</li>
+{% endfor %}</ul>
+{% endif %}
+{% endblock %}

@@ -1,6 +1,7 @@
 from django.urls import path
 
 from skontio.web import document_views as docs
+from skontio.web import dunning_views as dunning
 from skontio.web import expense_views as expenses
 from skontio.web import inbox_views as inbox
 from skontio.web import pwa, views
@@ -41,6 +42,11 @@ urlpatterns = [
     path("ausgaben/<int:pk>/stornieren/", expenses.expense_cancel, name="expense_cancel"),
     path("auswertungen/euer/", expenses.euer_report, name="euer_report"),
     path("auswertungen/euer.csv", expenses.euer_csv, name="euer_csv"),
+    path("mahnwesen/", dunning.dunning_overview, name="dunning_overview"),
+    path("mahnwesen/stufen/", dunning.dunning_levels, name="dunning_levels"),
+    path("mahnwesen/rechnung/<int:pk>/", dunning.dunning_create, name="dunning_create"),
+    path("mahnwesen/<int:pk>/pdf/", dunning.dunning_pdf, name="dunning_pdf"),
+    path("mahnwesen/<int:pk>/senden/", dunning.dunning_send, name="dunning_send"),
     path("", views.dashboard, name="dashboard"),
     path("einrichtung/", views.setup, name="setup"),
     path("kunden/", views.customer_list, name="customer_list"),

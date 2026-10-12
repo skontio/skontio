@@ -1,0 +1,14 @@
+{% extends "web/base.html" %}
+{% block title %}Mahnstufen{% endblock %}
+{% block content %}
+<div class="heading"><h1>Mahnstufen</h1><a class="button secondary" href="/mahnwesen/">Mahnwesen</a></div>
+<p class="muted">Tage: bei der ersten Stufe ab Fälligkeit der Rechnung, danach ab dem letzten Schreiben. Mahngebühren
+   sind erst ab Verzug zulässig – im Zweifel bei 0 € lassen.</p>
+<form method="post" class="form">
+  {% csrf_token %}
+  {% for form in level_forms %}
+  <section class="card"><h2>Stufe {{ forloop.counter }}</h2>{% include "web/_fields.html" %}</section>
+  {% endfor %}
+  <button type="submit">Speichern</button>
+</form>
+{% endblock %}
