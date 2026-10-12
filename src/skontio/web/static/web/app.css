@@ -65,7 +65,22 @@ table.list th { font-size: .85rem; color: var(--muted); }
 .num { text-align: right !important; white-space: nowrap; }
 .disclaimer { text-align: center; color: var(--muted); font-size: .85rem; padding: 24px var(--gap); }
 
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.totals-preview { margin: 12px 0 12px auto; border-collapse: collapse; min-width: 260px; }
+.totals-preview td { padding: 4px 8px; }
+.totals-preview tr.grand td { border-top: 2px solid var(--accent); font-weight: 700; }
+.actions { display: flex; flex-wrap: wrap; gap: var(--gap); align-items: flex-end; margin-top: 24px; }
+.filters { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: var(--gap); }
+.filters a { padding: 6px 10px; border-radius: var(--radius); text-decoration: none; }
+.filters a[aria-current="page"] { background: var(--surface); font-weight: 600; }
+details > summary { cursor: pointer; list-style-position: outside; }
+details > summary h2 { display: inline; }
+
 @media (max-width: 640px) {
   .hide-small { display: none; }
   .big { font-size: 1.35rem; }
+  .topbar { gap: 4px 12px; }
+  .topbar nav { order: 3; flex-basis: 100%; }
+  .logout { margin-left: auto; }
+  table.list th, table.list td { padding: 8px 6px; }
 }

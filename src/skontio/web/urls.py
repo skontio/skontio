@@ -1,8 +1,21 @@
 from django.urls import path
 
+from skontio.web import document_views as docs
 from skontio.web import views
 
 urlpatterns = [
+    path("dokumente/", docs.document_list, name="document_list"),
+    path("dokumente/neu/", docs.document_new, name="document_new"),
+    path("dokumente/<int:pk>/", docs.document_detail, name="document_detail"),
+    path("dokumente/<int:pk>/positionen/", docs.line_add, name="line_add"),
+    path("dokumente/<int:pk>/positionen/<int:line_pk>/entfernen/", docs.line_remove, name="line_remove"),
+    path("dokumente/<int:pk>/festschreiben/", docs.document_finalize, name="document_finalize"),
+    path("dokumente/<int:pk>/datei/<str:kind>/", docs.document_file, name="document_file"),
+    path("dokumente/<int:pk>/zahlung/", docs.document_payment, name="document_payment"),
+    path("dokumente/<int:pk>/stornieren/", docs.document_cancel, name="document_cancel"),
+    path("dokumente/<int:pk>/in-rechnung/", docs.document_convert, name="document_convert"),
+    path("dokumente/<int:pk>/pruefen/", docs.document_review, name="document_review"),
+    path("dokumente/<int:pk>/loeschen/", docs.document_delete, name="document_delete"),
     path("", views.dashboard, name="dashboard"),
     path("einrichtung/", views.setup, name="setup"),
     path("kunden/", views.customer_list, name="customer_list"),

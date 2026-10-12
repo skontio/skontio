@@ -1,0 +1,11 @@
+{% extends "web/base.html" %}
+{% block title %}Neues Dokument{% endblock %}
+{% block content %}
+<h1>Neues Dokument</h1>
+<form method="post" class="form">
+  {% csrf_token %}
+  {% include "web/_fields.html" %}
+  <p class="muted">Kunde fehlt? <a href="/kunden/neu/">Neuen Kunden anlegen</a></p>
+  <button type="submit">Entwurf anlegen</button>
+</form>
+{% endblock %}

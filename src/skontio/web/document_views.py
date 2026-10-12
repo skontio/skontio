@@ -1,0 +1,328 @@
+"""Document editor and actions. All business rules live in the services; views only translate."""
+
+from __future__ import annotations
+
+import io
+from decimal import Decimal
+
+from django.http import FileResponse, Http404, HttpResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
+from django.views.decorators.http import require_POST
+
+from skontio.archive.services import load
+from skontio.documents.models import Document, DocumentLine, Rendition
+from skontio.documents.renditions import UNIT_LABELS, de_amount, de_percent, de_quantity
+from skontio.documents.services import (
+    DocumentError,
+    DocumentLocked,
+    add_line,
+    add_line_from_item,
+    cancel_invoice,
+    confirm_ai_review,
+    convert_quote_to_invoice,
+    create_draft,
+    finalize,
+    preview_totals,
+)
+from skontio.payments.services import PaymentError, open_amount, payment_status, record_payment
+from skontio.tax.engine import TaxTreatment
+from skontio.web.forms import CancelForm, ConvertForm, HeaderForm, LineForm, NewDocumentForm, PaymentForm
+from skontio.web.support import company_view, is_htmx
+
+Type = Document.Type
+TYPE_FILTERS = {"invoice", "quote", "order_confirmation", "cancellation"}
+FILE_SUFFIX = {
+    Rendition.Kind.PDF: ".pdf",
+    Rendition.Kind.ZUGFERD_PDF: ".pdf",
+    Rendition.Kind.XRECHNUNG_XML: "-xrechnung.xml",
+}
+PAYMENT_LABELS = {"open": "offen", "partial": "teilweise bezahlt", "paid": "bezahlt"}
+HEADER_FIELDS = [
+    "issue_date",
+    "service_date",
+    "service_period_start",
+    "service_period_end",
+    "due_date",
+    "valid_until",
+    "document_discount_percent",
+    "intro_text",
+    "closing_text",
+]
+
+
+def _document(request, pk: int) -> Document:
+    return get_object_or_404(Document.objects.select_related("customer", "parent"), pk=pk, company=request.company)
+
+
+def _locked() -> HttpResponse:
+    return HttpResponse("Dieses Dokument ist festgeschrieben und kann nicht mehr geändert werden.", status=409)
+
+
+def _lines_context(request, doc: Document, line_form: LineForm | None = None, error: str = "") -> dict:
+    lines = list(doc.lines.all())
+    totals, totals_error = None, ""
+    if lines:
+        try:
+            totals = preview_totals(doc)
+        except DocumentError as exc:
+            totals_error = str(exc)
+    rows = [
+        {
+            "line": line,
+            "quantity": de_quantity(line.quantity),
+            "unit": UNIT_LABELS.get(line.unit_code, line.unit_code),
+            "unit_price": de_amount(line.unit_price),
+            "discount": de_percent(line.discount_percent) if line.discount_percent else "",
+            "net": de_amount(totals.lines[index].net_amount) if totals else "",
+        }
+        for index, line in enumerate(lines)
+    ]
+    breakdown = (
+        [{"rate": de_percent(b.rate), "tax": de_amount(b.tax), "reason": b.exemption_reason} for b in totals.breakdown]
+        if totals
+        else []
+    )
+    fmt = (
+        {
+            "line_total": de_amount(totals.line_total),
+            "allowance_total": de_amount(totals.allowance_total),
+            "tax_total": de_amount(totals.tax_total),
+            "grand_total": de_amount(totals.grand_total),
+        }
+        if totals
+        else {}
+    )
+    return {
+        "doc": doc,
+        "rows": rows,
+        "totals": totals,
+        "fmt": fmt,
+        "breakdown": breakdown,
+        "notes": list(dict.fromkeys(b["reason"] for b in breakdown if b["reason"])),
+        "totals_error": totals_error,
+        "line_form": line_form or LineForm(company=request.company, initial={"quantity": 1}),
+        "line_error": error,
+    }
+
+
+def _finalized_context(doc: Document, **extra) -> dict:
+    context = {
+        "doc": doc,
+        "renditions": list(doc.renditions.all()),
+        "lines": [
+            {
+                "line": line,
+                "quantity": de_quantity(line.quantity),
+                "unit": UNIT_LABELS.get(line.unit_code, line.unit_code),
+                "unit_price": de_amount(line.unit_price),
+                "net": de_amount(line.net_amount),
+                "rate": de_percent(line.tax_rate),
+            }
+            for line in doc.lines.all()
+        ],
+        "gross": de_amount(doc.gross_total),
+        "net": de_amount(doc.net_total),
+        "tax": de_amount(doc.tax_total),
+        "children": doc.children.all(),
+    }
+    if doc.doc_type == Type.INVOICE:
+        context |= {
+            "cancelled": doc.children.filter(doc_type=Type.CANCELLATION).exists(),
+            "open_amount": de_amount(open_amount(doc)),
+            "payment_status": PAYMENT_LABELS[payment_status(doc)],
+            "payments": doc.payments.all(),
+            "payment_form": PaymentForm(initial={"amount": open_amount(doc)}),
+            "cancel_form": CancelForm(),
+        }
+    if doc.doc_type == Type.QUOTE:
+        context["convert_form"] = ConvertForm()
+    return context | extra
+
+
+@company_view
+def document_list(request):
+    documents = Document.objects.filter(company=request.company).select_related("customer")
+    doc_type = request.GET.get("typ", "")
+    if doc_type in TYPE_FILTERS:
+        documents = documents.filter(doc_type=doc_type)
+    return render(request, "web/documents/list.html", {"documents": documents[:200], "typ": doc_type})
+
+
+@company_view
+def document_new(request):
+    customer = request.GET.get("kunde", "")
+    initial = {"doc_type": request.GET.get("typ", "invoice"), "customer": int(customer) if customer.isdigit() else None}
+    form = NewDocumentForm(request.POST or None, company=request.company, initial=initial)
+    if request.method == "POST" and form.is_valid():
+        data = form.cleaned_data
+        doc = create_draft(
+            request.company,
+            Type(data["doc_type"]),
+            data["customer"],
+            issue_date=data["issue_date"],
+            service_date=data["service_date"],
+            created_by=request.user,
+        )
+        return redirect(f"/dokumente/{doc.pk}/")
+    return render(request, "web/documents/new.html", {"form": form})
+
+
+@company_view
+def document_detail(request, pk: int):
+    doc = _document(request, pk)
+    if doc.status != Document.Status.DRAFT:
+        if request.method == "POST":
+            return _locked()
+        return render(request, "web/documents/finalized.html", _finalized_context(doc))
+    header = HeaderForm(request.POST or None, initial={f: getattr(doc, f) for f in HEADER_FIELDS})
+    if request.method == "POST" and header.is_valid():
+        data = header.cleaned_data
+        for field in HEADER_FIELDS:
+            setattr(doc, field, data[field])
+        doc.document_discount_percent = data["document_discount_percent"] or Decimal("0")
+        doc.save()
+        return redirect(f"/dokumente/{doc.pk}/")
+    return render(request, "web/documents/draft.html", {"header": header, **_lines_context(request, doc)})
+
+
+@require_POST
+@company_view
+def line_add(request, pk: int):
+    doc = _document(request, pk)
+    if doc.status != Document.Status.DRAFT:
+        return _locked()
+    form = LineForm(request.POST, company=request.company)
+    error = ""
+    if form.is_valid():
+        data = form.cleaned_data
+        discount = data["discount_percent"] or Decimal("0")
+        try:
+            if data["item"]:
+                add_line_from_item(doc, data["item"], quantity=data["quantity"], discount_percent=discount)
+            else:
+                add_line(
+                    doc,
+                    text=data["text"],
+                    quantity=data["quantity"],
+                    unit_code=data["unit_code"].code if data["unit_code"] else "C62",
+                    unit_price=data["unit_price"],
+                    discount_percent=discount,
+                    tax_treatment=TaxTreatment(data["tax_treatment"] or TaxTreatment.STANDARD),
+                )
+            form = None
+        except DocumentError as exc:
+            error = str(exc)
+    if form is None and not is_htmx(request):
+        return redirect(f"/dokumente/{doc.pk}/")
+    return render(request, "web/documents/_lines.html", _lines_context(request, doc, form, error))
+
+
+@require_POST
+@company_view
+def line_remove(request, pk: int, line_pk: int):
+    doc = _document(request, pk)
+    if doc.status != Document.Status.DRAFT:
+        return _locked()
+    get_object_or_404(DocumentLine, pk=line_pk, document=doc).delete()
+    if is_htmx(request):
+        return render(request, "web/documents/_lines.html", _lines_context(request, doc))
+    return redirect(f"/dokumente/{doc.pk}/")
+
+
+@require_POST
+@company_view
+def document_finalize(request, pk: int):
+    doc = _document(request, pk)
+    try:
+        finalize(doc)
+    except DocumentLocked:
+        return _locked()
+    except DocumentError as exc:
+        doc.refresh_from_db()
+        header = HeaderForm(initial={f: getattr(doc, f) for f in HEADER_FIELDS})
+        context = {"header": header, "finalize_error": str(exc), **_lines_context(request, doc)}
+        return render(request, "web/documents/draft.html", context)
+    return redirect(f"/dokumente/{doc.pk}/")
+
+
+@company_view
+def document_file(request, pk: int, kind: str):
+    doc = _document(request, pk)
+    if kind not in Rendition.Kind.values:
+        raise Http404
+    rendition = get_object_or_404(Rendition, document=doc, kind=kind)
+    filename = f"{doc.number}{FILE_SUFFIX[Rendition.Kind(kind)]}"
+    return FileResponse(
+        io.BytesIO(load(rendition.blob)), as_attachment=True, filename=filename, content_type=rendition.blob.mime
+    )
+
+
+@require_POST
+@company_view
+def document_payment(request, pk: int):
+    doc = _document(request, pk)
+    form = PaymentForm(request.POST)
+    if form.is_valid():
+        try:
+            record_payment(doc, created_by=request.user, **form.cleaned_data)
+            return redirect(f"/dokumente/{doc.pk}/")
+        except PaymentError as exc:
+            form.add_error(None, str(exc))
+    return render(request, "web/documents/finalized.html", _finalized_context(doc, payment_form=form))
+
+
+@require_POST
+@company_view
+def document_cancel(request, pk: int):
+    doc = _document(request, pk)
+    form = CancelForm(request.POST)
+    if form.is_valid():
+        try:
+            storno = cancel_invoice(
+                doc, issue_date=timezone.localdate(), reason=form.cleaned_data["reason"], created_by=request.user
+            )
+            return redirect(f"/dokumente/{storno.pk}/")
+        except DocumentError as exc:
+            form.add_error(None, str(exc))
+    return render(request, "web/documents/finalized.html", _finalized_context(doc, cancel_form=form))
+
+
+@require_POST
+@company_view
+def document_convert(request, pk: int):
+    doc = _document(request, pk)
+    form = ConvertForm(request.POST)
+    if form.is_valid():
+        try:
+            invoice = convert_quote_to_invoice(
+                doc,
+                issue_date=timezone.localdate(),
+                service_date=form.cleaned_data["service_date"],
+                created_by=request.user,
+            )
+            return redirect(f"/dokumente/{invoice.pk}/")
+        except DocumentError as exc:
+            form.add_error(None, str(exc))
+    return render(request, "web/documents/finalized.html", _finalized_context(doc, convert_form=form))
+
+
+@require_POST
+@company_view
+def document_review(request, pk: int):
+    doc = _document(request, pk)
+    try:
+        confirm_ai_review(doc, request.user)
+    except DocumentLocked:
+        return _locked()
+    return redirect(f"/dokumente/{doc.pk}/")
+
+
+@require_POST
+@company_view
+def document_delete(request, pk: int):
+    doc = _document(request, pk)
+    if doc.status != Document.Status.DRAFT:
+        return _locked()
+    doc.delete()
+    return redirect("/dokumente/")

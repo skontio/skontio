@@ -1,0 +1,31 @@
+{% extends "web/base.html" %}
+{% block title %}Dokumente{% endblock %}
+{% block content %}
+<div class="heading">
+  <h1>Dokumente</h1>
+  <p><a class="button" href="/dokumente/neu/?typ=invoice">Neue Rechnung</a> <a class="button secondary" href="/dokumente/neu/?typ=quote">Neues Angebot</a></p>
+</div>
+<nav class="filters" aria-label="Filter">
+  <a href="/dokumente/" {% if not typ %}aria-current="page"{% endif %}>Alle</a>
+  <a href="?typ=invoice" {% if typ == "invoice" %}aria-current="page"{% endif %}>Rechnungen</a>
+  <a href="?typ=quote" {% if typ == "quote" %}aria-current="page"{% endif %}>Angebote</a>
+  <a href="?typ=order_confirmation" {% if typ == "order_confirmation" %}aria-current="page"{% endif %}>Auftragsbestätigungen</a>
+  <a href="?typ=cancellation" {% if typ == "cancellation" %}aria-current="page"{% endif %}>Stornos</a>
+</nav>
+<div class="table-scroll"><table class="list">
+  <thead><tr><th>Nummer</th><th>Art</th><th>Kunde</th><th class="hide-small">Datum</th><th class="num">Betrag</th></tr></thead>
+  <tbody>
+  {% for doc in documents %}
+    <tr>
+      <td><a href="/dokumente/{{ doc.pk }}/">{{ doc }}</a>{% if doc.status == "draft" %} <span class="badge">Entwurf</span>{% endif %}{% if doc.ai_review_required and not doc.ai_reviewed_at %} <span class="badge">KI</span>{% endif %}</td>
+      <td>{{ doc.get_doc_type_display }}</td>
+      <td>{{ doc.customer.name|default:"–" }}</td>
+      <td class="hide-small">{{ doc.issue_date|date:"d.m.Y" }}</td>
+      <td class="num">{% if doc.gross_total is not None %}{{ doc.gross_total|floatformat:"2g" }} €{% endif %}</td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="5" class="muted">Noch keine Dokumente.</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% endblock %}

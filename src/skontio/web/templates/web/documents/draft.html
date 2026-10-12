@@ -1,0 +1,37 @@
+{% extends "web/base.html" %}
+{% block title %}{{ doc.get_doc_type_display }} (Entwurf){% endblock %}
+{% block content %}
+<div class="heading">
+  <h1>{{ doc.get_doc_type_display }} · Entwurf</h1>
+  <p class="muted">{{ doc.customer.number }} {{ doc.customer.name }}</p>
+</div>
+
+{% if doc.ai_review_required and not doc.ai_reviewed_at %}
+<div class="warn" role="status">
+  <strong>KI-Entwurf</strong> – angelegt über {{ doc.get_origin_display }}. Bitte Positionen, Beträge und Daten prüfen.
+  <form method="post" action="/dokumente/{{ doc.pk }}/pruefen/">{% csrf_token %}<button type="submit" class="secondary">Geprüft</button></form>
+</div>
+{% endif %}
+{% if finalize_error %}<p class="danger" role="alert">Festschreiben nicht möglich: {{ finalize_error }}</p>{% endif %}
+
+<details {% if not rows or finalize_error %}open{% endif %}>
+  <summary><h2>Kopfdaten</h2></summary>
+  <form method="post" class="form">
+    {% csrf_token %}
+    {% with form=header %}{% include "web/_fields.html" %}{% endwith %}
+    <button type="submit" class="secondary">Kopfdaten speichern</button>
+  </form>
+</details>
+
+<h2>Positionen</h2>
+{% include "web/documents/_lines.html" %}
+
+<div class="actions">
+  <form method="post" action="/dokumente/{{ doc.pk }}/festschreiben/">
+    {% csrf_token %}
+    <p class="muted">Nach dem Festschreiben erhält das Dokument seine Nummer und kann nicht mehr geändert werden. Korrekturen sind dann nur noch per Storno möglich.</p>
+    <button type="submit">Festschreiben</button>
+  </form>
+  <form method="post" action="/dokumente/{{ doc.pk }}/loeschen/">{% csrf_token %}<button type="submit" class="danger">Entwurf löschen</button></form>
+</div>
+{% endblock %}

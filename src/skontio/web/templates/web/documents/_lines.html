@@ -1,0 +1,39 @@
+<div id="lines">
+<div class="table-scroll"><table class="list">
+  <thead><tr><th>Pos.</th><th>Bezeichnung</th><th class="num">Menge</th><th class="num hide-small">Einzelpreis</th><th class="num hide-small">Rabatt</th><th class="num">Betrag</th><th></th></tr></thead>
+  <tbody>
+  {% for row in rows %}
+    <tr>
+      <td>{{ row.line.position }}</td>
+      <td>{{ row.line.text }}{% if row.line.description %}<br><small class="muted">{{ row.line.description }}</small>{% endif %}</td>
+      <td class="num">{{ row.quantity }} {{ row.unit }}</td>
+      <td class="num hide-small">{{ row.unit_price }}</td>
+      <td class="num hide-small">{{ row.discount }}</td>
+      <td class="num">{{ row.net }}</td>
+      <td><button type="button" class="link" hx-post="/dokumente/{{ doc.pk }}/positionen/{{ row.line.pk }}/entfernen/" hx-target="#lines" hx-swap="outerHTML" aria-label="Position {{ row.line.position }} entfernen">Entfernen</button></td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="7" class="muted">Noch keine Positionen.</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+
+{% if totals_error %}<p class="danger">{{ totals_error }}</p>{% endif %}
+{% if totals %}
+<table class="totals-preview">
+  <tr><td>Summe Positionen</td><td class="num">{{ fmt.line_total }} €</td></tr>
+  {% if totals.allowance_total %}<tr><td>Rabatt</td><td class="num">−{{ fmt.allowance_total }} €</td></tr>{% endif %}
+  {% for b in breakdown %}{% if b.tax != "0,00" %}<tr><td>USt {{ b.rate }}</td><td class="num">{{ b.tax }} €</td></tr>{% endif %}{% endfor %}
+  <tr class="grand"><td>Gesamt</td><td class="num">{{ fmt.grand_total }} €</td></tr>
+</table>
+{% for note in notes %}<p class="note">{{ note }}</p>{% endfor %}
+{% endif %}
+
+<form class="line-form" hx-post="/dokumente/{{ doc.pk }}/positionen/" hx-target="#lines" hx-swap="outerHTML" method="post" action="/dokumente/{{ doc.pk }}/positionen/">
+  {% csrf_token %}
+  <h2>Position hinzufügen</h2>
+  {% if line_error %}<p class="error" role="alert">{{ line_error }}</p>{% endif %}
+  {% with form=line_form %}{% include "web/_fields.html" %}{% endwith %}
+  <button type="submit">Hinzufügen</button>
+</form>
+</div>

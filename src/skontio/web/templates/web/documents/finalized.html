@@ -1,0 +1,71 @@
+{% extends "web/base.html" %}
+{% block title %}{{ doc.get_doc_type_display }} {{ doc.number }}{% endblock %}
+{% block content %}
+<div class="heading">
+  <h1>{{ doc.get_doc_type_display }} {{ doc.number }}</h1>
+  <p>{% for r in renditions %}<a class="button secondary" href="/dokumente/{{ doc.pk }}/datei/{{ r.kind }}/">{{ r.get_kind_display }}</a> {% endfor %}</p>
+</div>
+<p class="muted">
+  {{ doc.customer.number }} {{ doc.customer.name }} · Datum {{ doc.issue_date|date:"d.m.Y" }}
+  {% if doc.service_date %} · Leistung {{ doc.service_date|date:"d.m.Y" }}{% endif %}
+  {% if doc.service_period_start %} · Leistung {{ doc.service_period_start|date:"d.m.Y" }}–{{ doc.service_period_end|date:"d.m.Y" }}{% endif %}
+  · festgeschrieben am {{ doc.locked_at|date:"d.m.Y H:i" }}
+</p>
+{% if doc.parent %}<p>Bezug: <a href="/dokumente/{{ doc.parent.pk }}/">{{ doc.parent.get_doc_type_display }} {{ doc.parent.number }}</a>{% if doc.cancellation_reason %} – {{ doc.cancellation_reason }}{% endif %}</p>{% endif %}
+{% if cancelled %}<p class="danger">Diese Rechnung wurde storniert.</p>{% endif %}
+
+<div class="table-scroll"><table class="list">
+  <thead><tr><th>Pos.</th><th>Bezeichnung</th><th class="num">Menge</th><th class="num hide-small">Einzelpreis</th><th class="num">Betrag</th></tr></thead>
+  <tbody>
+  {% for row in lines %}
+    <tr><td>{{ row.line.position }}</td><td>{{ row.line.text }}</td><td class="num">{{ row.quantity }} {{ row.unit }}</td><td class="num hide-small">{{ row.unit_price }}</td><td class="num">{{ row.net }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+<table class="totals-preview">
+  <tr><td>Netto</td><td class="num">{{ net }} €</td></tr>
+  <tr><td>Umsatzsteuer</td><td class="num">{{ tax }} €</td></tr>
+  <tr class="grand"><td>Gesamt</td><td class="num">{{ gross }} €</td></tr>
+</table>
+{% if doc.tax_note %}<p class="note">{{ doc.tax_note|linebreaksbr }}</p>{% endif %}
+
+{% if payment_form and not cancelled %}
+<section class="card">
+  <h2>Zahlungen · {{ payment_status }}</h2>
+  <p>Offen: <strong>{{ open_amount }} €</strong></p>
+  <ul class="plain">{% for p in payments %}<li>{{ p.received_on|date:"d.m.Y" }} · {{ p.amount|floatformat:"2g" }} € · {{ p.get_method_display }}{% if p.note %} · {{ p.note }}{% endif %}</li>{% endfor %}</ul>
+  {% if open_amount != "0,00" %}
+  <form method="post" action="/dokumente/{{ doc.pk }}/zahlung/" class="form">
+    {% csrf_token %}
+    {% with form=payment_form %}{% include "web/_fields.html" %}{% endwith %}
+    <button type="submit">Zahlung erfassen</button>
+  </form>
+  {% endif %}
+</section>
+<details class="card">
+  <summary><h2>Stornieren</h2></summary>
+  <p class="muted">Erzeugt eine Stornorechnung mit denselben Beträgen. Die Rechnung selbst bleibt unverändert erhalten.</p>
+  <form method="post" action="/dokumente/{{ doc.pk }}/stornieren/" class="form">
+    {% csrf_token %}
+    {% with form=cancel_form %}{% include "web/_fields.html" %}{% endwith %}
+    <button type="submit" class="danger">Stornorechnung erstellen</button>
+  </form>
+</details>
+{% endif %}
+
+{% if convert_form %}
+<section class="card">
+  <h2>In Rechnung übernehmen</h2>
+  <form method="post" action="/dokumente/{{ doc.pk }}/in-rechnung/" class="form">
+    {% csrf_token %}
+    {% with form=convert_form %}{% include "web/_fields.html" %}{% endwith %}
+    <button type="submit">Rechnungsentwurf erstellen</button>
+  </form>
+</section>
+{% endif %}
+
+{% if children %}
+<h2>Folgedokumente</h2>
+<ul class="plain">{% for child in children %}<li><a href="/dokumente/{{ child.pk }}/">{{ child.get_doc_type_display }} {{ child }}</a></li>{% endfor %}</ul>
+{% endif %}
+{% endblock %}
