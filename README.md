@@ -30,7 +30,7 @@ Der vollständige Plan steht in [`docs/plan.md`](docs/plan.md), Architekturentsc
 | Zahlungen, offene Posten, GiroCode, Versand per SMTP mit Protokoll | ✅ |
 | Login über OIDC (Pocket ID), Notfall-Login nur aus dem LAN | ✅ |
 | Oberfläche (Mobile-first), installierbare PWA | ✅ |
-| Backup/Restore mit Prüfsummen, Sicherung vor Updates | ✅ |
+| Backup/Restore (SQLite und Postgres) mit Prüfsummen, atomar, Sicherung vor Updates | ✅ |
 | MCP-Tools, Assistent, EÜR/USt-VA, Bankabgleich | Phase 1b–3 |
 
 Betrieb auf TrueNAS: [`docs/betrieb.md`](docs/betrieb.md).
@@ -42,7 +42,7 @@ uv sync
 uv run pytest                      # Tests (SQLite)
 tools/validators/fetch.sh          # offizielle E-Rechnungs-Validatoren laden (Java nötig)
 uv run pytest -m einvoice          # E-Rechnung gegen KoSIT und Mustang prüfen
-SKONTIO_DATABASE_URL=postgres://user:pw@localhost:5432/skontio uv run pytest   # Postgres
+SKONTIO_DATABASE_URL=postgres://user:pw@localhost:5432/skontio uv run pytest   # Postgres (Backup-Tests brauchen postgresql-client ≥ Server)
 ```
 
 ## Betrieb
@@ -51,6 +51,8 @@ Docker-Image `ghcr.io/skontio/skontio`. Vorlagen für TrueNAS und Caddy liegen i
 
 ```bash
 skontio doctor oidc                # prüft die Verbindung zum Identity Provider
+skontio doctor smtp                # prüft die SMTP-Anmeldung
+skontio doctor backup              # prüft Backup-Verzeichnis und pg_dump
 ```
 
 ## Lizenz

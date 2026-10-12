@@ -25,6 +25,8 @@ services:
       SKONTIO_OIDC_CLIENT_ID: CHANGE_ME
       SKONTIO_OIDC_CLIENT_SECRET_FILE: /secrets/oidc_client_secret
       SKONTIO_TIME_ZONE: Europe/Berlin
+      # optional Postgres instead of SQLite (backups via the pg_dump 18 shipped in the image):
+      # SKONTIO_DATABASE_URL: postgres://skontio:PASSWORT@NAS_LAN_IP:5432/skontio
       SKONTIO_WEB_WORKERS: "2"
       SKONTIO_BACKUP_KEEP: "14"
       # outgoing mail (your own SMTP server)

@@ -27,6 +27,14 @@ class MailError(ValueError):
     pass
 
 
+def smtp_configured() -> bool:
+    """False when the SMTP backend is selected but no server was entered (SKONTIO_SMTP_HOST)."""
+    config = settings.MAILERS.get("default", {})
+    if config.get("BACKEND") != settings.SMTP_BACKEND:
+        return True
+    return bool(config.get("OPTIONS", {}).get("host"))
+
+
 def default_message(document: Document) -> tuple[str, str]:
     title = TITLES[Document.Type(document.doc_type)]
     company = document.company.name
@@ -67,6 +75,8 @@ def send_document(
 ) -> MailLog:
     if document.status != Document.Status.FINALIZED:
         raise MailError("Nur festgeschriebene Dokumente können versendet werden")
+    if not smtp_configured():
+        raise MailError("Kein SMTP-Server eingerichtet (SKONTIO_SMTP_HOST, siehe docs/betrieb.md)")
     recipients, copies = _clean_addresses(to), _clean_addresses(cc or [])
     if not recipients:
         raise MailError("Mindestens ein Empfänger ist nötig")
@@ -105,7 +115,7 @@ def send_document(
         sent_by=sent_by,
     )
     try:
-        message.send(fail_silently=False)
+        message.send()
     except (OSError, smtplib.SMTPException) as exc:
         log.status, log.error = MailLog.Status.FAILED, str(exc)[:2000]
         log.save()

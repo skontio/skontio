@@ -14,10 +14,17 @@ COPY src ./src
 RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev
 
 FROM python:3.13-slim-trixie AS runtime
+# pg_dump/pg_restore/psql for Postgres backups from the official PGDG repository. pg_dump must be at
+# least as new as the server; it dumps every older server version, so ship the newest major.
+ARG PG_CLIENT_MAJOR=18
 # WeasyPrint runtime libraries and fonts embedded in PDF/A output
 RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates postgresql-common \
+ && /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y \
  && apt-get install -y --no-install-recommends \
       libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 fonts-dejavu-core fonts-liberation2 tini \
+      postgresql-client-${PG_CLIENT_MAJOR} \
+ && apt-get purge -y --auto-remove postgresql-common \
  && rm -rf /var/lib/apt/lists/*
 
 ENV PATH=/app/.venv/bin:$PATH \
@@ -27,6 +34,7 @@ ENV PATH=/app/.venv/bin:$PATH \
     SKONTIO_ARCHIVE_DIR=/archive \
     SKONTIO_BACKUP_DIR=/backups \
     SKONTIO_STATIC_ROOT=/app/static \
+    SKONTIO_PG_BIN_DIR=/usr/lib/postgresql/${PG_CLIENT_MAJOR}/bin \
     XDG_CACHE_HOME=/tmp
 
 WORKDIR /app

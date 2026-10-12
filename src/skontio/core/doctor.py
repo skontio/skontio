@@ -7,8 +7,12 @@ NAT loopback (hairpin) problems and clock drift between NAS and identity provide
 from __future__ import annotations
 
 import datetime as dt
+import os
+import smtplib
+import ssl
 from dataclasses import dataclass
 from email.utils import parsedate_to_datetime
+from pathlib import Path
 
 import httpx
 
@@ -89,4 +93,62 @@ def check_oidc(issuer: str, *, http_client: httpx.Client, now: dt.datetime | Non
                 "NTP auf NAS und Provider-Host aktivieren; Tokens werden sonst als ungültig abgelehnt.",
             )
         )
+    return checks
+
+
+def check_smtp(mailer, *, host: str) -> list[Check]:
+    """Connect and log in with the configured mailer, without sending anything."""
+    if not host:
+        return [
+            Check("server", False, "SKONTIO_SMTP_HOST ist nicht gesetzt", "SMTP-Daten in der Compose-Datei eintragen.")
+        ]
+    try:
+        mailer.open()
+    except smtplib.SMTPAuthenticationError as exc:
+        return [
+            Check(
+                "login", False, f"Anmeldung abgelehnt: {exc.smtp_code}", "SKONTIO_SMTP_USER und smtp_password prüfen."
+            )
+        ]
+    except ssl.SSLError as exc:
+        return [
+            Check(
+                "tls",
+                False,
+                f"TLS fehlgeschlagen: {exc}",
+                "Port 587 nutzt meist starttls, Port 465 ssl (SKONTIO_SMTP_SECURITY).",
+            )
+        ]
+    except (OSError, smtplib.SMTPException) as exc:
+        return [
+            Check(
+                "server",
+                False,
+                f"{host} nicht erreichbar: {exc}",
+                "Host, Port und ausgehende Firewall-Regeln des NAS prüfen.",
+            )
+        ]
+    else:
+        mailer.close()
+    return [Check("server", True, f"{host} erreichbar, Anmeldung erfolgreich")]
+
+
+def check_backup(backup_dir: Path, *, vendor: str, pg_versions=None) -> list[Check]:
+    """``pg_versions`` returns (pg_dump major, server major) and raises on problems (Postgres only)."""
+    writable = Path(backup_dir).is_dir() and os.access(backup_dir, os.W_OK)
+    checks = [
+        Check(
+            "verzeichnis",
+            writable,
+            f"{backup_dir} {'beschreibbar' if writable else 'fehlt oder ist nicht beschreibbar'}",
+            "Dataset für Backups anlegen und UID 568 Schreibrechte geben.",
+        )
+    ]
+    if vendor == "postgresql":
+        try:
+            client, server = pg_versions()
+        except Exception as exc:  # noqa: BLE001 - report any failure as a check result
+            checks.append(Check("pg_dump", False, str(exc), "SKONTIO_PG_BIN_DIR und Datenbankverbindung prüfen."))
+        else:
+            checks.append(Check("pg_dump", True, f"pg_dump {client} für Postgres-Server {server}"))
     return checks

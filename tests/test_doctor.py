@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import datetime as dt
+import smtplib
+import ssl
 from email.utils import format_datetime
 
 import httpx
 import pytest
 
-from skontio.core.doctor import check_oidc
+from skontio.core.doctor import check_backup, check_oidc, check_smtp
 
 ISSUER = "https://id.example.org"
 NOW = dt.datetime(2026, 10, 11, 18, 0, tzinfo=dt.UTC)
@@ -77,3 +79,55 @@ def test_missing_groups_claim_is_reported():
 def test_clock_skew(skew, ok):
     client = client_for(date=NOW + dt.timedelta(seconds=skew))
     assert by_name(check_oidc(ISSUER, http_client=client, now=NOW))["clock"].ok is ok
+
+
+class FakeMailer:
+    def __init__(self, error=None):
+        self.error, self.closed = error, False
+
+    def open(self):
+        if self.error:
+            raise self.error
+
+    def close(self):
+        self.closed = True
+
+
+def test_smtp_login_ok_closes_connection():
+    mailer = FakeMailer()
+    assert [c.ok for c in check_smtp(mailer, host="smtp.example.org")] == [True]
+    assert mailer.closed
+
+
+@pytest.mark.parametrize(
+    ("error", "name"),
+    [
+        (smtplib.SMTPAuthenticationError(535, b"bad"), "login"),
+        (ssl.SSLError("wrong version number"), "tls"),
+        (ConnectionRefusedError("refused"), "server"),
+    ],
+)
+def test_smtp_failures_name_the_cause(error, name):
+    [check] = check_smtp(FakeMailer(error), host="smtp.example.org")
+    assert (check.ok, check.name) == (False, name)
+    assert check.hint
+
+
+def test_smtp_without_host():
+    [check] = check_smtp(FakeMailer(), host="")
+    assert not check.ok
+
+
+def test_backup_dir_must_be_writable(tmp_path):
+    assert [c.ok for c in check_backup(tmp_path, vendor="sqlite")] == [True]
+    assert [c.ok for c in check_backup(tmp_path / "fehlt", vendor="sqlite")] == [False]
+
+
+def test_backup_reports_old_pg_dump(tmp_path):
+    def too_old():
+        raise RuntimeError("pg_dump 17 ist älter als der Postgres-Server 18")
+
+    checks = check_backup(tmp_path, vendor="postgresql", pg_versions=too_old)
+    assert [c.ok for c in checks] == [True, False]
+    assert "älter" in checks[1].detail
+    assert check_backup(tmp_path, vendor="postgresql", pg_versions=lambda: (18, 17))[1].ok

@@ -21,7 +21,7 @@ from skontio.taxstatus.services import start_regime
 
 @pytest.fixture(autouse=True)
 def mail_settings(settings):
-    settings.EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+    settings.MAILERS = {"default": {"BACKEND": "django.core.mail.backends.locmem.EmailBackend"}}
     settings.DEFAULT_FROM_EMAIL = "rechnung@example.org"
 
 
@@ -105,8 +105,14 @@ class TestSendDocument:
         with pytest.raises(MailError):
             send_document(invoice, to=["a@example.org"], subject="Hallo\nBcc: opfer@example.org", body="y")
 
+    def test_missing_smtp_server_is_reported(self, invoice, settings):
+        settings.MAILERS = {"default": {"BACKEND": settings.SMTP_BACKEND, "OPTIONS": {"host": ""}}}
+        with pytest.raises(MailError, match="SMTP"):
+            send_document(invoice, to=["a@example.org"], subject="x", body="y")
+        assert not MailLog.objects.exists()
+
     def test_failure_is_logged(self, invoice, settings):
-        settings.EMAIL_BACKEND = "test_mail.FailingBackend"
+        settings.MAILERS = {"default": {"BACKEND": "test_mail.FailingBackend"}}
         with pytest.raises(MailError):
             send_document(invoice, to=["a@example.org"], subject="x", body="y")
         log = MailLog.objects.get()
@@ -126,3 +132,52 @@ def test_send_from_ui(client, invoice, django_user_model):
     assert response.status_code == 302
     assert len(mail.outbox) == 1
     assert "Versendet" in client.get(f"/dokumente/{invoice.pk}/").content.decode()
+
+
+class TestMailersFromEnvironment:
+    def test_starttls_default(self, monkeypatch):
+        from skontio.settings import SMTP_BACKEND, mailers_from_env
+
+        monkeypatch.setenv("SKONTIO_SMTP_HOST", "smtp.example.org")
+        monkeypatch.setenv("SKONTIO_SMTP_PASSWORD", "geheim")
+        monkeypatch.delenv("SKONTIO_SMTP_SECURITY", raising=False)
+        monkeypatch.delenv("SKONTIO_SMTP_PORT", raising=False)
+        config = mailers_from_env()["default"]
+        assert config["BACKEND"] == SMTP_BACKEND
+        options = config["OPTIONS"]
+        assert (options["host"], options["port"], options["use_tls"], options["use_ssl"]) == (
+            "smtp.example.org",
+            587,
+            True,
+            False,
+        )
+        assert options["password"] == "geheim"
+
+    def test_implicit_tls_uses_port_465(self, monkeypatch):
+        from skontio.settings import mailers_from_env
+
+        monkeypatch.setenv("SKONTIO_SMTP_SECURITY", "ssl")
+        monkeypatch.delenv("SKONTIO_SMTP_PORT", raising=False)
+        options = mailers_from_env()["default"]["OPTIONS"]
+        assert (options["port"], options["use_tls"], options["use_ssl"]) == (465, False, True)
+
+    def test_password_from_secret_file(self, monkeypatch, tmp_path):
+        from skontio.settings import mailers_from_env
+
+        secret = tmp_path / "smtp_password"
+        secret.write_text("aus-datei\n")
+        monkeypatch.setenv("SKONTIO_SMTP_PASSWORD_FILE", str(secret))
+        assert mailers_from_env()["default"]["OPTIONS"]["password"] == "aus-datei"
+
+    def test_unknown_security_is_rejected(self, monkeypatch):
+        from skontio.settings import mailers_from_env
+
+        monkeypatch.setenv("SKONTIO_SMTP_SECURITY", "tls")
+        with pytest.raises(RuntimeError):
+            mailers_from_env()
+
+    def test_console_backend_takes_no_smtp_options(self, monkeypatch):
+        from skontio.settings import mailers_from_env
+
+        monkeypatch.setenv("SKONTIO_MAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+        assert mailers_from_env() == {"default": {"BACKEND": "django.core.mail.backends.console.EmailBackend"}}

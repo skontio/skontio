@@ -18,7 +18,11 @@ from skontio.documents.models import Document
 from skontio.documents.services import create_draft
 from skontio.ops.backup import BackupError, create_backup, prune_backups, restore_backup, verify_archive
 
-pytestmark = pytest.mark.skipif(connection.vendor != "sqlite", reason="SQLite backup path (Postgres uses pg_dump)")
+sqlite_only = pytest.mark.skipif(connection.vendor != "sqlite", reason="SQLite backup path")
+
+
+def sqlite_target(path):
+    return {"ENGINE": "django.db.backends.sqlite3", "NAME": str(path)}
 
 
 @pytest.fixture
@@ -37,6 +41,7 @@ def backup_dir(tmp_path):
     return path
 
 
+@sqlite_only
 @pytest.mark.django_db(transaction=True)
 class TestBackup:
     def test_backup_contains_database_archive_and_manifest(self, data, backup_dir):
@@ -54,7 +59,7 @@ class TestBackup:
     def test_restore_reproduces_database_and_archive(self, data, backup_dir, tmp_path):
         path = create_backup(backup_dir, reason="test")
         target_db, target_archive = tmp_path / "restore" / "db.sqlite3", tmp_path / "restore" / "archive"
-        restore_backup(path, database_path=target_db, archive_dir=target_archive)
+        restore_backup(path, database=sqlite_target(target_db), archive_dir=target_archive)
         with sqlite3.connect(target_db) as con:
             name = con.execute("SELECT name FROM core_company").fetchone()[0]
             triggers = {r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type = 'trigger'")}
@@ -74,14 +79,32 @@ class TestBackup:
                     member.size = len(content)
                 dst.addfile(member, io.BytesIO(content))
         with pytest.raises(BackupError, match="Prüfsumme"):
-            restore_backup(tampered, database_path=tmp_path / "x" / "db.sqlite3", archive_dir=tmp_path / "x" / "a")
+            restore_backup(tampered, database=sqlite_target(tmp_path / "x.sqlite3"), archive_dir=tmp_path / "a")
+        assert not (tmp_path / "x.sqlite3").exists()
+        assert not (tmp_path / "a").exists()  # nothing written before verification
 
     def test_restore_refuses_existing_target_without_force(self, data, backup_dir, tmp_path):
         path = create_backup(backup_dir, reason="test")
         target_db = tmp_path / "db.sqlite3"
         target_db.write_bytes(b"existing")
         with pytest.raises(BackupError, match="existiert"):
-            restore_backup(path, database_path=target_db, archive_dir=tmp_path / "archive")
+            restore_backup(path, database=sqlite_target(target_db), archive_dir=tmp_path / "archive")
+        restore_backup(path, database=sqlite_target(target_db), archive_dir=tmp_path / "archive", force=True)
+        assert target_db.read_bytes().startswith(b"SQLite format 3")
+
+    def test_restore_into_postgres_is_refused(self, data, backup_dir, tmp_path):
+        path = create_backup(backup_dir, reason="test")
+        target = {"ENGINE": "django.db.backends.postgresql", "NAME": "x"}
+        with pytest.raises(BackupError, match="sqlite"):
+            restore_backup(path, database=target, archive_dir=tmp_path / "archive")
+
+    def test_corrupted_archive_file_aborts_backup(self, data, backup_dir, settings):
+        path = settings.ARCHIVE_DIR / data.storage_key
+        path.chmod(0o600)
+        path.write_bytes(b"kaputt")
+        with pytest.raises(BackupError, match="beschädigt"):
+            create_backup(backup_dir, reason="test")
+        assert not list(backup_dir.glob("*.tar"))
 
 
 def test_restore_rejects_path_traversal(tmp_path):
@@ -93,7 +116,7 @@ def test_restore_rejects_path_traversal(tmp_path):
         info.size = len(payload)
         tar.addfile(info, io.BytesIO(payload))
     with pytest.raises(BackupError):
-        restore_backup(evil, database_path=tmp_path / "r" / "db.sqlite3", archive_dir=tmp_path / "r" / "archive")
+        restore_backup(evil, database=sqlite_target(tmp_path / "r.sqlite3"), archive_dir=tmp_path / "r")
 
 
 @pytest.mark.django_db

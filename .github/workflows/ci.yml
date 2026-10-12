@@ -40,6 +40,12 @@ jobs:
       - uses: astral-sh/setup-uv@v7
       - name: WeasyPrint system libraries
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0
+      - name: Postgres client 18 for backup tests (pg_dump must be >= server)
+        if: matrix.database == 'postgres'
+        run: |
+          sudo apt-get install -y --no-install-recommends postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y --no-install-recommends postgresql-client-18
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -50,6 +56,7 @@ jobs:
       - name: pytest
         env:
           SKONTIO_DATABASE_URL: ${{ matrix.database == 'postgres' && 'postgres://postgres:test@localhost:5432/skontio' || 'sqlite:///skontio.sqlite3' }}
+          SKONTIO_PG_BIN_DIR: /usr/lib/postgresql/18/bin
         run: uv run pytest --cov=skontio --cov-report=term-missing
 
   docker:

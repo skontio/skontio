@@ -52,7 +52,9 @@ Anthropics Netz `160.79.104.0/21` und private Netze freigegeben; die IP-Bereiche
 ## 5. Prüfen
 
 ```sh
-docker exec -it <skontio-container> skontio doctor oidc
+docker exec -it <skontio-container> skontio doctor oidc     # Pocket ID erreichbar, Issuer, PKCE, Uhrzeit
+docker exec -it <skontio-container> skontio doctor smtp     # SMTP-Anmeldung (es wird nichts versendet)
+docker exec -it <skontio-container> skontio doctor backup   # Backup-Verzeichnis, bei Postgres pg_dump-Version
 ```
 
 Scheitert `discovery`, kann der Router vermutlich kein NAT-Loopback: im lokalen DNS die Domain
@@ -77,15 +79,20 @@ periodische ZFS-Snapshots von `tank/apps/skontio` und eine Replikation bzw. Clou
 
 Vor jedem Update mit Migrationen legt Skontio automatisch ein Backup `vor-update-<version>` an.
 
-## 7. Wiederherstellen (SQLite)
+## 7. Wiederherstellen
 
 1. App in TrueNAS stoppen.
-2. Einmalig einen Container mit denselben Volumes starten und ausführen:
+2. Einmalig einen Container mit denselben Volumes und Umgebungsvariablen starten und ausführen:
    `skontio restore /backups/skontio-YYYYMMDD-HHMMSS.tar --force`
-3. App wieder starten und `skontio verify_archive` bzw. die Übersicht prüfen.
+3. App wieder starten (fehlende Migrationen laufen automatisch) und `skontio verify_archive` prüfen.
 
-Der Restore prüft vor dem Schreiben alle Prüfsummen und bricht bei Manipulation ab.
-Postgres-Installationen sichern mit `pg_dump` (im Backup enthalten) und stellen mit `pg_restore` wieder her.
+Der Restore prüft **vor dem Schreiben** alle Prüfsummen und bricht bei Manipulation ab. Ohne `--force`
+spielt er nur in eine leere Datenbank ein.
+
+- **SQLite:** Die Datenbankdatei wird erst zum Schluss atomar ersetzt.
+- **Postgres:** Das Image enthält `pg_dump`/`pg_restore`/`psql` 18 (sichert Postgres-Server bis Version 18).
+  Das Schema wird in **einer einzigen Transaktion** ersetzt – schlägt irgendetwas fehl, bleibt die
+  bisherige Datenbank vollständig erhalten. `skontio doctor backup` warnt, wenn der Server neuer ist als `pg_dump`.
 
 ## 8. Updates
 

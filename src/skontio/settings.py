@@ -9,7 +9,7 @@ from __future__ import annotations
 import os
 import tempfile
 from pathlib import Path
-from urllib.parse import unquote, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 from django.utils.csp import CSP
 
@@ -67,6 +67,7 @@ def database_from_url(url: str) -> dict:
             },
         }
     if parsed.scheme in {"postgres", "postgresql"}:
+        query = parse_qs(parsed.query)
         return {
             "ENGINE": "django.db.backends.postgresql",
             "NAME": unquote(parsed.path.lstrip("/")),
@@ -75,6 +76,8 @@ def database_from_url(url: str) -> dict:
             "HOST": parsed.hostname or "",
             "PORT": str(parsed.port or ""),
             "CONN_MAX_AGE": 60,
+            # ?sslmode=require etc.; also passed to pg_dump/psql for backups
+            "OPTIONS": {"sslmode": query["sslmode"][0]} if "sslmode" in query else {},
         }
     raise ValueError(f"Unsupported database URL scheme: {parsed.scheme!r}")
 
@@ -152,17 +155,39 @@ USE_TZ = True
 ARCHIVE_DIR = Path(os.environ.get("SKONTIO_ARCHIVE_DIR", BASE_DIR.parent.parent / "var" / "archive"))
 BACKUP_DIR = Path(os.environ.get("SKONTIO_BACKUP_DIR", BASE_DIR.parent.parent / "var" / "backups"))
 BACKUP_KEEP = int(os.environ.get("SKONTIO_BACKUP_KEEP", "14"))
+# pg_dump/pg_restore/psql for Postgres backups; the image pins the client version here
+PG_BIN_DIR = os.environ.get("SKONTIO_PG_BIN_DIR", "")
 
-# Outgoing mail via your own SMTP server (plan: Versand über eigenen SMTP-Server)
-EMAIL_BACKEND = os.environ.get("SKONTIO_EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
-EMAIL_HOST = os.environ.get("SKONTIO_SMTP_HOST", "")
-EMAIL_PORT = int(os.environ.get("SKONTIO_SMTP_PORT", "587"))
-EMAIL_HOST_USER = os.environ.get("SKONTIO_SMTP_USER", "")
-EMAIL_HOST_PASSWORD = read_secret("SKONTIO_SMTP_PASSWORD", "") or ""
-EMAIL_USE_TLS = os.environ.get("SKONTIO_SMTP_SECURITY", "starttls") == "starttls"
-EMAIL_USE_SSL = os.environ.get("SKONTIO_SMTP_SECURITY", "starttls") == "ssl"
-EMAIL_TIMEOUT = 30
+SMTP_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+
+
+def mailers_from_env() -> dict:
+    """Outgoing mail via your own SMTP server (Django 6.1 MAILERS; EMAIL_* settings are deprecated)."""
+    backend = os.environ.get("SKONTIO_MAIL_BACKEND", SMTP_BACKEND)
+    if backend != SMTP_BACKEND:  # e.g. console backend for development; takes no SMTP options
+        return {"default": {"BACKEND": backend}}
+    security = os.environ.get("SKONTIO_SMTP_SECURITY", "starttls")
+    if security not in {"starttls", "ssl", "none"}:
+        raise RuntimeError("SKONTIO_SMTP_SECURITY must be starttls, ssl or none")
+    return {
+        "default": {
+            "BACKEND": SMTP_BACKEND,
+            "OPTIONS": {
+                "host": os.environ.get("SKONTIO_SMTP_HOST", ""),
+                "port": int(os.environ.get("SKONTIO_SMTP_PORT", "465" if security == "ssl" else "587")),
+                "username": os.environ.get("SKONTIO_SMTP_USER", ""),
+                "password": read_secret("SKONTIO_SMTP_PASSWORD", "") or "",
+                "use_tls": security == "starttls",
+                "use_ssl": security == "ssl",
+                "timeout": 30,
+            },
+        }
+    }
+
+
+MAILERS = mailers_from_env()
 DEFAULT_FROM_EMAIL = os.environ.get("SKONTIO_MAIL_FROM", "skontio@localhost")
+SERVER_EMAIL = DEFAULT_FROM_EMAIL
 
 STATIC_URL = "static/"
 STATIC_ROOT = Path(os.environ.get("SKONTIO_STATIC_ROOT", BASE_DIR.parent.parent / "var" / "static"))
