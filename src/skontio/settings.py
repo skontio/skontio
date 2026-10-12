@@ -109,6 +109,7 @@ INSTALLED_APPS = [
     "skontio.accounts",
     "skontio.web",
     "skontio.mail",
+    "skontio.inbox",
 ]
 
 MIDDLEWARE = [

@@ -1,11 +1,15 @@
 from django.urls import path
 
 from skontio.web import document_views as docs
+from skontio.web import inbox_views as inbox
 from skontio.web import pwa, views
 
 urlpatterns = [
     path("manifest.webmanifest", pwa.manifest, name="manifest"),
     path("sw.js", pwa.service_worker, name="service_worker"),
+    path("eingang/", inbox.inbox_list, name="inbox_list"),
+    path("eingang/<int:pk>/", inbox.inbox_detail, name="inbox_detail"),
+    path("eingang/<int:pk>/original/", inbox.inbox_original, name="inbox_original"),
     path("dokumente/", docs.document_list, name="document_list"),
     path("dokumente/neu/", docs.document_new, name="document_new"),
     path("dokumente/<int:pk>/", docs.document_detail, name="document_detail"),

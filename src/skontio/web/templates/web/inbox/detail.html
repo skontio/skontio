@@ -1,0 +1,28 @@
+{% extends "web/base.html" %}
+{% block title %}{{ incoming }}{% endblock %}
+{% block content %}
+<div class="heading">
+  <h1>{{ incoming.seller_name|default:"Eingangsrechnung" }} {{ incoming.number }}</h1>
+  <a class="button secondary" href="/eingang/{{ incoming.pk }}/original/">Original herunterladen</a>
+</div>
+<p class="muted">
+  {{ incoming.syntax|upper }}
+  {% if incoming.issue_date %} · Datum {{ incoming.issue_date|date:"d.m.Y" }}{% endif %}
+  {% if incoming.due_date %} · fällig {{ incoming.due_date|date:"d.m.Y" }}{% endif %}
+  {% if incoming.seller_vat_id %} · USt-IdNr. {{ incoming.seller_vat_id }}{% endif %}
+  · eingegangen {{ incoming.received_at|date:"d.m.Y H:i" }}
+</p>
+{% for w in warnings %}<p class="warn">{{ w }}</p>{% endfor %}
+<div class="table-scroll"><table class="list">
+  <thead><tr><th>Bezeichnung</th><th class="num">Menge</th><th class="num">Betrag</th></tr></thead>
+  <tbody>
+  {% for line in lines %}<tr><td>{{ line.name }}</td><td class="num">{{ line.quantity }} {{ line.unit }}</td><td class="num">{{ line.net }}</td></tr>{% endfor %}
+  </tbody>
+</table></div>
+<table class="totals-preview">
+  <tr><td>Netto</td><td class="num">{{ totals.net_total }} {{ incoming.currency }}</td></tr>
+  <tr><td>Umsatzsteuer</td><td class="num">{{ totals.tax_total }} {{ incoming.currency }}</td></tr>
+  <tr class="grand"><td>Gesamt</td><td class="num">{{ totals.gross_total }} {{ incoming.currency }}</td></tr>
+</table>
+{% if incoming.data.iban %}<p>Zahlung an IBAN <strong>{{ incoming.data.iban }}</strong></p>{% endif %}
+{% endblock %}

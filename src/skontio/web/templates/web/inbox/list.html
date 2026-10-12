@@ -1,0 +1,27 @@
+{% extends "web/base.html" %}
+{% block title %}Eingang{% endblock %}
+{% block content %}
+<h1>E-Rechnungs-Eingang</h1>
+<p class="muted">Seit 2025 müssen alle Unternehmen E-Rechnungen empfangen können – auch Kleinunternehmer. Hier hochgeladene Rechnungen werden unverändert und revisionssicher archiviert.</p>
+<form method="post" enctype="multipart/form-data" class="form">
+  {% csrf_token %}
+  {% include "web/_fields.html" %}
+  <button type="submit">Hochladen</button>
+</form>
+<div class="table-scroll"><table class="list">
+  <thead><tr><th>Absender</th><th>Nummer</th><th class="hide-small">Datum</th><th class="hide-small">Fällig</th><th class="num">Betrag</th></tr></thead>
+  <tbody>
+  {% for inv, amount in rows %}
+    <tr>
+      <td><a href="/eingang/{{ inv.pk }}/">{{ inv.seller_name|default:"–" }}</a></td>
+      <td>{{ inv.number }}</td>
+      <td class="hide-small">{{ inv.issue_date|date:"d.m.Y" }}</td>
+      <td class="hide-small">{{ inv.due_date|date:"d.m.Y" }}</td>
+      <td class="num">{{ amount }} {{ inv.currency }}</td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="5" class="muted">Noch keine Eingangsrechnungen.</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% endblock %}
