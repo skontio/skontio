@@ -24,6 +24,8 @@ class Document(models.Model):
         QUOTE = "quote", "Angebot"
         ORDER_CONFIRMATION = "order_confirmation", "Auftragsbestätigung"
         INVOICE = "invoice", "Rechnung"
+        PARTIAL_INVOICE = "partial_invoice", "Abschlagsrechnung"
+        FINAL_INVOICE = "final_invoice", "Schlussrechnung"
         CANCELLATION = "cancellation", "Stornorechnung"
 
     class Status(models.TextChoices):
@@ -127,6 +129,10 @@ class Document(models.Model):
         return getattr(self, "_stored_status", self.Status.DRAFT) != self.Status.DRAFT
 
 
+# Everything that demands payment: § 14 UStG duties, due date, payments, e-invoice, 8-year retention
+INVOICE_TYPES = frozenset({Document.Type.INVOICE, Document.Type.PARTIAL_INVOICE, Document.Type.FINAL_INVOICE})
+
+
 class DocumentLine(models.Model):
     document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name="lines")
     position = models.PositiveIntegerField()
@@ -152,6 +158,35 @@ class DocumentLine(models.Model):
 
     def __str__(self) -> str:
         return f"{self.document} · Pos. {self.position}"
+
+
+class PrepaymentDeduction(models.Model):
+    """Abschlagsrechnung deducted in a Schlussrechnung, per VAT category (§ 14 Abs. 5 Satz 2 UStG).
+
+    Amounts are taken from the finalized partial invoice; locked together with the final invoice.
+    """
+
+    document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name="deductions")
+    source = models.ForeignKey(Document, on_delete=models.PROTECT, related_name="deducted_in")
+    tax_category = models.CharField(max_length=4)
+    tax_rate = models.DecimalField(max_digits=5, decimal_places=2)
+    net_amount = models.DecimalField(max_digits=14, decimal_places=2)
+    tax_amount = models.DecimalField(max_digits=14, decimal_places=2)
+
+    class Meta:
+        ordering = ["source__issue_date", "source_id", "tax_category", "tax_rate"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["document", "source", "tax_category", "tax_rate"], name="uniq_deduction_per_category"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.document} · Abzug {self.source}"
+
+    @property
+    def gross_amount(self):
+        return self.net_amount + self.tax_amount
 
 
 class Rendition(models.Model):

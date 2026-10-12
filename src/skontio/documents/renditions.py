@@ -11,7 +11,7 @@ from decimal import Decimal
 from django.template.loader import render_to_string
 
 from skontio.archive.services import retention_end, store
-from skontio.documents.models import Document, PartySnapshot, Rendition
+from skontio.documents.models import INVOICE_TYPES, Document, PartySnapshot, Rendition
 from skontio.einvoice.cii import EInvoiceDataError, Profile, build_cii
 from skontio.einvoice.hybrid import embed_xml
 from skontio.einvoice.mapping import invoice_from_document
@@ -26,6 +26,8 @@ TITLES = {
     Type.QUOTE: "Angebot",
     Type.ORDER_CONFIRMATION: "Auftragsbestätigung",
     Type.INVOICE: "Rechnung",
+    Type.PARTIAL_INVOICE: "Abschlagsrechnung",
+    Type.FINAL_INVOICE: "Schlussrechnung",
     Type.CANCELLATION: "Stornorechnung",
 }
 UNIT_LABELS = {"C62": "Stk.", "HUR": "Std.", "DAY": "Tag(e)", "MON": "Monat(e)", "LS": "pauschal", "KMT": "km"}
@@ -80,18 +82,25 @@ def _view(document: Document) -> dict:
         if document.cancellation_reason:
             reference += f" Grund: {document.cancellation_reason}"
 
+    if doc_type == Type.PARTIAL_INVOICE and document.parent:
+        reference = f"Abschlagsrechnung zum Angebot {document.parent.number} vom {document.parent.issue_date:%d.%m.%Y}."
+    if doc_type == Type.FINAL_INVOICE and document.parent:
+        reference = f"Schlussrechnung zum Angebot {document.parent.number} vom {document.parent.issue_date:%d.%m.%Y}."
+
+    deductions = list(document.deductions.select_related("source"))
+    due = totals.grand_total - sum((d.gross_amount for d in deductions), Decimal("0"))
     payment_text, girocode = "", ""
-    if doc_type == Type.INVOICE and totals.grand_total > 0 and document.due_date:
+    if doc_type in INVOICE_TYPES and due > 0 and document.due_date:
         payment_text = (
             document.payment_terms_text
-            or f"Bitte überweisen Sie {de_amount(totals.grand_total)} € bis zum {document.due_date:%d.%m.%Y}."
+            or f"Bitte überweisen Sie {de_amount(due)} € bis zum {document.due_date:%d.%m.%Y}."
         )
         if seller.get("iban") and document.currency == "EUR":
             girocode = girocode_svg_data_uri(
                 name=seller.get("account_holder") or seller["name"],
                 iban=seller["iban"],
                 bic=seller.get("bic", ""),
-                amount=totals.grand_total,
+                amount=due,
                 reference=document.number,
             )
 
@@ -107,7 +116,7 @@ def _view(document: Document) -> dict:
         "issue_date": f"{document.issue_date:%d.%m.%Y}",
         "service_label": service_label,
         "service": service,
-        "due_date": f"{document.due_date:%d.%m.%Y}" if document.due_date and doc_type == Type.INVOICE else "",
+        "due_date": f"{document.due_date:%d.%m.%Y}" if document.due_date and doc_type in INVOICE_TYPES else "",
         "valid_until": f"{document.valid_until:%d.%m.%Y}" if document.valid_until and doc_type == Type.QUOTE else "",
         "reference": reference,
         "show_rates": show_rates,
@@ -143,6 +152,19 @@ def _view(document: Document) -> dict:
         },
         "grand_label": "Gesamtbetrag" if show_rates else "Rechnungsbetrag",
         "tax_notes": [note for note in document.tax_note.split("\n") if note],
+        "deductions": [
+            {
+                "number": d.source.number,
+                "date": f"{d.source.issue_date:%d.%m.%Y}",
+                "net": de_amount(d.net_amount),
+                "rate": de_percent(d.tax_rate),
+                "tax": de_amount(d.tax_amount),
+                "gross": de_amount(d.gross_amount),
+            }
+            for d in deductions
+        ],
+        "due_total": de_amount(due),
+        "due_label": "Gutschrift (Restbetrag)" if doc_type == Type.CANCELLATION else "Noch zu zahlen",
         "payment_text": payment_text,
         "girocode": girocode,
     }

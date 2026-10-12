@@ -33,6 +33,7 @@
   table.totals { margin-left: auto; width: 80mm; border-collapse: collapse; }
   table.totals td { padding: 1mm; }
   table.totals td.num { text-align: right; white-space: nowrap; }
+  table.totals .muted { color: var(--muted); font-size: 7.5pt; }
   table.totals tr.grand td { border-top: 1pt solid var(--accent); font-weight: bold; font-size: 10.5pt; }
   .note { margin-top: 5mm; padding: 2.5mm 3mm; background: #f3f5f7; border-left: 2pt solid var(--accent); }
   .payment { display: flex; gap: 6mm; align-items: center; margin-top: 6mm; }
@@ -103,6 +104,10 @@
     {% for subtotal in subtotals %}<tr><td>USt {{ subtotal.rate }} auf {{ subtotal.basis }}</td><td class="num">{{ subtotal.tax }}</td></tr>{% endfor %}
   {% endif %}
   <tr class="grand"><td>{{ grand_label }}</td><td class="num">{{ totals.grand_total }} €</td></tr>
+  {% if deductions %}
+  {% for d in deductions %}<tr><td>abzüglich Abschlagsrechnung {{ d.number }} vom {{ d.date }}{% if show_rates %}<br><span class="muted">netto {{ d.net }} · USt {{ d.rate }} {{ d.tax }}</span>{% endif %}</td><td class="num">−{{ d.gross }}</td></tr>{% endfor %}
+  <tr class="grand"><td>{{ due_label }}</td><td class="num">{{ due_total }} €</td></tr>
+  {% endif %}
 </table>
 
 {% for note in tax_notes %}<div class="note">{{ note }}</div>{% endfor %}

@@ -26,6 +26,29 @@
 <h2>Positionen</h2>
 {% include "web/documents/_lines.html" %}
 
+{% if doc.doc_type == "final_invoice" %}
+<section class="card">
+  <h2>Abgezogene Abschlagsrechnungen</h2>
+  {% if deductions %}
+  <div class="table-scroll"><table class="list">
+    <thead><tr><th>Abschlag</th><th class="num hide-small">Netto</th><th class="num hide-small">USt</th><th class="num">Brutto</th><th></th></tr></thead>
+    <tbody>{% for d in deductions %}
+      <tr><td>{{ d.source.number }} vom {{ d.source.issue_date|date:"d.m.Y" }}</td><td class="num hide-small">{{ d.net }}</td><td class="num hide-small">{{ d.tax }}</td><td class="num">{{ d.gross }}</td>
+        <td><form method="post" action="/dokumente/{{ doc.pk }}/abzuege/{{ d.source.pk }}/entfernen/">{% csrf_token %}<button type="submit" class="link">entfernen</button></form></td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  <p>Bereits abgerechnet: {{ prepaid }} € · <strong>Noch zu zahlen: {{ due }} €</strong></p>
+  {% else %}<p class="muted">Noch keine Abschlagsrechnung abgezogen.</p>{% endif %}
+  {% if eligible_partials %}
+  <form method="post" action="/dokumente/{{ doc.pk }}/abzuege/" class="inline-form">
+    {% csrf_token %}
+    <label>Abschlagsrechnung <select name="partial">{% for p in eligible_partials %}<option value="{{ p.pk }}">{{ p.number }} vom {{ p.issue_date|date:"d.m.Y" }} · {{ p.gross_total|floatformat:"2g" }} €</option>{% endfor %}</select></label>
+    <button type="submit" class="secondary">Abziehen</button>
+  </form>
+  {% endif %}
+</section>
+{% endif %}
+
 <div class="actions">
   <form method="post" action="/dokumente/{{ doc.pk }}/festschreiben/">
     {% csrf_token %}

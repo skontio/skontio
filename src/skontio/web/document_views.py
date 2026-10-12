@@ -11,28 +11,48 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from skontio.archive.services import load
-from skontio.documents.models import Document, DocumentLine, Rendition
+from skontio.documents.models import INVOICE_TYPES, Document, DocumentLine, Rendition
 from skontio.documents.renditions import UNIT_LABELS, de_amount, de_percent, de_quantity
 from skontio.documents.services import (
     DocumentError,
     DocumentLocked,
+    add_deduction,
     add_line,
     add_line_from_item,
     cancel_invoice,
     confirm_ai_review,
     convert_quote_to_invoice,
     create_draft,
+    create_final_invoice,
+    create_partial_invoice,
+    eligible_partial_invoices,
     finalize,
+    prepaid_total,
     preview_totals,
+    remove_deduction,
 )
 from skontio.mail.services import MailError, default_message, send_document
 from skontio.payments.services import PaymentError, open_amount, payment_status, record_payment
 from skontio.tax.engine import TaxTreatment
-from skontio.web.forms import CancelForm, ConvertForm, HeaderForm, LineForm, NewDocumentForm, PaymentForm, SendForm
+from skontio.web.forms import (
+    CancelForm,
+    ConvertForm,
+    HeaderForm,
+    LineForm,
+    NewDocumentForm,
+    PartialForm,
+    PaymentForm,
+    SendForm,
+)
 from skontio.web.support import company_view, is_htmx
 
 Type = Document.Type
-TYPE_FILTERS = {"invoice", "quote", "order_confirmation", "cancellation"}
+TYPE_FILTERS = {
+    "invoice": INVOICE_TYPES,
+    "quote": {Type.QUOTE},
+    "order_confirmation": {Type.ORDER_CONFIRMATION},
+    "cancellation": {Type.CANCELLATION},
+}
 FILE_SUFFIX = {
     Rendition.Kind.PDF: ".pdf",
     Rendition.Kind.ZUGFERD_PDF: ".pdf",
@@ -104,6 +124,33 @@ def _lines_context(request, doc: Document, line_form: LineForm | None = None, er
         "totals_error": totals_error,
         "line_form": line_form or LineForm(company=request.company, initial={"quantity": 1}),
         "line_error": error,
+        **_deduction_context(doc, totals),
+    }
+
+
+def _deduction_context(doc: Document, totals=None) -> dict:
+    """Schlussrechnung: deducted partial invoices, what is left to pay and what could still be deducted."""
+    if doc.doc_type != Type.FINAL_INVOICE and not doc.deductions.exists():
+        return {}  # only Schlussrechnungen and their Stornos carry deductions
+    grouped: dict[int, dict] = {}
+    for d in doc.deductions.select_related("source"):
+        entry = grouped.setdefault(d.source_id, {"source": d.source, "net": 0, "tax": 0, "gross": 0})
+        entry["net"] += d.net_amount
+        entry["tax"] += d.tax_amount
+        entry["gross"] += d.gross_amount
+    gross = totals.grand_total if totals is not None else doc.gross_total
+    prepaid = prepaid_total(doc)
+    return {
+        "deductions": [
+            {"source": e["source"], **{k: de_amount(e[k]) for k in ("net", "tax", "gross")}} for e in grouped.values()
+        ],
+        "prepaid": de_amount(prepaid),
+        "due": de_amount(gross - prepaid) if gross is not None else "",
+        "eligible_partials": (
+            eligible_partial_invoices(doc.company, doc.customer, exclude=doc)
+            if doc.status == Document.Status.DRAFT
+            else []
+        ),
     }
 
 
@@ -129,7 +176,8 @@ def _finalized_context(doc: Document, **extra) -> dict:
         "mail_logs": doc.mail_logs.all(),
         "send_form": _send_form(doc),
     }
-    if doc.doc_type == Type.INVOICE:
+    context |= _deduction_context(doc)
+    if doc.doc_type in INVOICE_TYPES:
         context |= {
             "cancelled": doc.children.filter(doc_type=Type.CANCELLATION).exists(),
             "open_amount": de_amount(open_amount(doc)),
@@ -140,6 +188,8 @@ def _finalized_context(doc: Document, **extra) -> dict:
         }
     if doc.doc_type == Type.QUOTE:
         context["convert_form"] = ConvertForm()
+        context["partial_form"] = PartialForm(initial={"percent": 30})
+        context["open_partials"] = eligible_partial_invoices_for_quote(doc)
     return context | extra
 
 
@@ -148,7 +198,7 @@ def document_list(request):
     documents = Document.objects.filter(company=request.company).select_related("customer")
     doc_type = request.GET.get("typ", "")
     if doc_type in TYPE_FILTERS:
-        documents = documents.filter(doc_type=doc_type)
+        documents = documents.filter(doc_type__in=TYPE_FILTERS[doc_type])
     return render(request, "web/documents/list.html", {"documents": documents[:200], "typ": doc_type})
 
 
@@ -359,3 +409,71 @@ def document_delete(request, pk: int):
         return _locked()
     doc.delete()
     return redirect("/dokumente/")
+
+
+def eligible_partial_invoices_for_quote(quote: Document) -> list[Document]:
+    return [p for p in eligible_partial_invoices(quote.company, quote.customer) if p.parent_id == quote.pk]
+
+
+@require_POST
+@company_view
+def document_partial(request, pk: int):
+    quote = _document(request, pk)
+    form = PartialForm(request.POST)
+    if form.is_valid():
+        data = form.cleaned_data
+        try:
+            partial = create_partial_invoice(
+                quote,
+                issue_date=timezone.localdate(),
+                percent=data["percent"],
+                net_amount=data["net_amount"],
+                service_date=data["service_date"],
+                created_by=request.user,
+            )
+            return redirect(f"/dokumente/{partial.pk}/")
+        except DocumentError as exc:
+            form.add_error(None, str(exc))
+    return render(request, "web/documents/finalized.html", _finalized_context(quote, partial_form=form))
+
+
+@require_POST
+@company_view
+def document_final(request, pk: int):
+    quote = _document(request, pk)
+    form = ConvertForm(request.POST)
+    if form.is_valid():
+        try:
+            final = create_final_invoice(
+                quote,
+                issue_date=timezone.localdate(),
+                service_date=form.cleaned_data["service_date"],
+                created_by=request.user,
+            )
+            return redirect(f"/dokumente/{final.pk}/")
+        except DocumentError as exc:
+            form.add_error(None, str(exc))
+    return render(request, "web/documents/finalized.html", _finalized_context(quote, convert_form=form))
+
+
+@require_POST
+@company_view
+def deduction_add(request, pk: int):
+    doc = _document(request, pk)
+    partial = get_object_or_404(Document, pk=request.POST.get("partial", 0), company=request.company)
+    try:
+        add_deduction(doc, partial)
+    except (DocumentError, DocumentLocked) as exc:
+        return HttpResponse(str(exc), status=409)
+    return redirect(f"/dokumente/{doc.pk}/")
+
+
+@require_POST
+@company_view
+def deduction_remove(request, pk: int, partial_pk: int):
+    doc = _document(request, pk)
+    try:
+        remove_deduction(doc, get_object_or_404(Document, pk=partial_pk, company=request.company))
+    except DocumentLocked:
+        return _locked()
+    return redirect(f"/dokumente/{doc.pk}/")

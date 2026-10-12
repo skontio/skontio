@@ -16,7 +16,7 @@ from django.conf import settings
 
 from skontio.crm.models import Customer
 from skontio.documents.models import Document
-from skontio.documents.services import DocumentError, preview_totals, validation_problems
+from skontio.documents.services import DocumentError, prepaid_total, preview_totals, validation_problems
 
 CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f‪-‮⁦-⁩]")  # incl. bidi overrides
 NAME_LIMIT, TEXT_LIMIT = 200, 1000
@@ -104,11 +104,14 @@ def document_view(document: Document, ctx, *, with_lines: bool = True) -> dict:
         "review_url": review_url(document),
     }
     if document.status == Document.Status.FINALIZED:
+        prepaid = prepaid_total(document)
         view["totals"] = {
             "net": money(document.net_total),
             "tax": money(document.tax_total),
             "gross": money(document.gross_total),
         }
+        if prepaid:
+            view["totals"] |= {"prepaid": money(prepaid), "due": money(document.gross_total - prepaid)}
     else:
         try:
             totals = preview_totals(document)
@@ -118,6 +121,9 @@ def document_view(document: Document, ctx, *, with_lines: bool = True) -> dict:
                 "gross": money(totals.grand_total),
                 "calculated_by": "server",
             }
+            if document.doc_type == Document.Type.FINAL_INVOICE:
+                prepaid = prepaid_total(document)
+                view["totals"] |= {"prepaid": money(prepaid), "due": money(totals.grand_total - prepaid)}
         except DocumentError as exc:
             view["totals"] = None
             view["totals_error"] = str(exc)

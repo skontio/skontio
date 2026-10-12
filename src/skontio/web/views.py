@@ -9,7 +9,7 @@ from skontio.catalog.models import Item
 from skontio.catalog.services import archive_item, search_items
 from skontio.crm.models import Customer
 from skontio.crm.services import create_customer, search_customers
-from skontio.documents.models import Document
+from skontio.documents.models import INVOICE_TYPES, Document
 from skontio.documents.renditions import de_amount
 from skontio.payments.services import open_amount
 from skontio.tax.engine import Regime
@@ -28,7 +28,7 @@ def dashboard(request):
         regime = None
     status = small_business_status(company, today) if regime is Regime.SMALL_BUSINESS else None
     invoices = Document.objects.filter(
-        company=company, doc_type=Document.Type.INVOICE, status=Document.Status.FINALIZED
+        company=company, doc_type__in=INVOICE_TYPES, status=Document.Status.FINALIZED
     ).exclude(children__doc_type=Document.Type.CANCELLATION)
     open_items = [(doc, open_amount(doc)) for doc in invoices.order_by("due_date")]
     open_items = [(doc, amount) for doc, amount in open_items if amount > 0]

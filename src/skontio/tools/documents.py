@@ -6,7 +6,8 @@ from typing import Annotated, Literal
 from django.utils import timezone
 from pydantic import Field
 
-from skontio.documents.models import Document
+from skontio.documents.models import INVOICE_TYPES, Document
+from skontio.documents.services import prepaid_total
 from skontio.payments.services import open_amount, payment_status
 from skontio.tools.inputs import DocumentNumber, Input, Limit
 from skontio.tools.registry import Out, ToolError, tool
@@ -15,7 +16,7 @@ from skontio.tools.views import customer_view, document_view, iso, money
 
 def _invoices(ctx):
     return Document.objects.filter(
-        company=ctx.company, doc_type=Document.Type.INVOICE, status=Document.Status.FINALIZED
+        company=ctx.company, doc_type__in=INVOICE_TYPES, status=Document.Status.FINALIZED
     ).select_related("customer")
 
 
@@ -24,10 +25,12 @@ def _summary(document: Document, ctx) -> dict:
     remaining = open_amount(document)
     return {
         "number": document.number,
+        "type": document.doc_type,
         "customer": customer_view(document.customer, ctx),
         "issue_date": iso(document.issue_date),
         "due_date": iso(document.due_date),
         "gross": money(document.gross_total),
+        "prepaid": money(prepaid_total(document)),
         "open_amount": money(remaining),
         "payment_status": payment_status(document),
         "cancelled": document.children.filter(doc_type=Document.Type.CANCELLATION).exists(),

@@ -26,6 +26,8 @@
   <tr><td>Netto</td><td class="num">{{ net }} €</td></tr>
   <tr><td>Umsatzsteuer</td><td class="num">{{ tax }} €</td></tr>
   <tr class="grand"><td>Gesamt</td><td class="num">{{ gross }} €</td></tr>
+  {% for d in deductions %}<tr><td>abzüglich <a href="/dokumente/{{ d.source.pk }}/">{{ d.source.number }}</a></td><td class="num">−{{ d.gross }} €</td></tr>{% endfor %}
+  {% if deductions %}<tr class="grand"><td>{% if doc.doc_type == "cancellation" %}Gutschrift{% else %}Noch zu zahlen{% endif %}</td><td class="num">{{ due }} €</td></tr>{% endif %}
 </table>
 {% if doc.tax_note %}<p class="note">{{ doc.tax_note|linebreaksbr }}</p>{% endif %}
 
@@ -66,6 +68,27 @@
     <button type="submit" class="danger">Stornorechnung erstellen</button>
   </form>
 </details>
+{% endif %}
+
+{% if partial_form %}
+<section class="card">
+  <h2>Abschlagsrechnung</h2>
+  <p class="muted">Rechnet einen Teil des Angebots vorab ab – aufgeteilt nach Steuersätzen. Die Schlussrechnung zieht alle Abschläge später ab (§ 14 Abs. 5 UStG).</p>
+  <form method="post" action="/dokumente/{{ doc.pk }}/abschlag/" class="form">
+    {% csrf_token %}
+    {% with form=partial_form %}{% include "web/_fields.html" %}{% endwith %}
+    <button type="submit" class="secondary">Abschlagsrechnung erstellen</button>
+  </form>
+  {% if open_partials %}
+  <h3>Schlussrechnung</h3>
+  <p class="muted">Offene Abschläge: {% for p in open_partials %}{{ p.number }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+  <form method="post" action="/dokumente/{{ doc.pk }}/schlussrechnung/" class="form">
+    {% csrf_token %}
+    {% with form=convert_form %}{% include "web/_fields.html" %}{% endwith %}
+    <button type="submit">Schlussrechnung erstellen</button>
+  </form>
+  {% endif %}
+</section>
 {% endif %}
 
 {% if convert_form %}

@@ -6,7 +6,8 @@ from decimal import Decimal
 from django.db import transaction
 from django.db.models import Sum
 
-from skontio.documents.models import Document
+from skontio.documents.models import INVOICE_TYPES, Document
+from skontio.documents.services import amount_due
 from skontio.payments.models import Payment, PaymentError, PaymentLocked
 
 __all__ = [
@@ -27,14 +28,15 @@ def paid_amount(document: Document) -> Decimal:
 
 
 def open_amount(document: Document) -> Decimal:
-    return (document.gross_total or ZERO) - paid_amount(document)
+    """Amount due (after deducted Abschlagsrechnungen) minus payments received."""
+    return amount_due(document) - paid_amount(document)
 
 
 def payment_status(document: Document) -> str:
     paid = paid_amount(document)
     if paid <= 0:
         return "open"
-    return "paid" if paid >= (document.gross_total or ZERO) else "partial"
+    return "paid" if paid >= amount_due(document) else "partial"
 
 
 def record_payment(
@@ -50,7 +52,7 @@ def record_payment(
         raise PaymentError("Der Zahlungsbetrag muss positiv sein")
     with transaction.atomic():
         doc = Document.objects.select_for_update().get(pk=document.pk)
-        if doc.doc_type != Document.Type.INVOICE or doc.status != Document.Status.FINALIZED:
+        if doc.doc_type not in INVOICE_TYPES or doc.status != Document.Status.FINALIZED:
             raise PaymentError("Zahlungen können nur auf festgeschriebene Rechnungen gebucht werden")
         if doc.children.filter(doc_type=Document.Type.CANCELLATION).exists():
             raise PaymentError(f"Rechnung {doc.number} ist storniert")

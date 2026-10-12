@@ -7,7 +7,7 @@ from typing import Annotated
 from django.utils import timezone
 from pydantic import Field
 
-from skontio.documents.models import Document
+from skontio.documents.models import INVOICE_TYPES, Document
 from skontio.taxstatus.thresholds import net_receipts, small_business_status
 from skontio.tools.inputs import Input
 from skontio.tools.registry import Out, tool
@@ -30,11 +30,14 @@ def revenue_summary(ctx, args: YearInput) -> Out:
     documents = Document.objects.filter(
         company=ctx.company,
         status=Document.Status.FINALIZED,
-        doc_type__in=[Document.Type.INVOICE, Document.Type.CANCELLATION],
+        doc_type__in=[*INVOICE_TYPES, Document.Type.CANCELLATION],
         issue_date__year=year,
-    )
+    ).prefetch_related("deductions")
     for document in documents:
-        invoiced[document.issue_date.month] += document.net_total or 0
+        # Storno amounts are stored positive (type code 381); deducted partial invoices were counted already
+        sign = -1 if document.doc_type == Document.Type.CANCELLATION else 1
+        net = (document.net_total or 0) - sum((d.net_amount for d in document.deductions.all()), Decimal("0"))
+        invoiced[document.issue_date.month] += sign * net
     received: dict[int, Decimal] = defaultdict(Decimal)
     for day, amount in net_receipts(ctx.company, year):
         received[day.month] += amount

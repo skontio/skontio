@@ -7,6 +7,8 @@ There is deliberately no bypass (ADR 0001).
 
 from __future__ import annotations
 
+import re
+
 SQLITE = [
     """
     CREATE TRIGGER IF NOT EXISTS skontio_document_no_update BEFORE UPDATE ON documents_document
@@ -31,6 +33,23 @@ SQLITE = [
     """,
     """
     CREATE TRIGGER IF NOT EXISTS skontio_line_no_delete BEFORE DELETE ON documents_documentline
+    FOR EACH ROW WHEN (SELECT status FROM documents_document WHERE id = OLD.document_id) <> 'draft'
+    BEGIN SELECT RAISE(ABORT, 'skontio: document is finalized and immutable'); END;
+    """,
+    # prepayment deductions of a Schlussrechnung are part of the finalized document
+    """
+    CREATE TRIGGER IF NOT EXISTS skontio_deduction_no_insert BEFORE INSERT ON documents_prepaymentdeduction
+    FOR EACH ROW WHEN (SELECT status FROM documents_document WHERE id = NEW.document_id) <> 'draft'
+    BEGIN SELECT RAISE(ABORT, 'skontio: document is finalized and immutable'); END;
+    """,
+    """
+    CREATE TRIGGER IF NOT EXISTS skontio_deduction_no_update BEFORE UPDATE ON documents_prepaymentdeduction
+    FOR EACH ROW WHEN (SELECT status FROM documents_document WHERE id = OLD.document_id) <> 'draft'
+                   OR (SELECT status FROM documents_document WHERE id = NEW.document_id) <> 'draft'
+    BEGIN SELECT RAISE(ABORT, 'skontio: document is finalized and immutable'); END;
+    """,
+    """
+    CREATE TRIGGER IF NOT EXISTS skontio_deduction_no_delete BEFORE DELETE ON documents_prepaymentdeduction
     FOR EACH ROW WHEN (SELECT status FROM documents_document WHERE id = OLD.document_id) <> 'draft'
     BEGIN SELECT RAISE(ABORT, 'skontio: document is finalized and immutable'); END;
     """,
@@ -81,6 +100,12 @@ POSTGRES = [
     CREATE TRIGGER skontio_line_guard BEFORE INSERT OR UPDATE OR DELETE ON documents_documentline
     FOR EACH ROW EXECUTE FUNCTION skontio_line_guard();
     """,
+    # same guard function: it only looks at document_id
+    "DROP TRIGGER IF EXISTS skontio_deduction_guard ON documents_prepaymentdeduction;",
+    """
+    CREATE TRIGGER skontio_deduction_guard BEFORE INSERT OR UPDATE OR DELETE ON documents_prepaymentdeduction
+    FOR EACH ROW EXECUTE FUNCTION skontio_line_guard();
+    """,
 ]
 
 
@@ -92,17 +117,28 @@ SQLITE_DROP = [
         "skontio_line_no_insert",
         "skontio_line_no_update",
         "skontio_line_no_delete",
+        "skontio_deduction_no_insert",
+        "skontio_deduction_no_update",
+        "skontio_deduction_no_delete",
     )
 ]
 POSTGRES_DROP = [
     "DROP TRIGGER IF EXISTS skontio_line_guard ON documents_documentline;",
+    "DROP TRIGGER IF EXISTS skontio_deduction_guard ON documents_prepaymentdeduction;",
     "DROP TRIGGER IF EXISTS skontio_document_guard ON documents_document;",
 ]
 
 
+TABLE = re.compile(r"\bON (documents_\w+)")
+
+
 def _execute(connection, statements: list[str]) -> None:
+    # Older migrations call this too, before later tables exist: skip triggers for missing tables.
+    tables = set(connection.introspection.table_names())
     with connection.cursor() as cursor:
         for statement in statements:
+            if (match := TABLE.search(statement)) and match.group(1) not in tables:
+                continue
             # params=None: no placeholder parsing, so PL/pgSQL's RAISE '%' stays literal
             cursor.execute(statement, None)
 

@@ -6,11 +6,31 @@ data, so a re-rendered document is identical to the one that was sent.
 
 from __future__ import annotations
 
-from skontio.documents.models import Document, PartySnapshot
+from decimal import Decimal
+
+from skontio.documents.models import INVOICE_TYPES, Document, PartySnapshot
 from skontio.einvoice.model import Invoice, LineData, Party, PaymentInstructions, PrecedingInvoice, build_invoice
 from skontio.tax.engine import ResolvedTax
 
-TYPE_CODES = {Document.Type.INVOICE: "380", Document.Type.CANCELLATION: "381"}
+TYPE_CODES = {
+    Document.Type.INVOICE: "380",
+    Document.Type.PARTIAL_INVOICE: "326",  # Partial invoice (XRechnung BR-DE-17 allows it)
+    Document.Type.FINAL_INVOICE: "380",
+    Document.Type.CANCELLATION: "381",
+}
+
+
+def deduction_notes(document: Document) -> list[str]:
+    """§ 14 Abs. 5 Satz 2 UStG: deducted payments with their tax amounts, per partial invoice and rate."""
+    notes = []
+    for deduction in document.deductions.select_related("source"):
+        source = deduction.source
+        notes.append(
+            f"Abzüglich Abschlagsrechnung {source.number} vom {source.issue_date:%d.%m.%Y}: "
+            f"Entgelt {deduction.net_amount} EUR, Umsatzsteuer {deduction.tax_rate.normalize():f} % "
+            f"{deduction.tax_amount} EUR"
+        )
+    return notes
 
 
 class SnapshotMismatch(RuntimeError):
@@ -80,6 +100,8 @@ def invoice_from_document(document: Document) -> Invoice:
             notes.append(f"Grund: {document.cancellation_reason}")
         payment_terms = "Der Rechnungsbetrag wird gutgeschrieben bzw. erstattet."
     else:
+        if document.doc_type == Document.Type.PARTIAL_INVOICE and document.parent:
+            notes.append(f"Abschlagsrechnung zum Angebot {document.parent.number}")
         payment_terms = document.payment_terms_text or (
             f"Zahlbar ohne Abzug bis {document.due_date:%d.%m.%Y}." if document.due_date else ""
         )
@@ -95,14 +117,15 @@ def invoice_from_document(document: Document) -> Invoice:
         document_discount_percent=document.document_discount_percent,
         service_date=document.service_date,
         service_period=period,
-        due_date=document.due_date if document.doc_type == Document.Type.INVOICE else None,
+        due_date=document.due_date if document.doc_type in INVOICE_TYPES else None,
         payment_terms=payment_terms or None,
         payment=PaymentInstructions(
             iban=seller["iban"], bic=seller["bic"] or None, account_name=seller["account_holder"] or None
         ),
         currency=document.currency,
-        notes=notes,
+        notes=notes + deduction_notes(document),
         preceding_invoice=preceding,
+        prepaid_amount=sum((d.gross_amount for d in document.deductions.all()), Decimal("0.00")),
     )
     stored = (document.net_total, document.tax_total, document.gross_total)
     if (invoice.tax_basis_total, invoice.tax_total, invoice.grand_total) != stored:

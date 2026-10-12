@@ -13,29 +13,54 @@ import json
 from decimal import Decimal
 
 from django.db import transaction
-from django.db.models import Max
+from django.db.models import Max, Sum
 from django.utils import timezone
 
 from skontio.catalog.models import Item, Unit
-from skontio.documents.models import Document, DocumentLine, DocumentLocked, PartySnapshot
+from skontio.documents.models import (
+    INVOICE_TYPES,
+    Document,
+    DocumentLine,
+    DocumentLocked,
+    PartySnapshot,
+    PrepaymentDeduction,
+)
 from skontio.documents.renditions import RenditionError, create_renditions
 from skontio.numbering.models import NumberSequence
 from skontio.numbering.services import allocate_number
-from skontio.tax.engine import LineInput, Regime, ResolvedTax, TaxError, TaxTreatment, Totals, calculate, resolve
+from skontio.tax.engine import (
+    CENT,
+    LineInput,
+    Regime,
+    ResolvedTax,
+    TaxError,
+    TaxTreatment,
+    Totals,
+    calculate,
+    resolve,
+)
 from skontio.taxstatus.services import TaxStatusError, regime_for
 
 __all__ = [
     "DocumentError",
     "DocumentLocked",
     "add_line",
+    "add_deduction",
     "add_line_from_item",
+    "amount_due",
     "cancel_invoice",
     "confirm_ai_review",
     "convert_quote_to_invoice",
     "create_draft",
+    "create_final_invoice",
+    "create_partial_invoice",
+    "eligible_partial_invoices",
     "finalize",
+    "prepaid_total",
     "preview_totals",
     "redact_party_snapshot",
+    "remove_deduction",
+    "stored_totals",
     "replace_lines",
     "update_draft",
     "validation_problems",
@@ -49,6 +74,18 @@ DEFAULT_PATTERNS = {
     Type.INVOICE: "RE-{YYYY}-{####}",
     Type.CANCELLATION: "ST-{YYYY}-{####}",
 }
+TREATMENT_LABELS = {
+    TaxTreatment.STANDARD: "Regelsatz",
+    TaxTreatment.REDUCED: "ermäßigter Satz",
+    TaxTreatment.ZERO: "Nullsatz",
+    TaxTreatment.EXEMPT: "steuerfrei",
+    TaxTreatment.REVERSE_CHARGE: "Steuerschuldnerschaft des Leistungsempfängers",
+    TaxTreatment.INTRA_EU_SUPPLY: "innergemeinschaftliche Lieferung",
+    TaxTreatment.EXPORT: "Ausfuhr",
+    TaxTreatment.NOT_TAXABLE: "nicht steuerbar",
+}
+# Abschlags- und Schlussrechnungen are invoices: one gap-free invoice number range for all of them
+SEQUENCE_TYPE = {Type.PARTIAL_INVOICE: Type.INVOICE, Type.FINAL_INVOICE: Type.INVOICE}
 DEFAULT_QUOTE_VALIDITY_DAYS = 30
 AI_ORIGINS = {Document.Origin.MCP, Document.Origin.ASSISTANT}
 
@@ -82,7 +119,7 @@ def create_draft(
     period_start, period_end = service_period or (None, None)
     if period_start and period_end and period_end < period_start:
         raise DocumentError("Der Leistungszeitraum endet vor seinem Beginn")
-    if doc_type == Type.INVOICE and due_date is None and customer is not None:
+    if doc_type in INVOICE_TYPES and due_date is None and customer is not None:
         due_date = issue_date + dt.timedelta(days=customer.payment_terms_days)
     if doc_type == Type.QUOTE and valid_until is None:
         valid_until = issue_date + dt.timedelta(days=DEFAULT_QUOTE_VALIDITY_DAYS)
@@ -319,7 +356,7 @@ def validation_problems(document: Document) -> list[str]:
         problems.append("Dieser KI-Entwurf braucht vor dem Festschreiben eine Prüfung durch einen Menschen")
     if customer is None:
         problems.append("Kunde fehlt")
-    if document.doc_type in (Type.INVOICE, Type.CANCELLATION):
+    if document.doc_type in INVOICE_TYPES | {Type.CANCELLATION}:
         # § 14 Abs. 4 UStG / § 34a UStDV
         if not (document.service_date or (document.service_period_start and document.service_period_end)):
             problems.append("Leistungsdatum oder Leistungszeitraum fehlt (§ 14 Abs. 4 Nr. 6 UStG)")
@@ -329,10 +366,12 @@ def validation_problems(document: Document) -> list[str]:
             problems.append("Vollständige Anschrift der eigenen Firma fehlt")
         if not (company.tax_number or company.vat_id):
             problems.append("Steuernummer oder USt-IdNr. der eigenen Firma fehlt")
-        if document.doc_type == Type.INVOICE and not company.iban:
+        if document.doc_type in INVOICE_TYPES and not company.iban:
             problems.append("IBAN der eigenen Firma fehlt (Zahlungsangaben der E-Rechnung)")
     if not document.lines.exists():
         problems.append("Das Dokument hat keine Positionen")
+    if document.doc_type == Type.FINAL_INVOICE:
+        problems += _deduction_problems(document)
     return problems
 
 
@@ -358,6 +397,8 @@ def _seal(
     """Write the snapshot and lock. Lines first – once the document is finalized they are locked."""
     if regime is Regime.SMALL_BUSINESS and totals.tax_total != 0:
         raise DocumentError("Kleinunternehmer dürfen keine Umsatzsteuer ausweisen (§ 14c UStG)")
+    if prepaid_total(document) > totals.grand_total:
+        raise DocumentError("Die abgezogenen Abschlagsrechnungen übersteigen den Rechnungsbetrag")
     for line, result in zip(lines, totals.lines, strict=True):
         line.tax_category = result.tax.category
         line.tax_rate = result.tax.rate
@@ -373,12 +414,11 @@ def _seal(
     document.tax_total = totals.tax_total
     document.gross_total = totals.grand_total
 
+    sequence = SEQUENCE_TYPE.get(Type(document.doc_type), Type(document.doc_type))
     NumberSequence.objects.get_or_create(
-        company=document.company,
-        doc_type=document.doc_type,
-        defaults={"pattern": DEFAULT_PATTERNS[Type(document.doc_type)]},
+        company=document.company, doc_type=sequence, defaults={"pattern": DEFAULT_PATTERNS[sequence]}
     )
-    document.number = allocate_number(document.company, document.doc_type, document.issue_date)
+    document.number = allocate_number(document.company, sequence, document.issue_date)
     document.status = Document.Status.FINALIZED
     document.locked_at = timezone.now()
     document.save()
@@ -398,7 +438,13 @@ def finalize(document: Document) -> Document:
         if not doc.lines.exists():
             raise DocumentError("Ein Dokument ohne Positionen kann nicht festgeschrieben werden")
         _validate(doc)
-        if doc.doc_type == Type.INVOICE and doc.due_date is None:
+        if doc.doc_type == Type.FINAL_INVOICE:
+            # lock the deducted partial invoices: two final invoices must not deduct the same one
+            sources = doc.deductions.values_list("source_id", flat=True)
+            list(Document.objects.select_for_update().filter(pk__in=sources))
+            if problems := _deduction_problems(doc):
+                raise DocumentError("; ".join(problems))
+        if doc.doc_type in INVOICE_TYPES and doc.due_date is None:
             doc.due_date = doc.issue_date + dt.timedelta(days=doc.customer.payment_terms_days)  # BR-CO-25
         regime = _regime(doc)
         lines, inputs = _line_inputs(doc, regime)
@@ -463,8 +509,13 @@ def convert_quote_to_invoice(
 def cancel_invoice(invoice: Document, *, issue_date: dt.date, reason: str, created_by=None) -> Document:
     """Stornorechnung: mirrors the original's taxes and party data, finalized immediately."""
     invoice = Document.objects.select_related("company", "customer").get(pk=invoice.pk)
-    if invoice.doc_type != Type.INVOICE or invoice.status != Document.Status.FINALIZED:
+    if invoice.doc_type not in INVOICE_TYPES or invoice.status != Document.Status.FINALIZED:
         raise DocumentError("Nur festgeschriebene Rechnungen können storniert werden")
+    if final := _active_final_invoice(invoice):
+        raise DocumentError(
+            f"Abschlagsrechnung {invoice.number} ist in der Schlussrechnung {final.number} abgezogen – "
+            "zuerst die Schlussrechnung stornieren"
+        )
     if not reason.strip():
         raise DocumentError("Für einen Storno ist ein Grund anzugeben")
     with transaction.atomic():
@@ -484,6 +535,15 @@ def cancel_invoice(invoice: Document, *, issue_date: dt.date, reason: str, creat
             created_by=created_by,
         )
         lines = _copy_lines(invoice, storno)
+        for deduction in invoice.deductions.all():  # a cancelled Schlussrechnung releases its partial invoices
+            PrepaymentDeduction.objects.create(
+                document=storno,
+                source=deduction.source,
+                tax_category=deduction.tax_category,
+                tax_rate=deduction.tax_rate,
+                net_amount=deduction.net_amount,
+                tax_amount=deduction.tax_amount,
+            )
         original = {line.position: line for line in invoice.lines.all()}
         inputs = [
             LineInput(
@@ -507,6 +567,227 @@ def cancel_invoice(invoice: Document, *, issue_date: dt.date, reason: str, creat
             snapshots[PartySnapshot.Role.SELLER],
             snapshots[PartySnapshot.Role.BUYER],
         )
+
+
+# --- Abschlags- und Schlussrechnungen (§ 14 Abs. 5 UStG) -----------------------------------------
+
+
+def stored_totals(document: Document) -> Totals:
+    """Totals of a finalized document recomputed from its per-line tax snapshot (never current rates)."""
+    inputs = [
+        LineInput(
+            quantity=line.quantity,
+            unit_price=line.unit_price,
+            discount_percent=line.discount_percent,
+            tax=ResolvedTax(line.tax_category, line.tax_rate, line.tax_exemption_reason),
+        )
+        for line in document.lines.all()
+    ]
+    return calculate(inputs, document_discount_percent=document.document_discount_percent)
+
+
+def prepaid_total(document: Document) -> Decimal:
+    """Gross amount of all deducted Abschlagsrechnungen (EN 16931 BT-113)."""
+    if document.pk is None:
+        return Decimal("0.00")
+    totals = document.deductions.aggregate(net=Sum("net_amount"), tax=Sum("tax_amount"))
+    return (totals["net"] or Decimal("0.00")) + (totals["tax"] or Decimal("0.00"))
+
+
+def amount_due(document: Document) -> Decimal:
+    """What the customer still has to pay according to the document (BT-115)."""
+    return (document.gross_total or Decimal("0.00")) - prepaid_total(document)
+
+
+def _is_cancelled(document: Document) -> bool:
+    return document.children.filter(doc_type=Type.CANCELLATION).exists()
+
+
+def _active_final_invoice(partial: Document) -> Document | None:
+    """The finalized, not cancelled Schlussrechnung that deducts this partial invoice, if any."""
+    for deduction in partial.deducted_in.filter(
+        document__doc_type=Type.FINAL_INVOICE, document__status=Document.Status.FINALIZED
+    ).select_related("document"):
+        if not _is_cancelled(deduction.document):
+            return deduction.document
+    return None
+
+
+def _deduction_problems(document: Document) -> list[str]:
+    problems = []
+    sources = {d.source for d in document.deductions.select_related("source")}
+    if not sources:
+        problems.append("Eine Schlussrechnung braucht mindestens eine abgezogene Abschlagsrechnung")
+    for source in sources:
+        if source.customer_id != document.customer_id:
+            problems.append(f"Abschlagsrechnung {source.number} gehört zu einem anderen Kunden")
+        if _is_cancelled(source):
+            problems.append(f"Abschlagsrechnung {source.number} ist storniert")
+        final = _active_final_invoice(source)
+        if final is not None and final.pk != document.pk:
+            problems.append(f"Abschlagsrechnung {source.number} ist bereits in {final.number} abgezogen")
+    return problems
+
+
+def eligible_partial_invoices(company, customer, *, exclude: Document | None = None) -> list[Document]:
+    """Finalized partial invoices of the customer that can still be deducted (optionally not yet in ``exclude``)."""
+    candidates = Document.objects.filter(
+        company=company, customer=customer, doc_type=Type.PARTIAL_INVOICE, status=Document.Status.FINALIZED
+    )
+    if exclude is not None:
+        candidates = candidates.exclude(deducted_in__document=exclude)
+    return [c for c in candidates.order_by("issue_date", "pk") if not _is_cancelled(c) and not _active_final_invoice(c)]
+
+
+def add_deduction(document: Document, partial: Document) -> list[PrepaymentDeduction]:
+    """Deduct a finalized Abschlagsrechnung in a Schlussrechnung draft, per VAT category of the partial."""
+    _require_draft(document)
+    if document.doc_type != Type.FINAL_INVOICE:
+        raise DocumentError("Abschlagsrechnungen werden nur in einer Schlussrechnung abgezogen")
+    partial = Document.objects.get(pk=partial.pk)
+    if partial.doc_type != Type.PARTIAL_INVOICE or partial.status != Document.Status.FINALIZED:
+        raise DocumentError("Nur festgeschriebene Abschlagsrechnungen können abgezogen werden")
+    if partial.company_id != document.company_id or partial.customer_id != document.customer_id:
+        raise DocumentError(f"Abschlagsrechnung {partial.number} gehört zu einem anderen Kunden")
+    if _is_cancelled(partial):
+        raise DocumentError(f"Abschlagsrechnung {partial.number} ist storniert")
+    if final := _active_final_invoice(partial):
+        raise DocumentError(f"Abschlagsrechnung {partial.number} ist bereits in {final.number} abgezogen")
+    if document.deductions.filter(source=partial).exists():
+        raise DocumentError(f"Abschlagsrechnung {partial.number} ist bereits abgezogen")
+    return [
+        PrepaymentDeduction.objects.create(
+            document=document,
+            source=partial,
+            tax_category=b.category,
+            tax_rate=b.rate,
+            net_amount=b.basis,
+            tax_amount=b.tax,
+        )
+        for b in stored_totals(partial).breakdown
+    ]
+
+
+def remove_deduction(document: Document, partial: Document) -> None:
+    _require_draft(document)
+    document.deductions.filter(source=partial).delete()
+
+
+def _partial_lines(quote: Document, *, percent: Decimal | None, net_amount: Decimal | None) -> list[dict]:
+    """Split the requested share over the quote's tax treatments (proportional to their net amounts)."""
+    if (percent is None) == (net_amount is None):
+        raise DocumentError("Entweder einen Prozentsatz oder einen Nettobetrag angeben")
+    groups: dict[str, Decimal] = {}
+    for line, result in zip(quote.lines.all(), stored_totals(quote).lines, strict=True):
+        groups[line.tax_treatment] = groups.get(line.tax_treatment, Decimal("0")) + result.net_amount
+    factor = Decimal("1") - Decimal(quote.document_discount_percent) / 100
+    groups = {treatment: net * factor for treatment, net in groups.items()}
+    total = sum(groups.values(), Decimal("0"))
+    if total <= 0:
+        raise DocumentError("Das Angebot hat keinen positiven Nettobetrag")
+    if percent is not None:
+        if not Decimal("0") < percent <= Decimal("100"):
+            raise DocumentError("Der Abschlag muss zwischen 0 und 100 % liegen")
+        share = percent / 100
+        label = f"Abschlag {percent.normalize():f} % gemäß Angebot {quote.number}"
+    else:
+        if not Decimal("0") < net_amount <= total:
+            raise DocumentError(f"Der Abschlag muss zwischen 0 und {total.quantize(CENT)} € (netto) liegen")
+        share = net_amount / total
+        label = f"Abschlag gemäß Angebot {quote.number}"
+    lines, remaining = [], (total * share).quantize(CENT)
+    treatments = sorted(groups, key=lambda t: groups[t])
+    for index, treatment in enumerate(treatments):
+        # rounding difference goes into the largest group so the parts add up to the requested amount
+        amount = remaining if index == len(treatments) - 1 else (groups[treatment] * share).quantize(CENT)
+        remaining -= amount
+        suffix = f" ({TREATMENT_LABELS[TaxTreatment(treatment)]})" if len(groups) > 1 else ""
+        lines.append(
+            {
+                "text": label + suffix,
+                "quantity": Decimal("1"),
+                "unit_code": "LS",
+                "unit_price": amount,
+                "tax_treatment": TaxTreatment(treatment),
+            }
+        )
+    return lines
+
+
+def _require_finalized_quote(quote: Document) -> Document:
+    quote = Document.objects.select_related("company", "customer").get(pk=quote.pk)
+    if quote.doc_type != Type.QUOTE or quote.status != Document.Status.FINALIZED:
+        raise DocumentError("Nur aus festgeschriebenen Angeboten")
+    return quote
+
+
+def create_partial_invoice(
+    quote: Document,
+    *,
+    issue_date: dt.date,
+    percent: Decimal | None = None,
+    net_amount: Decimal | None = None,
+    service_date: dt.date | None = None,
+    service_period: tuple[dt.date, dt.date] | None = None,
+    created_by=None,
+    origin: Document.Origin = Document.Origin.UI,
+    idempotency_key: str = "",
+) -> Document:
+    """Abschlagsrechnung over a share of a finalized quote (one position per tax treatment)."""
+    quote = _require_finalized_quote(quote)
+    with transaction.atomic():
+        partial = create_draft(
+            quote.company,
+            Type.PARTIAL_INVOICE,
+            quote.customer,
+            issue_date=issue_date,
+            service_date=service_date,
+            service_period=service_period,
+            created_by=created_by,
+            origin=origin,
+            idempotency_key=idempotency_key,
+            parent=quote,
+        )
+        for line in _partial_lines(quote, percent=percent, net_amount=net_amount):
+            add_line(partial, **line)
+    return partial
+
+
+def create_final_invoice(
+    quote: Document,
+    *,
+    issue_date: dt.date,
+    service_date: dt.date | None = None,
+    service_period: tuple[dt.date, dt.date] | None = None,
+    created_by=None,
+    origin: Document.Origin = Document.Origin.UI,
+    idempotency_key: str = "",
+) -> Document:
+    """Schlussrechnung over the whole quote, deducting every open Abschlagsrechnung for it."""
+    quote = _require_finalized_quote(quote)
+    with transaction.atomic():
+        final = create_draft(
+            quote.company,
+            Type.FINAL_INVOICE,
+            quote.customer,
+            issue_date=issue_date,
+            service_date=service_date,
+            service_period=service_period,
+            created_by=created_by,
+            origin=origin,
+            idempotency_key=idempotency_key,
+            intro_text=quote.intro_text,
+            closing_text=quote.closing_text,
+            document_discount_percent=quote.document_discount_percent,
+            parent=quote,
+        )
+        _copy_lines(quote, final)
+        partials = [p for p in eligible_partial_invoices(quote.company, quote.customer) if p.parent_id == quote.pk]
+        if not partials:
+            raise DocumentError(f"Zu Angebot {quote.number} gibt es keine offene Abschlagsrechnung")
+        for partial in partials:
+            add_deduction(final, partial)
+    return final
 
 
 # --- retention --------------------------------------------------------------------------------

@@ -114,7 +114,13 @@ class CustomerForm(forms.ModelForm):
 class NewDocumentForm(forms.Form):
     doc_type = forms.ChoiceField(
         label="Art",
-        choices=[("invoice", "Rechnung"), ("quote", "Angebot"), ("order_confirmation", "Auftragsbestätigung")],
+        choices=[
+            ("invoice", "Rechnung"),
+            ("quote", "Angebot"),
+            ("order_confirmation", "Auftragsbestätigung"),
+            ("partial_invoice", "Abschlagsrechnung"),
+            ("final_invoice", "Schlussrechnung"),
+        ],
     )
     customer = forms.ModelChoiceField(queryset=Customer.objects.none(), label="Kunde", empty_label="– Kunde wählen –")
     issue_date = forms.DateField(label="Datum", initial=dt.date.today)
@@ -211,6 +217,22 @@ class CancelForm(forms.Form):
 
 class ConvertForm(forms.Form):
     service_date = forms.DateField(label="Leistungsdatum", required=False)
+
+
+class PartialForm(forms.Form):
+    percent = forms.DecimalField(
+        label="Abschlag in %", required=False, min_value=0, max_value=100, decimal_places=2, localize=True
+    )
+    net_amount = forms.DecimalField(
+        label="oder Nettobetrag (€)", required=False, min_value=0, decimal_places=2, localize=True
+    )
+    service_date = forms.DateField(label="Leistungsdatum", required=False)
+
+    def clean(self):
+        data = super().clean()
+        if (data.get("percent") is None) == (data.get("net_amount") is None):
+            raise forms.ValidationError("Entweder einen Prozentsatz oder einen Nettobetrag angeben.")
+        return data
 
 
 class ItemForm(forms.ModelForm):

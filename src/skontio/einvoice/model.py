@@ -97,11 +97,16 @@ class Invoice:
     service_period: tuple[dt.date, dt.date] | None = None
     due_date: dt.date | None = None
     payment_terms: str | None = None
-    type_code: str = "380"  # 380 commercial invoice, 381 credit note (Storno)
+    type_code: str = "380"  # 380 commercial invoice, 326 partial invoice, 381 credit note (Storno)
+    prepaid_amount: Decimal = Decimal("0.00")  # BT-113: deducted Abschlagsrechnungen (gross)
     currency: str = "EUR"
     notes: list[str] = field(default_factory=list)
     preceding_invoice: PrecedingInvoice | None = None
     document_discount_percent: Decimal = Decimal("0")
+
+    @property
+    def due_amount(self) -> Decimal:  # BT-115 = BT-112 - BT-113 (BR-CO-16)
+        return self.grand_total - self.prepaid_amount
 
 
 def build_invoice(*, lines: list[LineData], document_discount_percent: Decimal = Decimal("0"), **fields) -> Invoice:

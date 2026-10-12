@@ -12,8 +12,9 @@ from django.core.mail import EmailMessage
 from django.core.validators import validate_email
 
 from skontio.archive.services import load
-from skontio.documents.models import Document, Rendition
+from skontio.documents.models import INVOICE_TYPES, Document, Rendition
 from skontio.documents.renditions import TITLES, de_amount
+from skontio.documents.services import amount_due
 from skontio.mail.models import MailLog
 
 ATTACHMENT_ORDER = [
@@ -40,9 +41,9 @@ def default_message(document: Document) -> tuple[str, str]:
     company = document.company.name
     subject = f"{title} {document.number} von {company}"
     lines = ["Guten Tag,", "", f"anbei erhalten Sie unsere {title} {document.number}."]
-    if document.doc_type == Document.Type.INVOICE and document.due_date:
+    if document.doc_type in INVOICE_TYPES and document.due_date:
         lines.append(
-            f"Bitte überweisen Sie {de_amount(document.gross_total)} € bis zum {document.due_date:%d.%m.%Y} "
+            f"Bitte überweisen Sie {de_amount(amount_due(document))} € bis zum {document.due_date:%d.%m.%Y} "
             f"unter Angabe der Rechnungsnummer."
         )
         lines.append("Die angehängte PDF-Datei enthält die E-Rechnung im Format ZUGFeRD (EN 16931).")

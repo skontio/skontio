@@ -24,6 +24,8 @@ from skontio.documents.services import (
     AI_ORIGINS,
     convert_quote_to_invoice,
     create_draft,
+    create_final_invoice,
+    create_partial_invoice,
     replace_lines,
     update_draft,
 )
@@ -342,6 +344,82 @@ def quote_to_invoice_draft(ctx, args: ConvertInput) -> Out:
         idempotency_key=args.idempotency_key,
     )
     return Out(document_view(invoice, ctx), "document", invoice.pk)
+
+
+def _finalized_quote(ctx, number: str) -> Document:
+    quote = Document.objects.filter(company=ctx.company, doc_type=Document.Type.QUOTE, number=number).first()
+    if quote is None:
+        raise ToolError(f"Festgeschriebenes Angebot {number!r} nicht gefunden")
+    return quote
+
+
+def _period(args: DatesInput):
+    return (args.service_period_start, args.service_period_end) if args.service_period_start else None
+
+
+class PartialInput(ConvertInput):
+    percent: Percent | None = None
+    net_amount: Money | None = None
+
+    @model_validator(mode="after")
+    def one_share(self):
+        if (self.percent is None) == (self.net_amount is None):
+            raise ValueError("Entweder percent oder net_amount angeben")
+        return self
+
+
+@tool(
+    name="partial_invoice_draft_create",
+    title="Abschlagsrechnung entwerfen",
+    scope="drafts:write",
+    input_model=PartialInput,
+    read_only=False,
+    idempotent=True,
+)
+def partial_invoice_draft_create(ctx, args: PartialInput) -> Out:
+    """Legt aus einem festgeschriebenen Angebot einen Entwurf einer Abschlagsrechnung an – über einen
+    Prozentsatz (percent) oder einen Nettobetrag (net_amount), aufgeteilt nach Steuersätzen. Die
+    Schlussrechnung zieht Abschläge später ab."""
+    if done := _already_created(ctx, args.idempotency_key, Document.Type.PARTIAL_INVOICE):
+        return done
+    partial = create_partial_invoice(
+        _finalized_quote(ctx, args.quote_number),
+        issue_date=args.issue_date or timezone.localdate(),
+        percent=args.percent,
+        net_amount=args.net_amount,
+        service_date=args.service_date,
+        service_period=_period(args),
+        created_by=ctx.user,
+        origin=_origin(ctx),
+        idempotency_key=args.idempotency_key,
+    )
+    return Out(document_view(partial, ctx), "document", partial.pk)
+
+
+@tool(
+    name="final_invoice_draft_create",
+    title="Schlussrechnung entwerfen",
+    scope="drafts:write",
+    input_model=ConvertInput,
+    read_only=False,
+    idempotent=True,
+)
+def final_invoice_draft_create(ctx, args: ConvertInput) -> Out:
+    """Legt aus einem festgeschriebenen Angebot den Entwurf der Schlussrechnung an: volle Leistung,
+    abzüglich aller festgeschriebenen, nicht stornierten Abschlagsrechnungen zu diesem Angebot
+    (§ 14 Abs. 5 UStG). Ergebnis enthält prepaid und due."""
+    if done := _already_created(ctx, args.idempotency_key, Document.Type.FINAL_INVOICE):
+        return done
+    final = create_final_invoice(
+        _finalized_quote(ctx, args.quote_number),
+        issue_date=args.issue_date or timezone.localdate(),
+        service_date=args.service_date,
+        service_period=_period(args),
+        created_by=ctx.user,
+        origin=_origin(ctx),
+        idempotency_key=args.idempotency_key,
+    )
+    return Out(document_view(final, ctx), "document", final.pk)
 
 
 class DocumentInput(Input):

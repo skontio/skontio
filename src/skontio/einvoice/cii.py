@@ -134,7 +134,9 @@ def build_cii(invoice: Invoice, profile: Profile) -> bytes:
     totals.tax_basis_total = invoice.tax_basis_total
     totals.tax_total = (invoice.tax_total, invoice.currency)
     totals.grand_total = invoice.grand_total
-    totals.due_amount = invoice.grand_total
+    if invoice.prepaid_amount:
+        totals.prepaid_total = invoice.prepaid_amount
+    totals.due_amount = invoice.due_amount
 
     return doc.serialize(schema="FACTUR-X_EN16931")
 
