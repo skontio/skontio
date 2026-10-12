@@ -265,4 +265,4 @@ class ActivityForm(forms.Form):
 
 class FollowUpForm(forms.Form):
     title = forms.CharField(label="Wiedervorlage", max_length=200)
-    due_on = forms.DateField(label="Fällig am", widget=forms.DateInput(attrs={"type": "date"}))
+    due_on = forms.DateField(label="Fällig am", widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"))

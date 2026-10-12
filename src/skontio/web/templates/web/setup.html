@@ -1,7 +1,7 @@
 {% extends "web/base.html" %}
 {% block title %}{% if is_new %}Einrichtung{% else %}Einstellungen{% endif %}{% endblock %}
 {% block content %}
-<div class="heading"><h1>{% if is_new %}Willkommen bei Skontio{% else %}Firmendaten{% endif %}</h1>{% if not is_new %}<p><a class="button secondary" href="/einstellungen/vorlagen/">Vorlagen</a> <a class="button secondary" href="/einstellungen/sicherheit/">Sicherheit</a> <a class="button secondary" href="/einstellungen/ki-zugriff/">KI-Zugriff</a></p>{% endif %}</div>
+<div class="heading"><h1>{% if is_new %}Willkommen bei Skontio{% else %}Firmendaten{% endif %}</h1>{% if not is_new %}<p><a class="button secondary" href="/einstellungen/steuerstatus/">Steuerstatus</a> <a class="button secondary" href="/einstellungen/vorlagen/">Vorlagen</a> <a class="button secondary" href="/einstellungen/sicherheit/">Sicherheit</a> <a class="button secondary" href="/einstellungen/ki-zugriff/">KI-Zugriff</a></p>{% endif %}</div>
 {% if is_new %}<p>Diese Angaben erscheinen auf deinen Rechnungen. Die Besteuerung kannst du später nur über einen dokumentierten Wechsel ändern.</p>{% endif %}
 <p class="note">Ohne USt-IdNr. verwendet Skontio die Steuernummer als Verkäuferkennung in der E-Rechnung. Empfohlen: USt-IdNr. beim BZSt beantragen – das geht auch als Kleinunternehmer.</p>
 <form method="post" class="form">

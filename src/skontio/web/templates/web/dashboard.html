@@ -11,8 +11,8 @@
     <p class="muted">Vereinnahmte Entgelte im laufenden Jahr (§ 19 UStG).</p>
     {% if status.level.value == "warn_80" %}<p class="warn">Über 80 % der Jahresgrenze erreicht.</p>{% endif %}
     {% if status.level.value == "warn_90" %}<p class="warn">Über 90 % der Jahresgrenze erreicht – bald prüfen, ob die Regelbesteuerung greift.</p>{% endif %}
-    {% if status.level.value == "exceeded" %}<p class="danger">Grenze am {{ status.crossed_on|date:"d.m.Y" }} überschritten. Ab diesem Umsatz gilt voraussichtlich die Regelbesteuerung – bitte Steuerstatus wechseln und mit der Steuerberatung abstimmen.</p>{% endif %}
-    {% if status.previous_year_exceeded %}<p class="danger">Vorjahresgrenze überschritten: Ab 1. Januar {{ status.year }} gilt die Regelbesteuerung.</p>{% endif %}
+    {% if status.level.value == "exceeded" %}<p class="danger">Grenze am {{ status.crossed_on|date:"d.m.Y" }} überschritten. Ab diesem Umsatz gilt voraussichtlich die Regelbesteuerung – bitte <a href="/einstellungen/steuerstatus/">Steuerstatus wechseln</a> und mit der Steuerberatung abstimmen.</p>{% endif %}
+    {% if status.previous_year_exceeded %}<p class="danger">Vorjahresgrenze überschritten: Ab 1. Januar {{ status.year }} gilt die Regelbesteuerung – <a href="/einstellungen/steuerstatus/">Steuerstatus</a>.</p>{% endif %}
   </section>
   {% elif regime %}
   <section class="card"><h2>Besteuerung</h2><p>Regelbesteuerung</p></section>

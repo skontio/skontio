@@ -83,3 +83,14 @@ def test_sending_a_document_logs_an_activity(shop, settings):
     assert len(mail.outbox) == 1
     activity = Activity.objects.get()
     assert activity.kind == "email" and activity.document == document and "a@kunde.example" in activity.text
+
+
+def test_follow_up_date_field_is_prefilled_in_iso_format(client, shop):
+    """<input type="date"> only accepts YYYY-MM-DD; a German date would show an empty field."""
+    import datetime as dt
+
+    from django.utils import timezone
+
+    client.force_login(shop.user)
+    page = client.get(f"/kunden/{shop.org.pk}/").content.decode()
+    assert f'value="{(timezone.localdate() + dt.timedelta(days=7)).isoformat()}"' in page

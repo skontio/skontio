@@ -1,0 +1,55 @@
+{% extends "web/base.html" %}
+{% block title %}Steuerstatus{% endblock %}
+{% block content %}
+<h1>Steuerstatus</h1>
+<p>Aktuell: <strong>{{ current_label }}</strong>. Skontio wechselt nie von selbst – jeder Wechsel braucht deine Bestätigung.
+   Keine Steuerberatung: bitte im Zweifel mit der Steuerberatung abstimmen.</p>
+
+{% if status %}
+<section class="card level-{{ status.level.value }}">
+  <h2>Kleinunternehmergrenze {{ status.year }}</h2>
+  <p class="big">{{ revenue }} € <span class="muted">von {{ limit }} €</span></p>
+  {% if status.crossed_on %}<p class="danger">Am {{ status.crossed_on|date:"d.m.Y" }} überschritten. Ab dem Umsatz, mit dem die Grenze überschritten wird, gilt die Regelbesteuerung.</p>{% endif %}
+  {% if status.previous_year_exceeded %}<p class="danger">Vorjahresgrenze überschritten: Regelbesteuerung ab 1. Januar {{ status.year }}.</p>{% endif %}
+</section>
+{% endif %}
+
+<h2>Verlauf</h2>
+<div class="table-scroll"><table class="list">
+  <thead><tr><th>Ab</th><th>Bis</th><th>Status</th><th class="hide-small">Grund</th></tr></thead>
+  <tbody>{% for p in periods %}
+    <tr><td>{{ p.valid_from|date:"d.m.Y" }}</td><td>{{ p.valid_to|date:"d.m.Y"|default:"–" }}</td>
+      <td>{% for key, label in regime_labels.items %}{% if key == p.regime %}{{ label }}{% endif %}{% endfor %}</td>
+      <td class="hide-small">{{ p.get_reason_display }}{% if p.option_binding_until %} (bindet bis {{ p.option_binding_until|date:"d.m.Y" }}){% endif %}</td></tr>
+  {% endfor %}</tbody>
+</table></div>
+
+<details class="card"{% if form.errors or form.initial %} open{% endif %}>
+  <summary><h2>Wechsel zu: {{ target_label }}</h2></summary>
+  <form method="post" action="/einstellungen/steuerstatus/wechsel/" class="form">
+    {% csrf_token %}
+    {% include "web/_fields.html" %}
+    <button type="submit">Wechsel bestätigen</button>
+  </form>
+</details>
+
+<h2 id="korrektur">Korrektur-Assistent</h2>
+{% if candidates %}
+<p>Diese festgeschriebenen Rechnungen passen nicht mehr zum bestätigten Steuerstatus ihres Leistungsdatums.
+   Eine Korrektur storniert die Rechnung und legt einen neuen Entwurf an, der auf sie verweist. Du prüfst und
+   schreibst ihn selbst fest; danach lassen sich Zahlungen per Gegenbuchung übernehmen.</p>
+<div class="table-scroll"><table class="list">
+  <thead><tr><th>Rechnung</th><th class="hide-small">Kunde</th><th class="num">Brutto</th><th class="hide-small">bisher → jetzt</th><th></th></tr></thead>
+  <tbody>{% for c in candidates %}
+    <tr><td><a href="/dokumente/{{ c.doc.pk }}/">{{ c.doc.number }}</a><br><span class="muted">{{ c.doc.issue_date|date:"d.m.Y" }}{% if c.paid %} · bezahlt {{ c.paid }} €{% endif %}</span></td>
+      <td class="hide-small">{{ c.doc.customer.name }}</td><td class="num">{{ c.gross }} €</td>
+      <td class="hide-small">{{ c.recorded }} → {{ c.current }}</td>
+      <td>{% if c.correctable %}<form method="post" action="/einstellungen/steuerstatus/korrektur/{{ c.doc.pk }}/" class="form compact">{% csrf_token %}
+          <label><input type="radio" name="keep" value="gross" checked> Bruttobetrag beibehalten</label>
+          <label><input type="radio" name="keep" value="net"> Nettopreise beibehalten (+ USt)</label>
+          <button type="submit" class="secondary">Korrigieren</button></form>
+        {% else %}<span class="muted">Schlussrechnung: von Hand (erst Schlussrechnung stornieren)</span>{% endif %}</td></tr>
+  {% endfor %}</tbody>
+</table></div>
+{% else %}<p class="muted">Alle festgeschriebenen Rechnungen passen zum Steuerstatus.</p>{% endif %}
+{% endblock %}

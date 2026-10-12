@@ -47,6 +47,8 @@ class Document(models.Model):
     number = models.CharField(max_length=64, null=True, blank=True)  # noqa: DJ001
     customer = models.ForeignKey("crm.Customer", null=True, blank=True, on_delete=models.PROTECT)
     parent = models.ForeignKey("self", null=True, blank=True, on_delete=models.PROTECT, related_name="children")
+    # Rechnungskorrektur: the cancelled invoice this one replaces (Korrektur-Assistent)
+    replaces = models.ForeignKey("self", null=True, blank=True, on_delete=models.PROTECT, related_name="replaced_by")
 
     issue_date = models.DateField()
     service_date = models.DateField(null=True, blank=True)

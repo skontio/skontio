@@ -38,6 +38,7 @@ from skontio.documents.services import (
 from skontio.mail.services import MailError, default_message, send_document
 from skontio.payments.services import PaymentError, open_amount, payment_status, record_payment
 from skontio.tax.engine import TaxTreatment
+from skontio.taxstatus.corrections import transferable_payments
 from skontio.web.forms import (
     CancelForm,
     ConvertForm,
@@ -190,6 +191,10 @@ def _finalized_context(doc: Document, **extra) -> dict:
         "send_form": _send_form(doc),
     }
     context |= _deduction_context(doc)
+    context["replacement"] = doc.replaced_by.order_by("-pk").first()
+    if doc.replaces_id:
+        transferable = sum((p.amount for p in transferable_payments(doc)), Decimal("0"))
+        context["transferable"] = de_amount(transferable) if transferable else ""
     if doc.doc_type in INVOICE_TYPES:
         context |= {
             "cancelled": doc.children.filter(doc_type=Type.CANCELLATION).exists(),

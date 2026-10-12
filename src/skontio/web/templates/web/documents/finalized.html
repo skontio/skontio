@@ -16,6 +16,11 @@
 </p>
 {% if doc.parent %}<p>Bezug: <a href="/dokumente/{{ doc.parent.pk }}/">{{ doc.parent.get_doc_type_display }} {{ doc.parent.number }}</a>{% if doc.cancellation_reason %} – {{ doc.cancellation_reason }}{% endif %}</p>{% endif %}
 {% if cancelled %}<p class="danger">Diese Rechnung wurde storniert.</p>{% endif %}
+{% if replacement %}<p>Ersetzt durch <a href="/dokumente/{{ replacement.pk }}/">{{ replacement.number|default:"Entwurf" }}</a> (Rechnungskorrektur).</p>{% endif %}
+{% if doc.replaces %}<p>Ersetzt <a href="/dokumente/{{ doc.replaces.pk }}/">{{ doc.replaces.number }}</a> (Rechnungskorrektur).</p>
+{% if transferable %}<form method="post" action="/dokumente/{{ doc.pk }}/zahlungen-uebernehmen/" class="card warn">{% csrf_token %}
+  <p>Auf {{ doc.replaces.number }} sind {{ transferable }} € eingegangen. Per Gegenbuchung auf diese Rechnung übernehmen?</p>
+  <button type="submit">Zahlungen übernehmen</button></form>{% endif %}{% endif %}
 
 <div class="table-scroll"><table class="list">
   <thead><tr><th>Pos.</th><th>Bezeichnung</th><th class="num">Menge</th><th class="num hide-small">Einzelpreis</th><th class="num">Betrag</th></tr></thead>

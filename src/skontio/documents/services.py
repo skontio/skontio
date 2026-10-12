@@ -301,6 +301,11 @@ def _regime(document: Document) -> Regime:
     return first
 
 
+def supply_regime(document: Document) -> Regime:
+    """The confirmed tax status for the document's date of supply as it stands today."""
+    return _regime(document)
+
+
 def _line_inputs(document: Document, regime: Regime) -> tuple[list[DocumentLine], list[LineInput]]:
     _, tax_date = _tax_dates(document)
     lines = list(document.lines.all())
