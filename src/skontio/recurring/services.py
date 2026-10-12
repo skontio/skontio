@@ -138,6 +138,7 @@ def _generate_one(recurring: RecurringInvoice, today: dt.date, user) -> Document
             recurring.customer,
             issue_date=today,
             service_period=(start, end),
+            origin=Document.Origin.RECURRING,
             created_by=user,
             language=recurring.language,
             intro_text=recurring.intro_text,

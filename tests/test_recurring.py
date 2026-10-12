@@ -73,6 +73,7 @@ class TestGenerate:
         )
         (draft,) = generate(recurring, today=dt.date(2026, 3, 1))
         assert draft.status == Document.Status.DRAFT and draft.issue_date == dt.date(2026, 3, 1)
+        assert draft.origin == Document.Origin.RECURRING and not draft.ai_review_required
         assert (draft.service_period_start, draft.service_period_end) == (dt.date(2026, 3, 1), dt.date(2026, 3, 31))
         assert draft.intro_text == "Wartung" and draft.lines.get().quantity == D("2")
         finalize(draft)  # a normal invoice from here on
