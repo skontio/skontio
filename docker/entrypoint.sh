@@ -9,8 +9,8 @@ role="${1:-web}"
 
 case "$role" in
   web)
-    # TODO(Phase 1a): automatic backup before migrations (plan §9)
-    skontio migrate --noinput
+    # backs up an existing database automatically before applying migrations (plan §9)
+    skontio upgrade
     # asginl: Django has no ASGI lifespan support
     exec granian --interface asginl \
       --host 0.0.0.0 --port 8000 \

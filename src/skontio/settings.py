@@ -148,6 +148,8 @@ USE_I18N = True
 USE_TZ = True
 
 ARCHIVE_DIR = Path(os.environ.get("SKONTIO_ARCHIVE_DIR", BASE_DIR.parent.parent / "var" / "archive"))
+BACKUP_DIR = Path(os.environ.get("SKONTIO_BACKUP_DIR", BASE_DIR.parent.parent / "var" / "backups"))
+BACKUP_KEEP = int(os.environ.get("SKONTIO_BACKUP_KEEP", "14"))
 
 STATIC_URL = "static/"
 STATIC_ROOT = Path(os.environ.get("SKONTIO_STATIC_ROOT", BASE_DIR.parent.parent / "var" / "static"))
