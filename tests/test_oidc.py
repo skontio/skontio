@@ -198,7 +198,8 @@ class TestLocalLogin:
     def test_blocked_from_public_addresses(self, client):
         assert client.get("/auth/local/", REMOTE_ADDR="203.0.113.7").status_code == 403
 
-    def test_allowed_from_lan(self, client, django_user_model):
+    def test_allowed_from_lan(self, client, django_user_model, settings):
+        settings.LOCAL_LOGIN_REQUIRE_2FA = False  # second factor: tests/test_twofactor.py
         django_user_model.objects.create_user("notfall", password="ein-langes-passwort-123")
         response = client.post(
             "/auth/local/",

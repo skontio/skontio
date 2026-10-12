@@ -7,6 +7,7 @@ from oauth2_provider import urls as oauth2_urls
 from skontio.accounts import views as accounts
 from skontio.mcp import views as mcp_views
 from skontio.mcp.auth import mcp_endpoint
+from skontio.web import security_views as security
 
 
 def healthz(request):
@@ -31,5 +32,10 @@ urlpatterns = [
     path("auth/callback", accounts.oidc_callback, name="oidc_callback"),
     path("auth/logout", accounts.oidc_logout, name="logout"),
     path("auth/local/", accounts.LocalLoginView.as_view(), name="local_login"),
+    path("auth/local/2fa/", accounts.local_second_factor, name="local_login_2fa"),
+    path("einstellungen/sicherheit/", security.security, name="security"),
+    path("einstellungen/sicherheit/einrichten/", security.security_start, name="security_start"),
+    path("einstellungen/sicherheit/bestaetigen/", security.security_confirm, name="security_confirm"),
+    path("einstellungen/sicherheit/aus/", security.security_disable, name="security_disable"),
     path("", include("skontio.web.urls")),
 ]

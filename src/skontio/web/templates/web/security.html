@@ -1,0 +1,45 @@
+{% extends "web/base.html" %}
+{% block title %}Sicherheit{% endblock %}
+{% block content %}
+<h1>Sicherheit</h1>
+<p>Die normale Anmeldung läuft über Pocket ID. Der <strong>Notfall-Login</strong> mit Passwort (nur aus dem Heimnetz)
+   braucht zusätzlich einen Code aus einer Authenticator-App.</p>
+
+{% if recovery_codes %}
+<section class="card warn">
+  <h2>Wiederherstellungscodes</h2>
+  <p>Jeder Code funktioniert genau einmal, falls das Telefon fehlt. <strong>Jetzt im Passwort-Manager speichern</strong> – sie werden nicht noch einmal angezeigt.</p>
+  <ul class="plain codes">{% for code in recovery_codes %}<li><code>{{ code }}</code></li>{% endfor %}</ul>
+</section>
+{% endif %}
+
+{% if enabled %}
+<section class="card">
+  <h2>Authenticator-App aktiv</h2>
+  <p>Noch {{ remaining }} unbenutzte Wiederherstellungscodes.</p>
+  <form method="post" action="/einstellungen/sicherheit/aus/" class="form">
+    {% csrf_token %}
+    <label for="off-code">Aktueller Code</label><input id="off-code" name="code" autocomplete="one-time-code" required>
+    <button type="submit" class="danger">Ausschalten</button>
+  </form>
+</section>
+{% elif secret %}
+<section class="card">
+  <h2>Authenticator-App verbinden</h2>
+  <p>QR-Code mit der App scannen (z. B. Aegis, 2FAS, Google Authenticator) oder den Schlüssel eintippen.</p>
+  <img src="{{ qr }}" alt="QR-Code für die Authenticator-App" width="200" height="200">
+  <p>Schlüssel: <code>{{ secret }}</code></p>
+  <form method="post" action="/einstellungen/sicherheit/bestaetigen/" class="form">
+    {% csrf_token %}
+    <label for="code">Code aus der App</label><input id="code" name="code" inputmode="numeric" autocomplete="one-time-code" required>
+    <button type="submit">Aktivieren</button>
+  </form>
+</section>
+{% else %}
+<section class="card">
+  <h2>Kein zweiter Faktor</h2>
+  <p>Ohne zweiten Faktor ist der Notfall-Login gesperrt.</p>
+  <form method="post" action="/einstellungen/sicherheit/einrichten/">{% csrf_token %}<button type="submit">Einrichten</button></form>
+</section>
+{% endif %}
+{% endblock %}

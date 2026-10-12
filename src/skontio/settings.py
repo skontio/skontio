@@ -260,6 +260,13 @@ OIDC_ADMIN_GROUP = os.environ.get("SKONTIO_OIDC_ADMIN_GROUP", "skontio-admin")
 LOCAL_LOGIN_NETWORKS = env_list(
     "SKONTIO_LOCAL_LOGIN_NETWORKS", "127.0.0.0/8,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,::1/128,fc00::/7"
 )
+# Argon2id for local passwords; PBKDF2 stays to verify (and upgrade) existing hashes
+PASSWORD_HASHERS = [
+    "django.contrib.auth.hashers.Argon2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+]
+# break-glass login needs a second factor (TOTP or recovery code) unless explicitly switched off
+LOCAL_LOGIN_REQUIRE_2FA = env_bool("SKONTIO_LOCAL_LOGIN_REQUIRE_2FA", True)
 LOGIN_URL = "/auth/login"
 LOGIN_REDIRECT_URL = "/"
 LOGOUT_REDIRECT_URL = "/"

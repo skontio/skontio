@@ -29,7 +29,7 @@ Der vollständige Plan steht in [`docs/plan.md`](docs/plan.md), Architekturentsc
 | ZUGFeRD/XRechnung erzeugen – geprüft mit **KoSIT** und **Mustang/veraPDF** | ✅ |
 | E-Rechnungs-Eingang (CII, UBL, ZUGFeRD-PDF), revisionssicheres Archiv | ✅ |
 | Zahlungen, offene Posten, GiroCode, Versand per SMTP mit Protokoll | ✅ |
-| Login über OIDC (Pocket ID), Notfall-Login nur aus dem LAN | ✅ |
+| Login über OIDC (Pocket ID), Notfall-Login nur aus dem LAN mit TOTP-2FA, Argon2id | ✅ |
 | Oberfläche (Mobile-first), installierbare PWA | ✅ |
 | Backup/Restore (SQLite und Postgres) mit Prüfsummen, atomar, Sicherung vor Updates | ✅ |
 | MCP-Server (2026-07-28 + Legacy), 18 Tools nur für Entwürfe, Pseudonyme, hashverkettetes Audit-Log | ✅ 1b |

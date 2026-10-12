@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Skontio – Bestätigungscode</title>
+</head>
+<body>
+<main>
+  <h1>Bestätigungscode</h1>
+  <p>Code aus der Authenticator-App oder einen Wiederherstellungscode eingeben.</p>
+  {% if error %}<p role="alert">{{ error }}</p>{% endif %}
+  <form method="post">
+    {% csrf_token %}
+    <p><label for="code">Code</label> <input id="code" name="code" autocomplete="one-time-code" inputmode="text" autofocus required></p>
+    <button type="submit">Bestätigen</button>
+  </form>
+</main>
+</body>
+</html>

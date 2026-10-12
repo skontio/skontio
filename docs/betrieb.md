@@ -63,8 +63,13 @@ Scheitert `discovery`, kann der Router vermutlich kein NAT-Loopback: im lokalen 
 Danach `https://skontio.example.org` öffnen, mit dem Passkey anmelden und die Einrichtung ausfüllen.
 
 **Notfall-Login ohne Pocket ID:** Konto anlegen mit `docker exec -it <container> skontio createsuperuser`,
-dann **aus dem Heimnetz** `https://skontio.example.org/auth/local/` öffnen. Von außen ist dieser
+dann den zweiten Faktor einrichten – entweder nach der Anmeldung über Pocket ID unter *Einstellungen →
+Sicherheit* oder per `docker exec -it <container> skontio totp setup <Benutzer>` (zeigt Schlüssel und
+Wiederherstellungscodes; beides in den Passwort-Manager). Danach **aus dem Heimnetz**
+`https://skontio.example.org/auth/local/` öffnen: Passwort, dann Code aus der App. Von außen ist dieser
 Login gesperrt (Skontio erkennt die echte Client-IP über Caddy; `SKONTIO_TRUSTED_PROXIES` muss stimmen).
+Das TOTP-Geheimnis liegt mit `secret_key` verschlüsselt in der Datenbank – ohne diese Datei ist es nach
+einer Wiederherstellung unbrauchbar (dann `skontio totp disable <Benutzer>` und neu einrichten).
 
 ## 5a. Claude über MCP verbinden
 
