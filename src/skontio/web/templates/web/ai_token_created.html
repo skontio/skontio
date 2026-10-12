@@ -1,0 +1,31 @@
+{% extends "web/base.html" %}
+{% block title %}Zugangstoken angelegt{% endblock %}
+{% block content %}
+<h1>Zugangstoken „{{ token.name }}“</h1>
+<section class="card warn">
+  <h2>Token jetzt kopieren</h2>
+  <p>Er wird <strong>nur dieses eine Mal</strong> angezeigt. Gültig bis {{ token.expires_at|date:"d.m.Y" }},
+     Berechtigungen: {{ token.scopes }}.</p>
+  <pre class="snippet">{{ raw }}</pre>
+</section>
+
+<h2>Claude Code</h2>
+<p>Direkt über HTTP, ohne Bridge:</p>
+<pre class="snippet">claude mcp add --transport http skontio {{ mcp_url }} --header "Authorization: Bearer {{ raw }}"</pre>
+
+<h2>Claude Desktop und andere stdio-Clients</h2>
+<p><a href="/einstellungen/ki-zugriff/skontio-mcp.py">skontio-mcp.py herunterladen</a> (braucht nur Python 3) und in
+   <code>claude_desktop_config.json</code> eintragen:</p>
+<pre class="snippet">{
+  "mcpServers": {
+    "skontio": {
+      "command": "python3",
+      "args": ["/Pfad/zu/skontio-mcp.py"],
+      "env": {"SKONTIO_URL": "{{ public_url }}", "SKONTIO_TOKEN": "{{ raw }}"}
+    }
+  }
+}</pre>
+<p class="muted">Erreichbar nur im Heimnetz oder per VPN (Caddy lässt <code>/mcp</code> nur aus privaten Netzen zu). Wer Skontio als Python-Paket installiert hat, kann statt <code>python3 …/skontio-mcp.py</code> auch den Befehl
+   <code>skontio-mcp</code> verwenden.</p>
+<p><a class="button secondary" href="/einstellungen/ki-zugriff/">Zurück zu KI-Zugriff</a></p>
+{% endblock %}

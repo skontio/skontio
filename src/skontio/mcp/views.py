@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from urllib.parse import urlparse
 
 from django.conf import settings
 from django.contrib import messages
 from django.db import transaction
 from django.db.models import Count, Max, Q
-from django.http import HttpResponseForbidden
+from django.http import HttpResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -17,6 +18,9 @@ from oauth2_provider.views import AuthorizationView
 
 from skontio.audit.models import AuditEvent
 from skontio.audit.services import record
+from skontio.mcp import bridge
+from skontio.mcp.models import PersonalAccessToken
+from skontio.mcp.tokens import MAX_DAYS, TokenError, active_tokens, create_token, revoke_token
 from skontio.web.support import admin_required
 
 
@@ -66,8 +70,49 @@ def ai_access(request):
         "events": events,
         "pseudonymised": settings.MCP_PSEUDONYMISE_PERSONS,
         "mcp_url": f"{settings.PUBLIC_URL}/mcp",
+        "public_url": settings.PUBLIC_URL,
+        "tokens": active_tokens().select_related("user"),
+        "scope_choices": [(s, label, s in DEFAULT_TOKEN_SCOPES) for s, label in settings.MCP_SCOPES.items()],
+        "max_days": MAX_DAYS,
     }
     return render(request, "web/ai_access.html", context)
+
+
+DEFAULT_TOKEN_SCOPES = {"catalog:read", "customers:read", "drafts:read", "drafts:write", "documents:read"}
+
+
+@admin_required
+@require_POST
+def ai_token_create(request):
+    try:
+        days = int(request.POST.get("days", "30"))
+        token, raw = create_token(
+            request.user, name=request.POST.get("name", ""), scopes=request.POST.getlist("scopes"), days=days
+        )
+    except (ValueError, TokenError) as exc:
+        messages.error(request, str(exc) if isinstance(exc, TokenError) else "Ungültige Gültigkeitsdauer.")
+        return redirect("ai_access")
+    context = {"token": token, "raw": raw, "public_url": settings.PUBLIC_URL, "mcp_url": f"{settings.PUBLIC_URL}/mcp"}
+    response = render(request, "web/ai_token_created.html", context)
+    response["Cache-Control"] = "no-store"  # the plain token must not end up in any cache
+    return response
+
+
+@admin_required
+@require_POST
+def ai_token_revoke(request, pk: int):
+    token = get_object_or_404(PersonalAccessToken, pk=pk)
+    revoke_token(token, actor=request.user)
+    messages.success(request, f"Zugangstoken „{token.name}“ widerrufen.")
+    return redirect("ai_access")
+
+
+@admin_required
+def bridge_download(request):
+    """The stdio bridge as a single file (standard library only, AGPL like the rest of Skontio)."""
+    response = HttpResponse(Path(bridge.__file__).read_bytes(), content_type="text/x-python; charset=utf-8")
+    response["Content-Disposition"] = 'attachment; filename="skontio-mcp.py"'
+    return response
 
 
 @admin_required

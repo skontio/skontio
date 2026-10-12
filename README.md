@@ -35,6 +35,9 @@ Der vollständige Plan steht in [`docs/plan.md`](docs/plan.md), Architekturentsc
 | Oberfläche (Mobile-first), installierbare PWA | ✅ |
 | Backup/Restore (SQLite und Postgres) mit Prüfsummen, atomar, Sicherung vor Updates | ✅ |
 | MCP-Server (2026-07-28 + Legacy), 18 Tools nur für Entwürfe, Pseudonyme, hashverkettetes Audit-Log | ✅ 1b |
+| Zugangstokens und stdio-Bridge `skontio-mcp` für Claude Desktop und Claude Code | ✅ 1b |
+| Auftragsbestätigung, Abschlags- und Schlussrechnung (§ 14 Abs. 5 UStG) | ✅ 1b |
+| CRM: Aktivitäten, Wiedervorlagen, Dateiablage mit Aufbewahrungsfrist | ✅ 1b |
 | Assistent, EÜR/USt-VA, Bankabgleich | Phase 1b–3 |
 
 Betrieb auf TrueNAS: [`docs/betrieb.md`](docs/betrieb.md).

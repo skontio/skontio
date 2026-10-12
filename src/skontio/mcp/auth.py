@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import time
+from dataclasses import dataclass
 
 from django.conf import settings
 from django.core.cache import cache
@@ -20,6 +21,7 @@ from oauth2_provider.www_authenticate import build_bearer_challenge
 
 from skontio.audit.models import AuditEvent
 from skontio.mcp.protocol import Reply, handle_message
+from skontio.mcp.tokens import TOKEN_PREFIX, authenticate_pat
 from skontio.tools.registry import ToolContext
 from skontio.web.support import current_company
 
@@ -37,19 +39,36 @@ def resource_matches_exactly(request_uri: str, audiences: list[str]) -> bool:
     return _normalise(request_uri) in {_normalise(a) for a in audiences if isinstance(a, str)}
 
 
-def authenticate_mcp(request: HttpRequest):
+@dataclass(frozen=True)
+class Principal:
+    """Who calls /mcp: an OAuth access token or a personal access token (``skt_…``)."""
+
+    user: object
+    scopes: frozenset[str]
+    client_id: str
+    rate_key: str
+
+
+def authenticate_mcp(request: HttpRequest) -> Principal | None:
     header = request.headers.get("Authorization", "")
     scheme, _, raw_token = header.partition(" ")
-    if scheme.lower() != "bearer" or not raw_token.strip():
+    raw_token = raw_token.strip()
+    if scheme.lower() != "bearer" or not raw_token:
         return None
-    checksum = hashlib.sha256(raw_token.strip().encode("utf-8")).hexdigest()
+    if raw_token.startswith(TOKEN_PREFIX):
+        pat = authenticate_pat(raw_token)
+        if pat is None:
+            return None
+        return Principal(pat.user, frozenset(pat.scope_list), f"pat:{pat.prefix}", f"pat:{pat.pk}")
+    checksum = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
     tokens = get_access_token_model().objects.select_related("user", "application")
     token = tokens.filter(token_checksum=checksum).first()
     if token is None or not token.is_valid():
         return None
     if not token.resource or not resource_matches_exactly(mcp_resource(), token.resource):
         return None
-    return token
+    client_id = token.application.client_id if token.application else ""
+    return Principal(token.user, frozenset(token.scope.split()), client_id, f"oauth:{token.pk}")
 
 
 def _unauthorized(request: HttpRequest) -> JsonResponse:
@@ -68,8 +87,8 @@ def _origin_allowed(request: HttpRequest) -> bool:
     return origin is None or origin.rstrip("/") in {settings.PUBLIC_URL, *settings.MCP_ALLOWED_ORIGINS}
 
 
-def _rate_limited(token) -> bool:
-    key = f"mcp-rate:{token.pk}:{int(time.time() // 60)}"
+def _rate_limited(principal: Principal) -> bool:
+    key = f"mcp-rate:{principal.rate_key}:{int(time.time() // 60)}"
     cache.add(key, 0, timeout=120)
     return cache.incr(key) > settings.MCP_RATE_LIMIT_PER_MINUTE
 
@@ -87,8 +106,8 @@ def _json(reply: Reply) -> HttpResponse:
 @csrf_exempt  # bearer-token API, no cookies
 def mcp_endpoint(request: HttpRequest) -> HttpResponse:
     """Streamable HTTP MCP endpoint (POST only; see skontio.mcp.protocol)."""
-    token = authenticate_mcp(request)
-    if token is None:
+    principal = authenticate_mcp(request)
+    if principal is None:
         return _unauthorized(request)
     if not _origin_allowed(request):
         return JsonResponse({"jsonrpc": "2.0", "error": {"code": -32600, "message": "Origin not allowed"}}, status=403)
@@ -96,20 +115,20 @@ def mcp_endpoint(request: HttpRequest) -> HttpResponse:
         response = HttpResponse(status=405)  # no GET stream, no sessions (2026-07-28)
         response["Allow"] = "POST"
         return response
-    if _rate_limited(token):
+    if _rate_limited(principal):
         response = JsonResponse({"error": "rate_limited"}, status=429)
         response["Retry-After"] = "60"
         return response
     company = current_company()
-    if company is None or not token.user.is_active:
+    if company is None or not principal.user.is_active:
         return JsonResponse({"error": "Skontio ist noch nicht eingerichtet"}, status=503)
 
     ctx = ToolContext(
         company=company,
-        user=token.user,
-        scopes=frozenset(token.scope.split()) & frozenset(settings.MCP_SCOPES),
+        user=principal.user,
+        scopes=principal.scopes & frozenset(settings.MCP_SCOPES),
         actor_kind=AuditEvent.ActorKind.MCP,
-        client_id=token.application.client_id if token.application else "",
+        client_id=principal.client_id,
         pseudonymise_persons=settings.MCP_PSEUDONYMISE_PERSONS,
     )
 

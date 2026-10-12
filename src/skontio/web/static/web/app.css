@@ -84,3 +84,7 @@ details > summary h2 { display: inline; }
   .logout { margin-left: auto; }
   table.list th, table.list td { padding: 8px 6px; }
 }
+pre.snippet { background: var(--bg); border: 1px solid var(--rule); border-radius: var(--radius); padding: 8px 12px;
+              overflow-x: auto; white-space: pre-wrap; word-break: break-all; user-select: all; }
+fieldset { border: 1px solid var(--rule); border-radius: var(--radius); }
+fieldset label { display: block; }

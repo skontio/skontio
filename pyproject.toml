@@ -27,6 +27,7 @@ dependencies = [
 
 [project.scripts]
 skontio = "skontio:main"
+skontio-mcp = "skontio.mcp.bridge:main"
 
 [build-system]
 requires = ["uv_build>=0.12.19,<0.13.0"]

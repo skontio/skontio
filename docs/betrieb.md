@@ -93,6 +93,19 @@ den angefragten Berechtigungen.
 - Caddy lässt `/mcp` nur aus Anthropics Netz `160.79.104.0/21` und privaten Netzen zu; `/oauth` und
   `/.well-known` sind öffentlich.
 
+**Claude Desktop und Claude Code (persönlicher Zugangstoken):** *Einstellungen → KI-Zugriff → Neuer
+Zugangstoken*, Berechtigungen wählen, höchstens 90 Tage. Der Token (`skt_…`) wird genau einmal angezeigt,
+zusammen mit fertigen Einträgen:
+
+- Claude Code spricht HTTP direkt:
+  `claude mcp add --transport http skontio https://skontio.example.org/mcp --header "Authorization: Bearer skt_…"`
+- Claude Desktop startet die Bridge `skontio-mcp.py` (Download auf derselben Seite, nur Python 3 nötig) mit
+  `SKONTIO_URL` und `SKONTIO_TOKEN` in `claude_desktop_config.json`. Die Bridge nimmt nur https an
+  (http nur für `localhost`, sonst `--allow-http`). Der Token steht in der Umgebung, nie auf der Kommandozeile.
+- Weil Caddy `/mcp` auf private Netze beschränkt, funktioniert das nur im Heimnetz oder über VPN.
+- Per Kommandozeile: `skontio mcp_token create <Benutzer> --name "Claude Code" --scope drafts:read --scope drafts:write`,
+  `skontio mcp_token list`, `skontio mcp_token revoke skt_Ab12Cd34`. Anlegen und Widerruf stehen im Änderungsprotokoll.
+
 ## 6. Backups
 
 TrueNAS: *System → Advanced → Cron Jobs* → täglich 02:30:

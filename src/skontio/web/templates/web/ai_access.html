@@ -20,6 +20,37 @@
 </table></div>
 {% else %}<p>Kein Client verbunden.</p>{% endif %}
 
+<h2>Persönliche Zugangstokens</h2>
+<p>Für Claude Desktop (über die Bridge <code>skontio-mcp</code>) und Claude Code. Höchstens {{ max_days }} Tage gültig.</p>
+{% if tokens %}
+<div class="table-scroll"><table class="list">
+  <thead><tr><th>Name</th><th class="hide-small">Berechtigungen</th><th>Gültig bis</th><th class="hide-small">Zuletzt</th><th></th></tr></thead>
+  <tbody>
+  {% for t in tokens %}
+    <tr><td>{{ t.name }} <span class="muted">{{ t.prefix }}…</span></td><td class="hide-small">{{ t.scopes }}</td>
+      <td>{{ t.expires_at|date:"d.m.Y" }}</td><td class="hide-small">{{ t.last_used_at|date:"d.m.Y H:i"|default:"–" }}</td>
+      <td><form method="post" action="/einstellungen/ki-zugriff/tokens/{{ t.pk }}/widerrufen/">{% csrf_token %}
+        <button type="submit" class="danger">Widerrufen</button></form></td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% endif %}
+<details class="card">
+  <summary><h3>Neuer Zugangstoken</h3></summary>
+  <form method="post" action="/einstellungen/ki-zugriff/tokens/" class="form">
+    {% csrf_token %}
+    <label for="token-name">Name</label><input id="token-name" name="name" maxlength="100" placeholder="Claude Desktop" required>
+    <label for="token-days">Gültigkeit</label>
+    <select id="token-days" name="days"><option value="7">7 Tage</option><option value="30" selected>30 Tage</option><option value="90">90 Tage</option></select>
+    <fieldset><legend>Berechtigungen</legend>
+      {% for scope, label, checked in scope_choices %}
+      <label><input type="checkbox" name="scopes" value="{{ scope }}"{% if checked %} checked{% endif %}> {{ label }} <span class="muted">({{ scope }})</span></label>
+      {% endfor %}
+    </fieldset>
+    <button type="submit">Token anlegen</button>
+  </form>
+</details>
+
 <h2>Letzte KI-Aktionen</h2>
 {% if events %}
 <div class="table-scroll"><table class="list">
