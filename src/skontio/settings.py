@@ -116,6 +116,7 @@ INSTALLED_APPS = [
     "skontio.audit",
     "skontio.mcp",
     "skontio.attachments",
+    "skontio.expenses",
 ]
 
 MIDDLEWARE = [

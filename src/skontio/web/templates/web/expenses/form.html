@@ -1,0 +1,34 @@
+{% extends "web/base.html" %}
+{% block title %}{% if expense %}Ausgabe {{ expense.number }}{% else %}Neue Ausgabe{% endif %}{% endblock %}
+{% block content %}
+<div class="heading">
+  <h1>{% if expense %}Ausgabe {{ expense.number }}{% else %}Neue Ausgabe{% endif %}</h1>
+  <a class="button secondary" href="/ausgaben/">Alle Ausgaben</a>
+</div>
+{% if expense.cancelled_at %}<p class="danger" role="status">Storniert am {{ expense.cancelled_at|date:"d.m.Y" }}: {{ expense.cancel_reason }}</p>{% endif %}
+{% for hint in hints %}<p class="warn">{{ hint }}</p>{% endfor %}
+{% if expense.receipt_id %}<p>Beleg: <a href="/ausgaben/{{ expense.pk }}/beleg/" target="_blank" rel="noopener">{{ expense.receipt_filename|default:"anzeigen" }}</a></p>{% endif %}
+{% if not expense.cancelled_at %}
+<form method="post" enctype="multipart/form-data" class="form">
+  {% csrf_token %}
+  {% include "web/_fields.html" %}
+  <button type="submit">Speichern</button>
+</form>
+{% endif %}
+{% if expense and not expense.cancelled_at %}
+<details class="card">
+  <summary><h2>Stornieren</h2></summary>
+  <form method="post" action="/ausgaben/{{ expense.pk }}/stornieren/" class="form">
+    {% csrf_token %}
+    <label for="reason">Grund</label><input id="reason" name="reason" maxlength="300" required placeholder="z. B. doppelt erfasst">
+    <button type="submit" class="danger">Stornieren</button>
+  </form>
+</details>
+{% endif %}
+{% if history %}
+<h2>Verlauf</h2>
+<ul class="plain timeline">{% for event in history %}
+  <li><span class="muted">{{ event.created_at|date:"d.m.Y H:i" }} · {{ event.actor|default:"System" }}</span> – {{ event.action }}</li>
+{% endfor %}</ul>
+{% endif %}
+{% endblock %}

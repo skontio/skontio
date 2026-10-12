@@ -1,0 +1,22 @@
+{% extends "web/base.html" %}
+{% block title %}Ausgaben {{ year }}{% endblock %}
+{% block content %}
+<div class="heading">
+  <h1>Ausgaben {{ year }}</h1>
+  <a class="button" href="/ausgaben/neu/">Neue Ausgabe</a>
+</div>
+<p class="filters">{% for y in years %}<a href="?jahr={{ y }}"{% if y == year %} aria-current="page"{% endif %}>{{ y }}</a> {% endfor %}
+  · <a href="/auswertungen/euer/?jahr={{ year }}">EÜR {{ year }}</a></p>
+<p>Summe {{ total }} € (brutto, ohne Stornos){% if missing_receipts %} · <span class="badge danger">{{ missing_receipts }} ohne Beleg</span>{% endif %}{% if unpaid %} · <span class="badge">{{ unpaid }} unbezahlt</span>{% endif %}</p>
+{% if expenses %}
+<div class="table-scroll"><table class="list">
+  <thead><tr><th>Beleg</th><th>Datum</th><th>Lieferant</th><th class="hide-small">Kategorie</th><th class="num">Brutto</th></tr></thead>
+  <tbody>{% for e in expenses %}
+    <tr{% if e.cancelled_at %} class="muted"{% endif %}><td><a href="/ausgaben/{{ e.pk }}/">{{ e.number }}</a>{% if not e.receipt_id %} <span class="badge danger">kein Beleg</span>{% endif %}{% if e.cancelled_at %} <span class="badge">storniert</span>{% endif %}</td>
+      <td>{{ e.receipt_date|date:"d.m.Y" }}{% if not e.paid_on %} <span class="badge">offen</span>{% endif %}</td>
+      <td>{{ e.supplier }}{% if e.description %}<br><span class="muted">{{ e.description }}</span>{% endif %}</td>
+      <td class="hide-small">{{ e.get_category_display }}</td><td class="num">{{ e.gross_amount|floatformat:"2g" }} €</td></tr>
+  {% endfor %}</tbody>
+</table></div>
+{% else %}<p class="muted">Keine Ausgaben mit Belegdatum {{ year }}.</p>{% endif %}
+{% endblock %}

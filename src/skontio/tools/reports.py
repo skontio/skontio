@@ -8,6 +8,7 @@ from django.utils import timezone
 from pydantic import Field
 
 from skontio.documents.models import INVOICE_TYPES, Document
+from skontio.reports.euer import euer
 from skontio.taxstatus.thresholds import net_receipts, small_business_status
 from skontio.tools.inputs import Input
 from skontio.tools.registry import Out, tool
@@ -71,6 +72,25 @@ def small_business_status_tool(ctx, args: Input) -> Out:
             "previous_year_limit": money(status.previous_year_limit),
             "previous_year_exceeded": status.previous_year_exceeded,
             "source": status.rule.source,
+            "note": NOTE,
+        }
+    )
+
+
+@tool(name="euer_summary", title="Einnahmenüberschussrechnung", scope="reports:read", input_model=YearInput)
+def euer_summary(ctx, args: YearInput) -> Out:
+    """Einnahmenüberschussrechnung eines Jahres nach Zufluss/Abfluss: Einnahmen und Ausgaben je Gruppe der
+    Anlage EÜR, Gewinn und Hinweise auf noch fehlende Posten (z. B. Abschreibungen). Keine Einzelbelege."""
+    report = euer(ctx.company, args.year or timezone.localdate().year)
+    return Out(
+        {
+            "year": report.year,
+            "income": [{"group": line.label, "amount": money(line.amount)} for line in report.income],
+            "expenses": [{"group": line.label, "amount": money(line.amount)} for line in report.expenses],
+            "income_total": money(report.income_total),
+            "expense_total": money(report.expense_total),
+            "profit": money(report.profit),
+            "notes": report.notes,
             "note": NOTE,
         }
     )

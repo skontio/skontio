@@ -1,0 +1,21 @@
+{% extends "web/base.html" %}
+{% block title %}EÜR {{ year }}{% endblock %}
+{% block content %}
+<div class="heading">
+  <h1>Einnahmenüberschussrechnung {{ year }}</h1>
+  <a class="button secondary" href="/auswertungen/euer.csv?jahr={{ year }}">Journal als CSV</a>
+</div>
+<p class="filters">{% for y in years %}<a href="?jahr={{ y }}"{% if y == year %} aria-current="page"{% endif %}>{{ y }}</a> {% endfor %}</p>
+<section class="card">
+  <h2>Betriebseinnahmen</h2>
+  <table class="list">{% for label, amount in income %}<tr><td>{{ label }}</td><td class="num">{{ amount }} €</td></tr>{% empty %}<tr><td class="muted">Keine Zahlungseingänge.</td><td></td></tr>{% endfor %}
+    <tr class="grand"><td><strong>Summe Einnahmen</strong></td><td class="num"><strong>{{ income_total }} €</strong></td></tr></table>
+</section>
+<section class="card">
+  <h2>Betriebsausgaben</h2>
+  <table class="list">{% for label, amount in expenses %}<tr><td>{{ label }}</td><td class="num">{{ amount }} €</td></tr>{% empty %}<tr><td class="muted">Keine bezahlten Ausgaben.</td><td></td></tr>{% endfor %}
+    <tr class="grand"><td><strong>Summe Ausgaben</strong></td><td class="num"><strong>{{ expense_total }} €</strong></td></tr></table>
+</section>
+<p class="big">{% if loss %}Verlust{% else %}Gewinn{% endif %}: {{ profit }} €</p>
+{% for note in report.notes %}<p class="muted">{{ note }}</p>{% endfor %}
+{% endblock %}
