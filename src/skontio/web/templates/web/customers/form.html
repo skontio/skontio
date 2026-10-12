@@ -34,6 +34,8 @@
   </form>
 </details>
 
+{% include "web/_attachments.html" %}
+
 <h2 id="aktivitaeten">Aktivitäten</h2>
 <form method="post" action="/kunden/{{ customer.pk }}/aktivitaeten/" class="form">
   {% csrf_token %}

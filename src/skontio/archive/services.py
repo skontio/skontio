@@ -15,6 +15,8 @@ from pathlib import Path
 
 from django.conf import settings
 from django.db import IntegrityError, transaction
+from django.db.models import ProtectedError
+from django.utils import timezone
 
 from skontio.archive.models import Blob
 
@@ -84,3 +86,20 @@ def load(blob: Blob) -> bytes:
 def retention_end(document_date: dt.date, years: int) -> dt.date:
     """Retention starts at the end of the calendar year (§ 147 Abs. 4 AO)."""
     return dt.date(document_date.year + years, 12, 31)
+
+
+def release(blob: Blob) -> bool:
+    """Delete a blob that nothing references any more and that has no running retention or legal hold.
+
+    Returns whether it was deleted. Everything under retention (§ 147 AO) stays until redaction.
+    """
+    if blob.legal_hold or (blob.retention_until and blob.retention_until >= timezone.localdate()):
+        return False
+    path = _root() / blob.storage_key
+    try:
+        with transaction.atomic():
+            blob.delete()  # PROTECT foreign keys (renditions, inbox, attachments) refuse while referenced
+    except ProtectedError:
+        return False
+    transaction.on_commit(lambda: path.unlink(missing_ok=True))
+    return True

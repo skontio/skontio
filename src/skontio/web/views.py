@@ -113,6 +113,8 @@ def customer_detail(request, pk: int):
         "activity_form": ActivityForm(),
         "follow_up_form": FollowUpForm(initial={"due_on": timezone.localdate() + dt.timedelta(days=7)}),
         "today": timezone.localdate(),
+        "attachments": customer.attachments.select_related("blob"),
+        "attach_customer": customer,
     }
     return render(request, "web/customers/form.html", context)
 

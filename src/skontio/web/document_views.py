@@ -119,6 +119,7 @@ def _lines_context(request, doc: Document, line_form: LineForm | None = None, er
         else {}
     )
     return {
+        **_attachment_context(doc),
         "doc": doc,
         "rows": rows,
         "totals": totals,
@@ -158,8 +159,13 @@ def _deduction_context(doc: Document, totals=None) -> dict:
     }
 
 
+def _attachment_context(doc: Document) -> dict:
+    return {"attachments": doc.attachments.select_related("blob"), "attach_document": doc}
+
+
 def _finalized_context(doc: Document, **extra) -> dict:
     context = {
+        **_attachment_context(doc),
         "doc": doc,
         "renditions": list(doc.renditions.all()),
         "lines": [

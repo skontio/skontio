@@ -115,6 +115,7 @@ INSTALLED_APPS = [
     "skontio.inbox",
     "skontio.audit",
     "skontio.mcp",
+    "skontio.attachments",
 ]
 
 MIDDLEWARE = [

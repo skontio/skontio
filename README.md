@@ -24,6 +24,7 @@ Der vollständige Plan steht in [`docs/plan.md`](docs/plan.md), Architekturentsc
 | Steuer-Engine DE (19/7/0 %, § 19, § 13b, ig. Lieferung, Ausfuhr), Summen nach EN 16931 | ✅ |
 | Steuerstatus Kleinunternehmer ↔ Regelbesteuerung mit Stichtag, Grenzwert-Überwachung | ✅ |
 | Kunden, Leistungskatalog, Angebot → Rechnung, Storno, lückenlose Nummernkreise | ✅ |
+| Dokumentenablage je Kunde/Dokument (Typprüfung am Inhalt, Aufbewahrung 6 Jahre optional) | ✅ 1b |
 | CRM: Aktivitäten, Wiedervorlagen (Übersicht, Angebot nachfassen), Versand automatisch protokolliert | ✅ 1b |
 | Abschlags- und Schlussrechnungen (§ 14 Abs. 5 UStG, BT-113/BT-115), geprüft mit KoSIT/Mustang | ✅ 1b |
 | Festschreibung (ORM + Datenbank-Trigger), Schwärzen statt Löschen nach Fristablauf | ✅ |

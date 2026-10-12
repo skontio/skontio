@@ -1,5 +1,6 @@
 {% extends "web/base.html" %}
-{% block title %}{{ doc.get_doc_type_display }} (Entwurf){% endblock %}
+{% block title %}{{ doc.get_doc_type_display }} (Entwurf){% include "web/_attachments.html" %}
+{% endblock %}
 {% block content %}
 <div class="heading">
   <h1>{{ doc.get_doc_type_display }} · Entwurf</h1>
@@ -57,4 +58,5 @@
   </form>
   <form method="post" action="/dokumente/{{ doc.pk }}/loeschen/">{% csrf_token %}<button type="submit" class="danger">Entwurf löschen</button></form>
 </div>
+{% include "web/_attachments.html" %}
 {% endblock %}
