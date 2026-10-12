@@ -63,3 +63,25 @@ class Expense(models.Model):
 
     def __str__(self) -> str:
         return f"{self.number} · {self.supplier}"
+
+
+class PendingReceipt(models.Model):
+    """Belegeingang: a receipt shared from the phone or uploaded in bulk, waiting to become an expense."""
+
+    company = models.ForeignKey("core.Company", on_delete=models.PROTECT, related_name="pending_receipts")
+    blob = models.ForeignKey("archive.Blob", on_delete=models.PROTECT, related_name="+")
+    filename = models.CharField(max_length=200)
+    note = models.CharField(max_length=500, blank=True, default="")
+    uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    expense = models.OneToOneField(
+        Expense, null=True, blank=True, on_delete=models.PROTECT, related_name="pending_receipt"
+    )
+
+    class Meta:
+        ordering = ["-uploaded_at", "-pk"]
+        verbose_name = "Offener Beleg"
+        verbose_name_plural = "Offene Belege"
+
+    def __str__(self) -> str:
+        return self.filename

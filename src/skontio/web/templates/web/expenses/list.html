@@ -3,7 +3,7 @@
 {% block content %}
 <div class="heading">
   <h1>Ausgaben {{ year }}</h1>
-  <a class="button" href="/ausgaben/neu/">Neue Ausgabe</a>
+  <p><a class="button" href="/ausgaben/neu/">Neue Ausgabe</a> <a class="button secondary" href="/ausgaben/belege/">Belegeingang{% if pending_count %} ({{ pending_count }}){% endif %}</a></p>
 </div>
 <p class="filters">{% for y in years %}<a href="?jahr={{ y }}"{% if y == year %} aria-current="page"{% endif %}>{{ y }}</a> {% endfor %}
   · <a href="/auswertungen/euer/?jahr={{ year }}">EÜR {{ year }}</a></p>

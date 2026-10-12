@@ -11,6 +11,7 @@
 {% if not expense.cancelled_at %}
 <form method="post" enctype="multipart/form-data" class="form">
   {% csrf_token %}
+  {% if pending %}<input type="hidden" name="beleg" value="{{ pending.pk }}"><p>Beleg: <a href="/ausgaben/belege/{{ pending.pk }}/datei/" target="_blank" rel="noopener">{{ pending.filename }}</a>{% if pending.note %} <span class="muted">· {{ pending.note }}</span>{% endif %}</p>{% endif %}
   {% if bank %}<input type="hidden" name="bank" value="{{ bank.pk }}"><p class="muted">Aus Bankumsatz vom {{ bank.booked_on|date:"d.m.Y" }} – wird nach dem Speichern verknüpft.</p>{% endif %}
   {% include "web/_fields.html" %}
   <button type="submit">Speichern</button>

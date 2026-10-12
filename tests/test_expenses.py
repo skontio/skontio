@@ -263,3 +263,67 @@ def test_mcp_euer_summary(small):
     ctx = ToolContext(company=company, user=user, scopes=frozenset({"reports:read"}), client_id="test")
     result = call_tool(ctx, "euer_summary", {"year": YEAR})
     assert result["profit"] == "881.00" and result["expenses"][0]["group"] == "Software, Lizenzen, Hosting"
+
+
+class TestReceiptInbox:
+    def test_share_target_without_csrf_token_but_logged_in(self, small):
+        from django.test import Client
+
+        company, user = small
+        browser = Client(enforce_csrf_checks=True)
+        shared = {"receipt": SimpleUploadedFile("IMG_1.jpg", jpeg(), content_type="image/jpeg"), "title": "Tanken"}
+        anonymous = browser.post("/ausgaben/teilen/", shared)
+        assert anonymous.status_code == 302 and "login" in anonymous["Location"]
+        browser.force_login(user)
+        shared["receipt"] = SimpleUploadedFile("IMG_1.jpg", jpeg(), content_type="image/jpeg")
+        response = browser.post("/ausgaben/teilen/", shared)
+        assert response["Location"] == "/ausgaben/belege/"
+        from skontio.expenses.models import PendingReceipt
+
+        pending = PendingReceipt.objects.get()
+        assert pending.note == "Tanken" and pending.blob.retention_until is None
+
+    def test_bulk_upload_capture_and_discard(self, client, small):
+        from skontio.expenses.models import PendingReceipt
+
+        company, user = small
+        client.force_login(user)
+        files = [SimpleUploadedFile(f"bon{i}.jpg", jpeg() + bytes([i]), content_type="image/jpeg") for i in range(2)]
+        files.append(SimpleUploadedFile("virus.exe", b"MZ\x90\x00", content_type="application/pdf"))
+        client.post("/ausgaben/belege/", {"files": files})
+        assert PendingReceipt.objects.count() == 2
+        first, second = PendingReceipt.objects.order_by("pk")
+        page = client.get("/ausgaben/belege/").content.decode()
+        assert "Als Ausgabe erfassen" in page and "bon0.jpg" in page
+        assert "bon0.jpg" in client.get(f"/ausgaben/neu/?beleg={first.pk}").content.decode()
+        client.post(
+            "/ausgaben/neu/",
+            {
+                "beleg": first.pk,
+                "receipt_date": f"{YEAR}-01-10",
+                "supplier": "Tankstelle",
+                "gross_amount": "50,00",
+                "vat_rate": "19",
+                "category": "vehicle",
+                "paid_on": f"{YEAR}-01-10",
+                "method": "card",
+                "supplier_country": "DE",
+            },
+        )
+        e = Expense.objects.get()
+        first.refresh_from_db()
+        assert first.expense == e and e.receipt == first.blob
+        assert e.receipt.retention_until == dt.date(YEAR + 8, 12, 31)
+        with pytest.raises(ExpenseError, match="bereits"):
+            create_expense(company, pending=first, receipt_date=TODAY, supplier="x", gross_amount=D("1"))
+        blob_key = second.blob.storage_key
+        client.post(f"/ausgaben/belege/{second.pk}/verwerfen/")
+        from skontio.archive.models import Blob
+
+        assert not PendingReceipt.objects.filter(pk=second.pk).exists()
+        assert not Blob.objects.filter(storage_key=blob_key).exists()
+
+    def test_manifest_offers_share_target(self, client):
+        data = client.get("/manifest.webmanifest").json()
+        assert data["share_target"]["action"] == "/ausgaben/teilen/"
+        assert data["share_target"]["params"]["files"][0]["name"] == "receipt"

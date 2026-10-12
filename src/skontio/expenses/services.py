@@ -13,11 +13,11 @@ from decimal import ROUND_HALF_UP, Decimal
 from django.db import transaction
 from django.utils import timezone
 
-from skontio.archive.services import retention_end, store
+from skontio.archive.services import release, retention_end, store
 from skontio.attachments.services import MAX_BYTES, AttachmentError, detect_mime, safe_filename
 from skontio.audit.services import record
 from skontio.documents.renditions import INVOICE_RETENTION_YEARS, de_amount
-from skontio.expenses.models import Expense
+from skontio.expenses.models import Expense, PendingReceipt
 from skontio.numbering.models import NumberSequence
 from skontio.numbering.services import allocate_number
 from skontio.tax.engine import Regime
@@ -94,7 +94,7 @@ def hints(expense: Expense, regime: Regime | None) -> list[str]:
     return found
 
 
-def _store_receipt(data: bytes, filename: str, receipt_date: dt.date):
+def _store_receipt(data: bytes, filename: str, receipt_date: dt.date | None):
     if len(data) > MAX_BYTES:
         raise ExpenseError("Der Beleg darf höchstens 20 MB groß sein.")
     try:
@@ -103,7 +103,8 @@ def _store_receipt(data: bytes, filename: str, receipt_date: dt.date):
         raise ExpenseError(str(exc)) from exc
     if mime not in RECEIPT_TYPES:
         raise ExpenseError("Beleg bitte als PDF, Foto (JPEG, PNG, WebP) oder E-Rechnung (XML) hochladen.")
-    return store(data, mime=mime, retention_until=retention_end(receipt_date, INVOICE_RETENTION_YEARS))
+    retention = retention_end(receipt_date, INVOICE_RETENTION_YEARS) if receipt_date else None
+    return store(data, mime=mime, retention_until=retention)
 
 
 def _validate(expense: Expense) -> None:
@@ -125,7 +126,16 @@ def _validate(expense: Expense) -> None:
         raise ExpenseError("Das Zahlungsdatum liegt in der Zukunft.")
 
 
-def create_expense(company, *, user=None, receipt: bytes | None = None, receipt_filename: str = "", **fields):
+def create_expense(
+    company,
+    *,
+    user=None,
+    receipt: bytes | None = None,
+    receipt_filename: str = "",
+    pending: PendingReceipt | None = None,
+    **fields,
+):
+    """``pending``: a receipt from the Belegeingang that becomes this expense's receipt."""
     unknown = set(fields) - EDITABLE
     if unknown:
         raise ExpenseError(f"Unbekannte Felder: {', '.join(sorted(unknown))}")
@@ -135,9 +145,18 @@ def create_expense(company, *, user=None, receipt: bytes | None = None, receipt_
         if receipt:
             expense.receipt = _store_receipt(receipt, receipt_filename, expense.receipt_date)
             expense.receipt_filename = safe_filename(receipt_filename or "beleg")
+        elif pending is not None:
+            pending = PendingReceipt.objects.select_for_update().get(pk=pending.pk, company=company)
+            if pending.expense_id:
+                raise ExpenseError("Dieser Beleg ist bereits einer Ausgabe zugeordnet.")
+            expense.receipt, expense.receipt_filename = pending.blob, pending.filename
+            _keep_for(pending.blob, expense.receipt_date)
         NumberSequence.objects.get_or_create(company=company, doc_type=SEQUENCE, defaults={"pattern": PATTERN})
         expense.number = allocate_number(company, SEQUENCE, timezone.localdate())  # numbered by entry date
         expense.save()
+        if pending is not None:
+            pending.expense = expense
+            pending.save(update_fields=["expense"])
         record(
             "expense.create",
             actor=user,
@@ -182,6 +201,46 @@ def update_expense(
             data={"changed": diff},
         )
     return expense
+
+
+def _keep_for(blob, receipt_date: dt.date) -> None:
+    until = retention_end(receipt_date, INVOICE_RETENTION_YEARS)
+    if blob.retention_until is None or blob.retention_until < until:
+        blob.retention_until = until
+        blob.save(update_fields=["retention_until"])
+
+
+def add_pending(company, data: bytes, *, filename: str, note: str = "", user=None) -> PendingReceipt:
+    """Belegeingang: keep the file until it is turned into an expense (no retention yet – it may be junk)."""
+    if not data:
+        raise ExpenseError("Die Datei ist leer.")
+    with transaction.atomic():
+        pending = PendingReceipt.objects.create(
+            company=company,
+            blob=_store_receipt(data, filename, None),
+            filename=safe_filename(filename or "beleg"),
+            note=note.strip()[:500],
+            uploaded_by=user,
+        )
+        record("receipt.upload", actor=user, company=company, entity="pending_receipt", entity_id=pending.pk)
+    return pending
+
+
+def discard_pending(pending: PendingReceipt, *, user=None) -> None:
+    if pending.expense_id:
+        raise ExpenseError("Der Beleg gehört schon zu einer Ausgabe.")
+    with transaction.atomic():
+        blob = pending.blob
+        record(
+            "receipt.discard",
+            actor=user,
+            company=pending.company,
+            entity="pending_receipt",
+            entity_id=pending.pk,
+            data={"filename": pending.filename},
+        )
+        pending.delete()
+        release(blob)  # stays if the same file is used elsewhere or under retention
 
 
 def cancel_expense(expense: Expense, *, reason: str, user=None) -> Expense:

@@ -1,0 +1,21 @@
+{% extends "web/base.html" %}
+{% block title %}Belegeingang{% endblock %}
+{% block content %}
+<div class="heading"><h1>Belegeingang</h1><a class="button secondary" href="/ausgaben/">Ausgaben</a></div>
+<p>Belege sammeln und später erfassen: in der installierten App ein Foto oder PDF über <strong>Teilen → Skontio</strong>
+   schicken oder hier mehrere Dateien auf einmal hochladen.</p>
+<form method="post" enctype="multipart/form-data" class="form card">
+  {% csrf_token %}
+  <label for="files">Belege (Fotos oder PDF, bis zu 20)</label>
+  <input id="files" type="file" name="files" accept="image/*,application/pdf" multiple required>
+  <button type="submit">Hochladen</button>
+</form>
+{% if pending %}
+<ul class="plain">{% for p in pending %}
+  <li><a href="/ausgaben/belege/{{ p.pk }}/datei/" target="_blank" rel="noopener">{{ p.filename }}</a>
+    <span class="muted">· {{ p.uploaded_at|date:"d.m.Y H:i" }}{% if p.note %} · {{ p.note }}{% endif %}</span><br>
+    <a class="button" href="/ausgaben/neu/?beleg={{ p.pk }}">Als Ausgabe erfassen</a>
+    <form method="post" action="/ausgaben/belege/{{ p.pk }}/verwerfen/" class="inline-form">{% csrf_token %}<button type="submit" class="link">verwerfen</button></form></li>
+{% endfor %}</ul>
+{% else %}<p class="muted">Keine offenen Belege.</p>{% endif %}
+{% endblock %}

@@ -42,7 +42,7 @@ Der vollständige Plan steht in [`docs/plan.md`](docs/plan.md), Architekturentsc
 | Vorlagen (Logo, Farbe, zwei Layouts, Fußzeile), Textbausteine, PDF-Vorschau für Entwürfe | ✅ 1b |
 | Steuerstatus-Wechsel mit Bestätigung, Korrektur-Assistent bei rückwirkend überschrittener Grenze | ✅ 1b |
 | Verfahrensdokumentation (GoBD) aus der Konfiguration, versioniert und archiviert | ✅ 1b |
-| Ausgaben mit Belegfoto, EÜR (Zufluss/Abfluss, Wechsel im Jahr, § 13b-Hinweis), CSV-Journal | ✅ 2 |
+| Ausgaben mit Belegfoto, Belegeingang und „Teilen an Skontio“ (Web Share Target), EÜR (Zufluss/Abfluss, Wechsel im Jahr, § 13b-Hinweis), CSV-Journal | ✅ 2 |
 | Mahnwesen: einstellbare Stufen, Mahnschreiben als PDF/A mit GiroCode, Versand mit Rechnung | ✅ 2 |
 | Wiederkehrende Rechnungen als Entwürfe (Nachholen ohne Doppelte, Cron-Befehl) | ✅ 2 |
 | Bankumsätze aus CAMT.053/CSV, Vorschläge und Zuordnung zu Rechnungen und Ausgaben | ✅ 2 |

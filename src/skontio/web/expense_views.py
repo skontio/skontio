@@ -12,15 +12,25 @@ from django.db.models import Sum
 from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from skontio.archive.services import load
+from skontio.attachments.services import MAX_BYTES
 from skontio.audit.models import AuditEvent
 from skontio.banking.models import BankTransaction
 from skontio.banking.services import link_expense
 from skontio.documents.renditions import de_amount
-from skontio.expenses.models import Expense
-from skontio.expenses.services import ExpenseError, cancel_expense, create_expense, hints, update_expense
+from skontio.expenses.models import Expense, PendingReceipt
+from skontio.expenses.services import (
+    ExpenseError,
+    add_pending,
+    cancel_expense,
+    create_expense,
+    discard_pending,
+    hints,
+    update_expense,
+)
 from skontio.reports.euer import euer, journal
 from skontio.taxstatus.services import TaxStatusError, regime_for
 from skontio.web.support import company_view
@@ -85,6 +95,7 @@ def expense_list(request):
         "total": de_amount(total),
         "missing_receipts": active.filter(receipt__isnull=True).count(),
         "unpaid": active.filter(paid_on__isnull=True).count(),
+        "pending_count": PendingReceipt.objects.filter(company=request.company, expense__isnull=True).count(),
     }
     return render(request, "web/expenses/list.html", context)
 
@@ -95,6 +106,8 @@ def _save(request, expense: Expense | None):
         data = {k: form.cleaned_data[k] for k in FIELDS}
         upload = form.cleaned_data["receipt"]
         receipt = {"receipt": upload.read(), "receipt_filename": upload.name} if upload else {}
+        if expense is None and not upload and (pending := _pending(request)) is not None:
+            receipt = {"pending": pending}
         try:
             if expense is None:
                 expense = create_expense(request.company, user=request.user, **data, **receipt)
@@ -115,6 +128,13 @@ def _bank_transaction(request):
         return None
     tx = BankTransaction.objects.filter(pk=pk, company=request.company, amount__lt=0).first()
     return tx if tx is not None and not tx.done else None
+
+
+def _pending(request) -> PendingReceipt | None:
+    pk = request.GET.get("beleg") or request.POST.get("beleg")
+    if not pk or not str(pk).isdigit():
+        return None
+    return PendingReceipt.objects.filter(pk=pk, company=request.company, expense__isnull=True).first()
 
 
 @company_view
@@ -139,7 +159,8 @@ def expense_create(request):
                 "method": Expense.Method.BANK,
             }
         form = ExpenseForm(initial=initial)
-    return render(request, "web/expenses/form.html", {"form": form, "expense": None, "bank": tx})
+    context = {"form": form, "expense": None, "bank": tx, "pending": _pending(request)}
+    return render(request, "web/expenses/form.html", context)
 
 
 def _regime(company, day):
@@ -252,3 +273,75 @@ def euer_csv(request):
     response = HttpResponse("﻿" + buffer.getvalue(), content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = f'attachment; filename="euer-{year}.csv"'
     return response
+
+
+# --- Belegeingang ------------------------------------------------------------------------------
+
+
+@company_view
+def receipt_inbox(request):
+    if request.method == "POST":
+        files = request.FILES.getlist("files")
+        added, errors = _add_files(request, files, note="")
+        if added:
+            messages.success(request, f"{added} Beleg(e) im Belegeingang.")
+        for error in errors:
+            messages.error(request, error)
+        return redirect("receipt_inbox")
+    pending = PendingReceipt.objects.filter(company=request.company, expense__isnull=True).select_related("blob")
+    return render(request, "web/expenses/inbox.html", {"pending": pending})
+
+
+def _add_files(request, files, *, note: str) -> tuple[int, list[str]]:
+    added, errors = 0, []
+    for upload in files[:20]:
+        if upload.size > MAX_BYTES:
+            errors.append(f"{upload.name}: größer als 20 MB")
+            continue
+        try:
+            add_pending(request.company, upload.read(), filename=upload.name, note=note, user=request.user)
+        except ExpenseError as exc:
+            errors.append(f"{upload.name}: {exc}")
+        else:
+            added += 1
+    return added, errors
+
+
+@csrf_exempt  # Web Share Target: the OS posts without a CSRF token; the Lax session cookie keeps other sites out
+@require_POST
+@company_view
+def receipt_share(request):
+    note = " ".join(request.POST.get(k, "") for k in ("title", "text", "url")).strip()
+    added, errors = _add_files(request, request.FILES.getlist("receipt"), note=note)
+    if added:
+        messages.success(request, f"{added} Beleg(e) empfangen – jetzt erfassen oder später.")
+    for error in errors:
+        messages.error(request, error)
+    if not added and not errors:
+        messages.error(request, "Es wurde keine Datei geteilt.")
+    return redirect("receipt_inbox")
+
+
+@company_view
+def receipt_file(request, pk: int):
+    pending = get_object_or_404(PendingReceipt, pk=pk, company=request.company)
+    inline = pending.blob.mime in {"application/pdf", "image/png", "image/jpeg", "image/webp"}
+    response = FileResponse(
+        io.BytesIO(load(pending.blob)),
+        as_attachment=not inline,
+        filename=pending.filename,
+        content_type=pending.blob.mime,
+    )
+    response["Content-Security-Policy"] = "sandbox; default-src 'none'; img-src 'self'"
+    return response
+
+
+@require_POST
+@company_view
+def receipt_discard(request, pk: int):
+    pending = get_object_or_404(PendingReceipt, pk=pk, company=request.company)
+    try:
+        discard_pending(pending, user=request.user)
+    except ExpenseError as exc:
+        messages.error(request, str(exc))
+    return redirect("receipt_inbox")

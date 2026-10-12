@@ -93,7 +93,19 @@ def manifest(request):
                 "purpose": "maskable",
             },
         ],
+        "share_target": {
+            "action": "/ausgaben/teilen/",
+            "method": "POST",
+            "enctype": "multipart/form-data",
+            "params": {
+                "title": "title",
+                "text": "text",
+                "url": "url",
+                "files": [{"name": "receipt", "accept": ["image/*", "application/pdf", ".pdf"]}],
+            },
+        },
         "shortcuts": [
+            {"name": "Beleg erfassen", "url": "/ausgaben/neu/"},
             {"name": "Neue Rechnung", "url": "/dokumente/neu/?typ=invoice"},
             {"name": "Kunden", "url": "/kunden/"},
         ],
