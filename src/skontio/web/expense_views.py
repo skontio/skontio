@@ -18,6 +18,7 @@ from django.views.decorators.http import require_POST
 from skontio.archive.services import load
 from skontio.attachments.services import MAX_BYTES
 from skontio.audit.models import AuditEvent
+from skontio.audit.services import record
 from skontio.banking.models import BankTransaction
 from skontio.banking.services import link_expense
 from skontio.documents.renditions import de_amount
@@ -31,7 +32,9 @@ from skontio.expenses.services import (
     hints,
     update_expense,
 )
+from skontio.reports import ustva
 from skontio.reports.euer import euer, journal
+from skontio.taxstatus.models import VatReturn
 from skontio.taxstatus.services import TaxStatusError, regime_for
 from skontio.web.support import company_view
 
@@ -345,3 +348,73 @@ def receipt_discard(request, pk: int):
     except ExpenseError as exc:
         messages.error(request, str(exc))
     return redirect("receipt_inbox")
+
+
+# --- Umsatzsteuer-Voranmeldung -----------------------------------------------------------------
+
+
+def _elster(value: Decimal) -> str:
+    """Format for typing into Mein ELSTER: comma, no thousands separator."""
+    return f"{value:f}".replace(".", ",")
+
+
+def _period(request, company):
+    today = timezone.localdate()
+    year = _year(request)
+    kind = company.vat_period
+    choices = ustva.periods(year, kind)
+    code = request.GET.get("zeitraum") or request.POST.get("zeitraum")
+    if code:
+        try:
+            return ustva.parse_period(year, code), choices
+        except ValueError:
+            pass
+    past = [p for p in choices if p.end < today] or choices[:1]
+    return past[-1], choices
+
+
+@company_view
+def ustva_report(request):
+    period, choices = _period(request, request.company)
+    try:
+        report = ustva.vat_report(request.company, period)
+    except ustva.SollNotSupported as exc:
+        return render(request, "web/reports/ustva.html", {"error": str(exc), "period": period, "choices": choices})
+    vat_return = ustva.submitted(request.company, period)
+    context = {
+        "period": period,
+        "choices": choices,
+        "years": _years(),
+        "report": report,
+        "rows": [
+            (kz, label, de_amount(value, 0 if kz in ustva.BASES else 2), _elster(value))
+            for kz, label, value in report.rows()
+        ],
+        "payable": report.values["83"],
+        "payable_text": de_amount(abs(report.values["83"])),
+        "deadline": period.deadline(request.company.vat_extension),
+        "vat_return": vat_return,
+        "differences": ustva.differences(report, vat_return) if vat_return else {},
+    }
+    return render(request, "web/reports/ustva.html", context)
+
+
+@require_POST
+@company_view
+def ustva_submit(request):
+    period, _ = _period(request, request.company)
+    report = ustva.vat_report(request.company, period)
+    VatReturn.objects.update_or_create(
+        company=request.company,
+        year=period.year,
+        period=period.code,
+        defaults={"values": report.frozen(), "submitted_by": request.user},
+    )
+    record(
+        "vat_return.submitted",
+        actor=request.user,
+        company=request.company,
+        data={"period": f"{period.year}-{period.code}", "values": report.frozen()},
+    )
+    messages.success(request, f"Voranmeldung {period.label} als übermittelt vermerkt.")
+    return redirect(f"/auswertungen/ustva/?jahr={period.year}&zeitraum={period.code}")

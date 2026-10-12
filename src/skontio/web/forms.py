@@ -58,6 +58,9 @@ class CompanyForm(forms.ModelForm):
             "iban",
             "bic",
             "account_holder",
+            "vat_period",
+            "vat_basis",
+            "vat_extension",
         ]
 
     def clean_iban(self):
@@ -85,6 +88,10 @@ class SetupForm(CompanyForm):
         ],
     )
     regime_since = forms.DateField(label="Gilt seit", initial=lambda: dt.date(dt.date.today().year, 1, 1))
+
+    class Meta(CompanyForm.Meta):
+        # Voranmeldung settings stay at their defaults until the company form is used later
+        fields = [f for f in CompanyForm.Meta.fields if not f.startswith("vat_")]
 
 
 class CustomerForm(forms.ModelForm):

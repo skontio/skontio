@@ -28,6 +28,20 @@ class Company(models.Model):
     iban = models.CharField("IBAN", max_length=34, blank=True, default="")
     bic = models.CharField("BIC", max_length=11, blank=True, default="")
     account_holder = models.CharField(max_length=200, blank=True, default="")
+    # Umsatzsteuer-Voranmeldung (only relevant under Regelbesteuerung or for § 13b)
+    vat_period = models.CharField(
+        "Voranmeldungszeitraum",
+        max_length=10,
+        choices=[("quarterly", "vierteljährlich"), ("monthly", "monatlich")],
+        default="quarterly",
+    )
+    vat_basis = models.CharField(
+        "Besteuerung nach",
+        max_length=4,
+        choices=[("ist", "vereinnahmten Entgelten (Ist)"), ("soll", "vereinbarten Entgelten (Soll)")],
+        default="ist",
+    )
+    vat_extension = models.BooleanField("Dauerfristverlängerung", default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

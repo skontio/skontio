@@ -46,7 +46,8 @@ Der vollständige Plan steht in [`docs/plan.md`](docs/plan.md), Architekturentsc
 | Mahnwesen: einstellbare Stufen, Mahnschreiben als PDF/A mit GiroCode, Versand mit Rechnung | ✅ 2 |
 | Wiederkehrende Rechnungen als Entwürfe (Nachholen ohne Doppelte, Cron-Befehl) | ✅ 2 |
 | Bankumsätze aus CAMT.053/CSV, Vorschläge und Zuordnung zu Rechnungen und Ausgaben | ✅ 2 |
-| Assistent, USt-VA, DATEV, PSD2/FinTS | Phase 2–3 |
+| USt-Voranmeldung (Ist): Kennzahlen mit Kopier-Knöpfen für Mein ELSTER, Frist, § 13b, Übermittlung vermerken | ✅ 2 |
+| Assistent, DATEV, Web Push, mehrere Firmen, PSD2/FinTS | Phase 2–3 |
 
 Betrieb auf TrueNAS: [`docs/betrieb.md`](docs/betrieb.md).
 

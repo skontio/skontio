@@ -43,3 +43,23 @@ class TaxStatusPeriod(models.Model):
 
     def __str__(self) -> str:
         return f"{self.company} · {self.regime} ab {self.valid_from:%d.%m.%Y}"
+
+
+class VatReturn(models.Model):
+    """A Voranmeldung marked as submitted: the values are frozen so later changes become visible."""
+
+    company = models.ForeignKey("core.Company", on_delete=models.PROTECT, related_name="vat_returns")
+    year = models.PositiveSmallIntegerField()
+    period = models.CharField(max_length=3)  # "M01".."M12" or "Q1".."Q4"
+    values = models.JSONField()  # {"81": "1234", "66": "12.34", …}
+    submitted_at = models.DateTimeField(auto_now_add=True)
+    submitted_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT)
+
+    class Meta:
+        ordering = ["-year", "-period"]
+        constraints = [models.UniqueConstraint(fields=["company", "year", "period"], name="uniq_vat_return")]
+        verbose_name = "Umsatzsteuer-Voranmeldung"
+        verbose_name_plural = "Umsatzsteuer-Voranmeldungen"
+
+    def __str__(self) -> str:
+        return f"USt-VA {self.year} {self.period}"

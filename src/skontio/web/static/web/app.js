@@ -52,3 +52,19 @@ document.querySelectorAll("button.share-file").forEach((button) => {
     }
   });
 });
+
+// Copy buttons (e.g. Kennzahlen for Mein ELSTER).
+document.addEventListener("click", async (event) => {
+  const button = event.target instanceof Element ? event.target.closest("button.copy") : null;
+  if (!button) {
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(button.dataset.copy);
+    const label = button.textContent;
+    button.textContent = "kopiert";
+    setTimeout(() => { button.textContent = label; }, 1500);
+  } catch {
+    window.prompt("Wert kopieren:", button.dataset.copy);
+  }
+});

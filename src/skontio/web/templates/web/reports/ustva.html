@@ -1,0 +1,27 @@
+{% extends "web/base.html" %}
+{% block title %}USt-Voranmeldung {{ period.label }}{% endblock %}
+{% block content %}
+<div class="heading"><h1>Umsatzsteuer-Voranmeldung {{ period.label }}</h1><a class="button secondary" href="/auswertungen/euer/?jahr={{ period.year }}">EÜR</a></div>
+<p class="filters">{% for y in years %}<a href="?jahr={{ y }}"{% if y == period.year %} aria-current="page"{% endif %}>{{ y }}</a> {% endfor %}</p>
+<p class="filters">{% for p in choices %}<a href="?jahr={{ p.year }}&zeitraum={{ p.code }}"{% if p == period %} aria-current="page"{% endif %}>{{ p.code }}</a> {% endfor %}</p>
+{% if error %}<p class="warn">{{ error }}</p>{% else %}
+<p>Abgabe bis <strong>{{ deadline|date:"d.m.Y" }}</strong> (Feiertage nicht berücksichtigt).
+  {% if vat_return %}<span class="badge">übermittelt vermerkt am {{ vat_return.submitted_at|date:"d.m.Y" }}</span>{% endif %}</p>
+{% if differences %}<div class="warn" role="alert"><strong>Seit der Übermittlung geändert:</strong>
+  {% for kz, values in differences.items %}Kz {{ kz }}: {{ values.0 }} → {{ values.1 }}{% if not forloop.last %}; {% endif %}{% endfor %}.
+  Eine berichtigte Voranmeldung ist nötig.</div>{% endif %}
+<div class="table-scroll"><table class="list">
+  <thead><tr><th>Kz</th><th>Bezeichnung</th><th class="num">Wert</th><th></th></tr></thead>
+  <tbody>{% for kz, label, shown, raw in rows %}
+    <tr><td><strong>{{ kz }}</strong></td><td>{{ label }}</td><td class="num">{{ shown }}</td>
+      <td><button type="button" class="link copy" data-copy="{{ raw }}">kopieren</button></td></tr>
+  {% empty %}<tr><td colspan="4" class="muted">Keine Werte in diesem Zeitraum.</td></tr>{% endfor %}</tbody>
+</table></div>
+<p class="big">{% if payable < 0 %}Erstattung{% else %}Zahllast{% endif %}: {{ payable_text }} €</p>
+{% for note in report.notes %}<p class="muted">{{ note }}</p>{% endfor %}
+<form method="post" action="/auswertungen/ustva/uebermittelt/" class="inline-form">
+  {% csrf_token %}<input type="hidden" name="jahr" value="{{ period.year }}"><input type="hidden" name="zeitraum" value="{{ period.code }}">
+  <button type="submit" class="secondary">{% if vat_return %}Erneut als übermittelt vermerken{% else %}Als übermittelt vermerken{% endif %}</button>
+</form>
+{% endif %}
+{% endblock %}

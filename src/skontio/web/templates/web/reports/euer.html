@@ -3,7 +3,8 @@
 {% block content %}
 <div class="heading">
   <h1>Einnahmenüberschussrechnung {{ year }}</h1>
-  <a class="button secondary" href="/auswertungen/euer.csv?jahr={{ year }}">Journal als CSV</a>
+  <p><a class="button secondary" href="/auswertungen/euer.csv?jahr={{ year }}">Journal als CSV</a>
+     <a class="button secondary" href="/auswertungen/ustva/">USt-Voranmeldung</a></p>
 </div>
 <p class="filters">{% for y in years %}<a href="?jahr={{ y }}"{% if y == year %} aria-current="page"{% endif %}>{{ y }}</a> {% endfor %}</p>
 <section class="card">
