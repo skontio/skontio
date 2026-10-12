@@ -1,0 +1,29 @@
+{% load static %}<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="htmx-config" content='{"includeIndicatorStyles": false}'>
+<title>{% block title %}Skontio{% endblock %} · Skontio</title>
+<link rel="stylesheet" href="{% static 'web/app.css' %}">
+<script src="{% static 'web/vendor/htmx.min.js' %}" defer></script>
+</head>
+<body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+<header class="topbar">
+  <a class="brand" href="/">Skontio</a>
+  <nav>
+    <a href="/" {% if request.path == "/" %}aria-current="page"{% endif %}>Übersicht</a>
+    <a href="/dokumente/" {% if request.path|slice:":11" == "/dokumente/" %}aria-current="page"{% endif %}>Dokumente</a>
+    <a href="/kunden/" {% if request.path|slice:":8" == "/kunden/" %}aria-current="page"{% endif %}>Kunden</a>
+    <a href="/leistungen/" {% if request.path|slice:":12" == "/leistungen/" %}aria-current="page"{% endif %}>Leistungen</a>
+    {% if user.is_staff %}<a href="/einrichtung/" {% if request.path == "/einrichtung/" %}aria-current="page"{% endif %}>Einstellungen</a>{% endif %}
+  </nav>
+  <form method="post" action="/auth/logout" class="logout">{% csrf_token %}<button type="submit" class="link">Abmelden</button></form>
+</header>
+<main class="page">
+  {% block content %}{% endblock %}
+</main>
+<footer class="disclaimer">Skontio unterstützt bei Rechnungen und Fristen, ersetzt aber <strong>keine Steuerberatung</strong>.</footer>
+</body>
+</html>

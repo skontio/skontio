@@ -1,0 +1,11 @@
+{% extends "web/base.html" %}
+{% block title %}Leistungen{% endblock %}
+{% block content %}
+<div class="heading"><h1>Leistungen &amp; Artikel</h1><a class="button" href="/leistungen/neu/">Neue Leistung</a></div>
+<input type="search" name="q" value="{{ q }}" placeholder="Suchen nach Name, Artikelnummer, Beschreibung" aria-label="Leistungen suchen"
+       hx-get="/leistungen/" hx-trigger="input changed delay:250ms, search" hx-target="#rows" hx-push-url="true">
+<table class="list">
+  <thead><tr><th>Bezeichnung</th><th>Einheit</th><th class="num">Nettopreis</th><th class="hide-small">Steuer</th><th></th></tr></thead>
+  <tbody id="rows">{% include "web/items/_rows.html" %}</tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,11 @@
+{% extends "web/base.html" %}
+{% block title %}Kunden{% endblock %}
+{% block content %}
+<div class="heading"><h1>Kunden</h1><a class="button" href="/kunden/neu/">Neuer Kunde</a></div>
+<input type="search" name="q" value="{{ q }}" placeholder="Suchen nach Name, Nummer, Ort, E-Mail" aria-label="Kunden suchen"
+       hx-get="/kunden/" hx-trigger="input changed delay:250ms, search" hx-target="#rows" hx-push-url="true">
+<table class="list">
+  <thead><tr><th>Nr.</th><th>Name</th><th class="hide-small">Ort</th><th class="hide-small">E-Mail</th></tr></thead>
+  <tbody id="rows">{% include "web/customers/_rows.html" %}</tbody>
+</table>
+{% endblock %}

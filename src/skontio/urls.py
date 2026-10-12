@@ -26,4 +26,5 @@ urlpatterns = [
     path("auth/callback", accounts.oidc_callback, name="oidc_callback"),
     path("auth/logout", accounts.oidc_logout, name="logout"),
     path("auth/local/", accounts.LocalLoginView.as_view(), name="local_login"),
+    path("", include("skontio.web.urls")),
 ]

@@ -11,6 +11,8 @@ import tempfile
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
+from django.utils.csp import CSP
+
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = Path(os.environ.get("SKONTIO_DATA_DIR", BASE_DIR.parent.parent / "var" / "data"))
 
@@ -105,6 +107,7 @@ INSTALLED_APPS = [
     "skontio.crm",
     "skontio.payments",
     "skontio.accounts",
+    "skontio.web",
 ]
 
 MIDDLEWARE = [
@@ -115,6 +118,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "django.middleware.csp.ContentSecurityPolicyMiddleware",
 ]
 
 ROOT_URLCONF = "skontio.urls"
@@ -155,6 +159,18 @@ SESSION_COOKIE_SAMESITE = "Lax"
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = "same-origin"
 X_FRAME_OPTIONS = "DENY"
+# No inline scripts or styles; form-action must allow the IdP for RP-initiated logout redirects.
+SECURE_CSP = {
+    "default-src": [CSP.SELF],
+    "img-src": [CSP.SELF, "data:"],
+    "script-src": [CSP.SELF],
+    "style-src": [CSP.SELF],
+    "connect-src": [CSP.SELF],
+    "frame-ancestors": [CSP.NONE],
+    "base-uri": [CSP.SELF],
+    "object-src": [CSP.NONE],
+    "form-action": [CSP.SELF, *([os.environ["SKONTIO_OIDC_ISSUER"]] if os.environ.get("SKONTIO_OIDC_ISSUER") else [])],
+}
 
 # Skontio as OAuth 2.1 authorization server for /mcp (MCP authorization spec 2026-07-28).
 MCP_SCOPES = {

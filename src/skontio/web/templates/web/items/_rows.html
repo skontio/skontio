@@ -1,0 +1,11 @@
+{% for item in items %}
+<tr>
+  <td><a href="/leistungen/{{ item.pk }}/">{{ item.name }}</a>{% if item.sku %} <span class="muted">{{ item.sku }}</span>{% endif %}</td>
+  <td>{{ item.unit }}</td>
+  <td class="num">{{ item.net_price|floatformat:"2g" }} €</td>
+  <td class="hide-small">{{ item.get_tax_treatment_display }}</td>
+  <td><form method="post" action="/leistungen/{{ item.pk }}/archivieren/">{% csrf_token %}<button type="submit" class="link">Archivieren</button></form></td>
+</tr>
+{% empty %}
+<tr><td colspan="5" class="muted">Keine Leistungen gefunden.</td></tr>
+{% endfor %}

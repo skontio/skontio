@@ -1,0 +1,20 @@
+{% extends "web/base.html" %}
+{% block title %}{% if customer %}{{ customer.name }}{% else %}Neuer Kunde{% endif %}{% endblock %}
+{% block content %}
+<div class="heading">
+  <h1>{% if customer %}{{ customer.number }} · {{ customer.name }}{% else %}Neuer Kunde{% endif %}</h1>
+  {% if customer %}<a class="button" href="/dokumente/neu/?typ=invoice&kunde={{ customer.pk }}">Rechnung schreiben</a>{% endif %}
+</div>
+<form method="post" class="form">
+  {% csrf_token %}
+  {% include "web/_fields.html" %}
+  <button type="submit">Speichern</button>
+</form>
+{% if customer %}
+<h2>Dokumente</h2>
+<ul class="plain">
+  {% for doc in documents %}<li><a href="/dokumente/{{ doc.pk }}/">{{ doc.get_doc_type_display }} {{ doc }}</a> · {{ doc.issue_date|date:"d.m.Y" }}{% if doc.gross_total is not None %} · {{ doc.gross_total }} €{% endif %}</li>
+  {% empty %}<li class="muted">Noch keine Dokumente.</li>{% endfor %}
+</ul>
+{% endif %}
+{% endblock %}

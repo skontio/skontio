@@ -1,0 +1,5 @@
+{% for c in customers %}
+<tr><td><a href="/kunden/{{ c.pk }}/">{{ c.number }}</a></td><td><a href="/kunden/{{ c.pk }}/">{{ c.name }}</a></td><td class="hide-small">{{ c.city }}</td><td class="hide-small">{{ c.email }}</td></tr>
+{% empty %}
+<tr><td colspan="4" class="muted">Keine Kunden gefunden.</td></tr>
+{% endfor %}
