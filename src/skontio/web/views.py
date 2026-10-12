@@ -1,13 +1,18 @@
 from __future__ import annotations
 
+import datetime as dt
+
 from django.db import transaction
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from skontio.catalog.models import Item
 from skontio.catalog.services import archive_item, search_items
-from skontio.crm.models import Customer
+from skontio.crm.activities import ActivityError, complete_follow_up, create_follow_up, due_follow_ups, log_activity
+from skontio.crm.models import Customer, FollowUp
 from skontio.crm.services import create_customer, search_customers
 from skontio.documents.models import INVOICE_TYPES, Document
 from skontio.documents.renditions import de_amount
@@ -15,7 +20,7 @@ from skontio.payments.services import open_amount
 from skontio.tax.engine import Regime
 from skontio.taxstatus.services import TaxStatusError, regime_for, start_regime
 from skontio.taxstatus.thresholds import small_business_status
-from skontio.web.forms import CompanyForm, CustomerForm, ItemForm, SetupForm
+from skontio.web.forms import ActivityForm, CompanyForm, CustomerForm, FollowUpForm, ItemForm, SetupForm
 from skontio.web.support import admin_required, company_view, current_company, render_page_or_fragment
 
 
@@ -43,6 +48,7 @@ def dashboard(request):
             "open_items": [(doc, de_amount(amount)) for doc, amount in open_items[:10]],
             "open_total": de_amount(sum((amount for _, amount in open_items), start=0)),
             "overdue": [doc for doc, _ in open_items if doc.due_date and doc.due_date < today],
+            "follow_ups": due_follow_ups(company, today),
             "drafts": Document.objects.filter(company=company, status=Document.Status.DRAFT).count(),
             "today": today,
         },
@@ -98,7 +104,57 @@ def customer_detail(request, pk: int):
         form.save()
         return redirect(f"/kunden/{customer.pk}/")
     documents = Document.objects.filter(company=request.company, customer=customer)[:50]
-    return render(request, "web/customers/form.html", {"form": form, "customer": customer, "documents": documents})
+    context = {
+        "form": form,
+        "customer": customer,
+        "documents": documents,
+        "activities": customer.activities.select_related("document", "created_by")[:50],
+        "follow_ups": customer.follow_ups.filter(done_at__isnull=True).select_related("document"),
+        "activity_form": ActivityForm(),
+        "follow_up_form": FollowUpForm(initial={"due_on": timezone.localdate() + dt.timedelta(days=7)}),
+        "today": timezone.localdate(),
+    }
+    return render(request, "web/customers/form.html", context)
+
+
+@require_POST
+@company_view
+def activity_add(request, pk: int):
+    customer = get_object_or_404(Customer, pk=pk, company=request.company)
+    form = ActivityForm(request.POST)
+    if form.is_valid():
+        log_activity(customer, text=form.cleaned_data["text"], kind=form.cleaned_data["kind"], user=request.user)
+    return redirect(f"/kunden/{customer.pk}/#aktivitaeten")
+
+
+@require_POST
+@company_view
+def follow_up_add(request, pk: int):
+    customer = get_object_or_404(Customer, pk=pk, company=request.company)
+    form = FollowUpForm(request.POST)
+    document = None
+    if doc_id := request.POST.get("document", ""):
+        document = get_object_or_404(Document, pk=doc_id, company=request.company)
+    if form.is_valid():
+        try:
+            create_follow_up(customer, document=document, user=request.user, **form.cleaned_data)
+        except ActivityError as exc:
+            return HttpResponse(str(exc), status=409)
+    return redirect(_back(request, f"/kunden/{customer.pk}/"))
+
+
+@require_POST
+@company_view
+def follow_up_done(request, pk: int):
+    follow_up = get_object_or_404(FollowUp, pk=pk, customer__company=request.company)
+    complete_follow_up(follow_up, user=request.user, note=request.POST.get("note", ""))
+    return redirect(_back(request, "/"))
+
+
+def _back(request, default: str) -> str:
+    """Return target from the form, only if it stays on this site (no open redirect)."""
+    back = request.POST.get("back", "")
+    return back if url_has_allowed_host_and_scheme(back, allowed_hosts={request.get_host()}) else default
 
 
 # --- catalog ----------------------------------------------------------------------------------

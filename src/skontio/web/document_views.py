@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime as dt
 import io
 from decimal import Decimal
 
@@ -39,6 +40,7 @@ from skontio.tax.engine import TaxTreatment
 from skontio.web.forms import (
     CancelForm,
     ConvertForm,
+    FollowUpForm,
     HeaderForm,
     LineForm,
     NewDocumentForm,
@@ -193,6 +195,12 @@ def _finalized_context(doc: Document, **extra) -> dict:
         context["partial_form"] = PartialForm(initial={"percent": 30})
         context["open_partials"] = open_partials_for(doc)
         context["can_confirm_order"] = doc.doc_type == Type.QUOTE
+        context["follow_up_form"] = FollowUpForm(
+            initial={
+                "title": f"Angebot {doc.number} nachfassen",
+                "due_on": timezone.localdate() + dt.timedelta(days=14),
+            }
+        )
     return context | extra
 
 

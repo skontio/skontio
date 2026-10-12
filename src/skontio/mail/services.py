@@ -12,6 +12,8 @@ from django.core.mail import EmailMessage
 from django.core.validators import validate_email
 
 from skontio.archive.services import load
+from skontio.crm.activities import log_activity
+from skontio.crm.models import Activity
 from skontio.documents.models import INVOICE_TYPES, Document, Rendition
 from skontio.documents.renditions import TITLES, de_amount
 from skontio.documents.services import amount_due
@@ -123,4 +125,12 @@ def send_document(
         raise MailError(f"Versand fehlgeschlagen: {exc}") from exc
     log.status = MailLog.Status.SENT
     log.save()
+    if document.customer is not None:
+        log_activity(
+            document.customer,
+            kind=Activity.Kind.EMAIL,
+            text=f"{TITLES[Document.Type(document.doc_type)]} {document.number} an {', '.join(recipients)} gesendet",
+            document=document,
+            user=sent_by,
+        )
     return log

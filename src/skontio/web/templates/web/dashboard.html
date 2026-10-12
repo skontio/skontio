@@ -28,6 +28,16 @@
     </ul>
   </section>
   <section class="card">
+    <h2>Wiedervorlagen</h2>
+    <ul class="plain">
+      {% for f in follow_ups %}
+      <li>{% if f.due_on <= today %}<span class="badge danger">{{ f.due_on|date:"d.m." }}</span>{% else %}<span class="badge">{{ f.due_on|date:"d.m." }}</span>{% endif %}
+        <a href="/kunden/{{ f.customer.pk }}/">{{ f.customer.name }}</a>: {{ f.title }}
+        <form method="post" action="/wiedervorlagen/{{ f.pk }}/erledigt/" class="inline-form">{% csrf_token %}<input type="hidden" name="back" value="/"><button type="submit" class="link">erledigt</button></form></li>
+      {% empty %}<li class="muted">Nichts fällig in den nächsten 7 Tagen.</li>{% endfor %}
+    </ul>
+  </section>
+  <section class="card">
     <h2>Entwürfe</h2>
     <p class="big">{{ drafts }}</p>
     <p><a class="button" href="/dokumente/neu/?typ=invoice">Neue Rechnung</a> <a class="button secondary" href="/dokumente/neu/?typ=quote">Neues Angebot</a></p>

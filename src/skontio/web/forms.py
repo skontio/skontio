@@ -8,7 +8,7 @@ from django import forms
 
 from skontio.catalog.models import Item, Unit
 from skontio.core.models import Company
-from skontio.crm.models import Customer
+from skontio.crm.models import Activity, Customer
 from skontio.crm.services import normalise_vat_id
 from skontio.payments.models import Payment
 from skontio.tax.engine import Regime, TaxTreatment
@@ -245,3 +245,13 @@ class ItemForm(forms.ModelForm):
     class Meta:
         model = Item
         fields = ["kind", "name", "sku", "description", "unit", "net_price", "tax_treatment"]
+
+
+class ActivityForm(forms.Form):
+    kind = forms.ChoiceField(label="Art", choices=Activity.Kind.choices, initial=Activity.Kind.NOTE)
+    text = forms.CharField(label="Notiz", widget=forms.Textarea(attrs={"rows": 3}), max_length=5000)
+
+
+class FollowUpForm(forms.Form):
+    title = forms.CharField(label="Wiedervorlage", max_length=200)
+    due_on = forms.DateField(label="Fällig am", widget=forms.DateInput(attrs={"type": "date"}))

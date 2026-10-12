@@ -16,5 +16,34 @@
   {% for doc in documents %}<li><a href="/dokumente/{{ doc.pk }}/">{{ doc.get_doc_type_display }} {{ doc }}</a> · {{ doc.issue_date|date:"d.m.Y" }}{% if doc.gross_total is not None %} · {{ doc.gross_total }} €{% endif %}</li>
   {% empty %}<li class="muted">Noch keine Dokumente.</li>{% endfor %}
 </ul>
+
+<h2>Wiedervorlagen</h2>
+<ul class="plain">
+  {% for f in follow_ups %}
+  <li>{% if f.due_on <= today %}<span class="badge danger">{{ f.due_on|date:"d.m." }}</span>{% else %}<span class="badge">{{ f.due_on|date:"d.m." }}</span>{% endif %}
+    {{ f.title }}{% if f.document %} · <a href="/dokumente/{{ f.document.pk }}/">{{ f.document }}</a>{% endif %}
+    <form method="post" action="/wiedervorlagen/{{ f.pk }}/erledigt/" class="inline-form">{% csrf_token %}<input type="hidden" name="back" value="/kunden/{{ customer.pk }}/"><button type="submit" class="link">erledigt</button></form></li>
+  {% empty %}<li class="muted">Keine offenen Wiedervorlagen.</li>{% endfor %}
+</ul>
+<details class="card">
+  <summary><h3>Neue Wiedervorlage</h3></summary>
+  <form method="post" action="/kunden/{{ customer.pk }}/wiedervorlagen/" class="form">
+    {% csrf_token %}
+    {% with form=follow_up_form %}{% include "web/_fields.html" %}{% endwith %}
+    <button type="submit" class="secondary">Anlegen</button>
+  </form>
+</details>
+
+<h2 id="aktivitaeten">Aktivitäten</h2>
+<form method="post" action="/kunden/{{ customer.pk }}/aktivitaeten/" class="form">
+  {% csrf_token %}
+  {% with form=activity_form %}{% include "web/_fields.html" %}{% endwith %}
+  <button type="submit" class="secondary">Eintragen</button>
+</form>
+<ul class="plain timeline">
+  {% for a in activities %}
+  <li><span class="muted">{{ a.occurred_at|date:"d.m.Y H:i" }} · {{ a.get_kind_display }}{% if a.document %} · <a href="/dokumente/{{ a.document.pk }}/">{{ a.document }}</a>{% endif %}</span><br>{{ a.text|linebreaksbr }}</li>
+  {% empty %}<li class="muted">Noch keine Aktivitäten.</li>{% endfor %}
+</ul>
 {% endif %}
 {% endblock %}

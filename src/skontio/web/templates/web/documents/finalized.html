@@ -70,6 +70,18 @@
 </details>
 {% endif %}
 
+{% if doc.doc_type == "quote" %}
+<details class="card">
+  <summary><h2>Nachfassen</h2></summary>
+  <form method="post" action="/kunden/{{ doc.customer.pk }}/wiedervorlagen/" class="form">
+    {% csrf_token %}
+    <input type="hidden" name="document" value="{{ doc.pk }}"><input type="hidden" name="back" value="/dokumente/{{ doc.pk }}/">
+    {% with form=follow_up_form %}{% include "web/_fields.html" %}{% endwith %}
+    <button type="submit" class="secondary">Wiedervorlage anlegen</button>
+  </form>
+</details>
+{% endif %}
+
 {% if can_confirm_order %}
 <section class="card">
   <h2>Auftrag bestätigen</h2>
