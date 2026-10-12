@@ -45,3 +45,32 @@ def test_pages_link_manifest_and_registration_script(client, django_user_model):
     assert "web/app.js" in body
     assert 'name="theme-color"' in body
     assert "<script>" not in body  # CSP: no inline scripts
+
+
+def test_finalized_pdf_offers_web_share(client, shop):
+    import datetime as dt
+    from decimal import Decimal
+
+    from skontio.documents.models import Document
+    from skontio.documents.services import add_line_from_item, create_draft, finalize
+
+    doc = create_draft(
+        shop.company,
+        Document.Type.INVOICE,
+        shop.org,
+        issue_date=dt.date(2026, 10, 12),
+        service_date=dt.date(2026, 10, 9),
+    )
+    add_line_from_item(doc, shop.item, quantity=Decimal("1"))
+    doc = finalize(doc)
+    client.force_login(shop.user)
+    page = client.get(f"/dokumente/{doc.pk}/").content.decode()
+    assert page.count('class="secondary share-file" hidden') == 1  # the PDF only, not the XRechnung XML
+    assert f'data-url="/dokumente/{doc.pk}/datei/zugferd_pdf/"' in page
+    assert f'data-filename="{doc.number}.pdf"' in page
+
+
+def test_share_script_feature_detects_and_falls_back():
+    script = open(finders.find("web/app.js"), encoding="utf-8").read()
+    assert "navigator.canShare" in script and "navigator.share" in script
+    assert "AbortError" in script and "window.location.href = url" in script

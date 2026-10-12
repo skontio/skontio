@@ -32,7 +32,7 @@ Der vollständige Plan steht in [`docs/plan.md`](docs/plan.md), Architekturentsc
 | E-Rechnungs-Eingang (CII, UBL, ZUGFeRD-PDF), revisionssicheres Archiv | ✅ |
 | Zahlungen, offene Posten, GiroCode, Versand per SMTP mit Protokoll | ✅ |
 | Login über OIDC (Pocket ID), Notfall-Login nur aus dem LAN mit TOTP-2FA, Argon2id | ✅ |
-| Oberfläche (Mobile-first), installierbare PWA | ✅ |
+| Oberfläche (Mobile-first), installierbare PWA, PDF teilen (Web Share API) | ✅ |
 | Backup/Restore (SQLite und Postgres) mit Prüfsummen, atomar, Sicherung vor Updates | ✅ |
 | MCP-Server (2026-07-28 + Legacy), 18 Tools nur für Entwürfe, Pseudonyme, hashverkettetes Audit-Log | ✅ 1b |
 | Zugangstokens und stdio-Bridge `skontio-mcp` für Claude Desktop und Claude Code | ✅ 1b |
