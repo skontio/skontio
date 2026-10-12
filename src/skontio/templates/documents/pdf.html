@@ -46,7 +46,7 @@
 <footer>
   <div>{{ seller.name }}<br>{{ seller.street }}<br>{{ seller.postcode }} {{ seller.city }}</div>
   <div>{% if seller.email %}{{ seller.email }}<br>{% endif %}{% if seller.phone %}{{ seller.phone }}{% endif %}</div>
-  <div>{% if seller.tax_number %}Steuernummer: {{ seller.tax_number }}<br>{% endif %}{% if seller.vat_id %}USt-IdNr.: {{ seller.vat_id }}{% endif %}</div>
+  <div>{% if seller.tax_number %}{{ t.tax_number }}: {{ seller.tax_number }}<br>{% endif %}{% if seller.vat_id %}{{ t.vat_id }}: {{ seller.vat_id }}{% endif %}</div>
   <div>{% if seller.iban %}IBAN: {{ iban_formatted }}<br>{% endif %}{% if seller.bic %}BIC: {{ seller.bic }}{% endif %}</div>
 </footer>
 
@@ -61,13 +61,13 @@
   </div>
   <div class="meta">
     <table>
-      <tr><td>{{ title }}-Nr.</td><td>{{ doc.number }}</td></tr>
-      <tr><td>Datum</td><td>{{ issue_date }}</td></tr>
+      <tr><td>{{ number_label }}</td><td>{{ doc.number }}</td></tr>
+      <tr><td>{{ t.date }}</td><td>{{ issue_date }}</td></tr>
       {% if service %}<tr><td>{{ service_label }}</td><td>{{ service }}</td></tr>{% endif %}
-      {% if buyer.number %}<tr><td>Kundennummer</td><td>{{ buyer.number }}</td></tr>{% endif %}
-      {% if buyer.vat_id %}<tr><td>USt-IdNr. Kunde</td><td>{{ buyer.vat_id }}</td></tr>{% endif %}
-      {% if valid_until %}<tr><td>Gültig bis</td><td>{{ valid_until }}</td></tr>{% endif %}
-      {% if due_date %}<tr><td>Fällig am</td><td>{{ due_date }}</td></tr>{% endif %}
+      {% if buyer.number %}<tr><td>{{ t.customer_number }}</td><td>{{ buyer.number }}</td></tr>{% endif %}
+      {% if buyer.vat_id %}<tr><td>{{ t.buyer_vat_id }}</td><td>{{ buyer.vat_id }}</td></tr>{% endif %}
+      {% if valid_until %}<tr><td>{{ t.valid_until }}</td><td>{{ valid_until }}</td></tr>{% endif %}
+      {% if due_date %}<tr><td>{{ t.due_date }}</td><td>{{ due_date }}</td></tr>{% endif %}
     </table>
   </div>
 </div>
@@ -78,7 +78,7 @@
 
 <table class="lines">
   <thead>
-    <tr><th>Pos.</th><th>Bezeichnung</th><th class="num">Menge</th><th>Einheit</th><th class="num">Einzelpreis</th>{% if has_discounts %}<th class="num">Rabatt</th>{% endif %}<th class="num">Betrag</th>{% if show_rates %}<th class="num">USt</th>{% endif %}</tr>
+    <tr><th>{{ t.col_position }}</th><th>{{ t.col_text }}</th><th class="num">{{ t.col_quantity }}</th><th>{{ t.col_unit }}</th><th class="num">{{ t.col_price }}</th>{% if has_discounts %}<th class="num">{{ t.col_discount }}</th>{% endif %}<th class="num">{{ t.col_amount }}</th>{% if show_rates %}<th class="num">{{ t.col_vat }}</th>{% endif %}</tr>
   </thead>
   <tbody>
     {% for line in lines %}
@@ -97,16 +97,16 @@
 </table>
 
 <table class="totals">
-  <tr><td>Summe Positionen</td><td class="num">{{ totals.line_total }}</td></tr>
-  {% for subtotal in subtotals %}{% if subtotal.allowance %}<tr><td>Rabatt {{ doc_discount }}{% if show_rates %} ({{ subtotal.rate }}){% endif %}</td><td class="num">−{{ subtotal.allowance }}</td></tr>{% endif %}{% endfor %}
+  <tr><td>{{ t.line_total }}</td><td class="num">{{ totals.line_total }}</td></tr>
+  {% for subtotal in subtotals %}{% if subtotal.allowance %}<tr><td>{{ t.discount }} {{ doc_discount }}{% if show_rates %} ({{ subtotal.rate }}){% endif %}</td><td class="num">−{{ subtotal.allowance }}</td></tr>{% endif %}{% endfor %}
   {% if show_rates %}
-    <tr><td>Nettobetrag</td><td class="num">{{ totals.tax_basis_total }}</td></tr>
-    {% for subtotal in subtotals %}<tr><td>USt {{ subtotal.rate }} auf {{ subtotal.basis }}</td><td class="num">{{ subtotal.tax }}</td></tr>{% endfor %}
+    <tr><td>{{ t.net_total }}</td><td class="num">{{ totals.tax_basis_total }}</td></tr>
+    {% for subtotal in subtotals %}<tr><td>{{ subtotal.vat_on }}</td><td class="num">{{ subtotal.tax }}</td></tr>{% endfor %}
   {% endif %}
-  <tr class="grand"><td>{{ grand_label }}</td><td class="num">{{ totals.grand_total }} €</td></tr>
+  <tr class="grand"><td>{{ grand_label }}</td><td class="num">{{ totals.grand_total }}</td></tr>
   {% if deductions %}
-  {% for d in deductions %}<tr><td>abzüglich Abschlagsrechnung {{ d.number }} vom {{ d.date }}{% if show_rates %}<br><span class="muted">netto {{ d.net }} · USt {{ d.rate }} {{ d.tax }}</span>{% endif %}</td><td class="num">−{{ d.gross }}</td></tr>{% endfor %}
-  <tr class="grand"><td>{{ due_label }}</td><td class="num">{{ due_total }} €</td></tr>
+  {% for d in deductions %}<tr><td>{{ d.label }}{% if show_rates %}<br><span class="muted">{{ d.detail }}</span>{% endif %}</td><td class="num">−{{ d.gross }}</td></tr>{% endfor %}
+  <tr class="grand"><td>{{ due_label }}</td><td class="num">{{ due_total }}</td></tr>
   {% endif %}
 </table>
 
@@ -115,7 +115,7 @@
 {% if payment_text %}
 <div class="payment">
   {% if girocode %}<img src="{{ girocode }}" alt="GiroCode">{% endif %}
-  <div>{{ payment_text }}{% if seller.iban %}<br>IBAN {{ iban_formatted }}{% if seller.bic %} · BIC {{ seller.bic }}{% endif %}<br>Verwendungszweck: {{ doc.number }}{% endif %}</div>
+  <div>{{ payment_text }}{% if seller.iban %}<br>IBAN {{ iban_formatted }}{% if seller.bic %} · BIC {{ seller.bic }}{% endif %}<br>{{ t.payment_reference }}: {{ doc.number }}{% endif %}</div>
 </div>
 {% endif %}
 

@@ -1,6 +1,8 @@
 from django.conf import settings
 from django.db import models
 
+from skontio.core.models import DOCUMENT_LANGUAGES
+
 
 class Tag(models.Model):
     company = models.ForeignKey("core.Company", on_delete=models.PROTECT, related_name="tags")
@@ -30,7 +32,7 @@ class Customer(models.Model):
     postcode = models.CharField(max_length=20, blank=True, default="")
     city = models.CharField(max_length=100, blank=True, default="")
     country = models.CharField(max_length=2, default="DE")
-    language = models.CharField(max_length=5, default="de")
+    language = models.CharField("Sprache", max_length=5, choices=DOCUMENT_LANGUAGES, default="de")
     buyer_reference = models.CharField("Käuferreferenz/Leitweg-ID", max_length=100, blank=True, default="")
     payment_terms_days = models.PositiveSmallIntegerField(default=14)
     tags = models.ManyToManyField(Tag, blank=True, related_name="customers")

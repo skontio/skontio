@@ -89,6 +89,7 @@ def document_view(document: Document, ctx, *, with_lines: bool = True) -> dict:
         "type": document.doc_type,
         "status": document.status,
         "number": document.number,
+        "language": document.language,
         "customer": customer_view(document.customer, ctx),
         "issue_date": iso(document.issue_date),
         "service_date": iso(document.service_date),

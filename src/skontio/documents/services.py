@@ -17,6 +17,8 @@ from django.db.models import Max, Sum
 from django.utils import timezone
 
 from skontio.catalog.models import Item, Unit
+from skontio.documents.languages import LANGUAGES, Lang
+from skontio.documents.languages import normalise as normalise_language
 from skontio.documents.models import (
     BASIS_TYPES,
     INVOICE_TYPES,
@@ -77,16 +79,6 @@ DEFAULT_PATTERNS = {
     Type.INVOICE: "RE-{YYYY}-{####}",
     Type.CANCELLATION: "ST-{YYYY}-{####}",
 }
-TREATMENT_LABELS = {
-    TaxTreatment.STANDARD: "Regelsatz",
-    TaxTreatment.REDUCED: "ermäßigter Satz",
-    TaxTreatment.ZERO: "Nullsatz",
-    TaxTreatment.EXEMPT: "steuerfrei",
-    TaxTreatment.REVERSE_CHARGE: "Steuerschuldnerschaft des Leistungsempfängers",
-    TaxTreatment.INTRA_EU_SUPPLY: "innergemeinschaftliche Lieferung",
-    TaxTreatment.EXPORT: "Ausfuhr",
-    TaxTreatment.NOT_TAXABLE: "nicht steuerbar",
-}
 # Abschlags- und Schlussrechnungen are invoices: one gap-free invoice number range for all of them
 SEQUENCE_TYPE = {Type.PARTIAL_INVOICE: Type.INVOICE, Type.FINAL_INVOICE: Type.INVOICE}
 DEFAULT_QUOTE_VALIDITY_DAYS = 30
@@ -113,6 +105,7 @@ def create_draft(
     origin: Document.Origin = Document.Origin.UI,
     created_by=None,
     idempotency_key: str = "",
+    language: str | None = None,
     **texts,
 ) -> Document:
     if customer is not None and customer.company_id != company.pk:
@@ -126,6 +119,10 @@ def create_draft(
         due_date = issue_date + dt.timedelta(days=customer.payment_terms_days)
     if doc_type == Type.QUOTE and valid_until is None:
         valid_until = issue_date + dt.timedelta(days=DEFAULT_QUOTE_VALIDITY_DAYS)
+    if language is None:
+        language = normalise_language(customer.language if customer is not None else None)
+    elif language not in LANGUAGES:
+        raise DocumentError(f"Unbekannte Dokumentsprache: {language}")
     return Document.objects.create(
         company=company,
         doc_type=doc_type,
@@ -140,6 +137,7 @@ def create_draft(
         ai_review_required=origin in AI_ORIGINS,
         created_by=created_by,
         idempotency_key=idempotency_key,
+        language=language,
         **texts,
     )
 
@@ -217,6 +215,7 @@ EDITABLE_FIELDS = {
     "closing_text",
     "payment_terms_text",
     "document_discount_percent",
+    "language",
 }
 
 
@@ -236,6 +235,8 @@ def update_draft(document: Document, *, origin: Document.Origin = Document.Origi
         raise DocumentError("Der Leistungszeitraum endet vor seinem Beginn")
     if not (Decimal("0") <= Decimal(document.document_discount_percent) <= Decimal("100")):
         raise DocumentError("Der Rabatt muss zwischen 0 und 100 % liegen")
+    if document.language not in LANGUAGES:
+        raise DocumentError(f"Unbekannte Dokumentsprache: {document.language}")
     if origin in AI_ORIGINS:
         _mark_ai_touched(document)
     document.save()
@@ -402,17 +403,19 @@ def _seal(
         raise DocumentError("Kleinunternehmer dürfen keine Umsatzsteuer ausweisen (§ 14c UStG)")
     if prepaid_total(document) > totals.grand_total:
         raise DocumentError("Die abgezogenen Abschlagsrechnungen übersteigen den Rechnungsbetrag")
+    lang = Lang(document.language)
     for line, result in zip(lines, totals.lines, strict=True):
         line.tax_category = result.tax.category
         line.tax_rate = result.tax.rate
-        line.tax_exemption_reason = result.tax.exemption_reason
+        line.tax_exemption_reason = lang.tax_note(result.tax.exemption_reason)
         line.net_amount = result.net_amount
         line.save(update_fields=["tax_category", "tax_rate", "tax_exemption_reason", "net_amount"])
 
     document.seller_snapshot_sha256 = _store_snapshot(document, PartySnapshot.Role.SELLER, seller)
     document.buyer_snapshot_sha256 = _store_snapshot(document, PartySnapshot.Role.BUYER, buyer)
     document.regime = regime
-    document.tax_note = "\n".join(dict.fromkeys(b.exemption_reason for b in totals.breakdown if b.exemption_reason))
+    reasons = (lang.tax_note(b.exemption_reason) for b in totals.breakdown if b.exemption_reason)
+    document.tax_note = "\n".join(dict.fromkeys(reasons))
     document.net_total = totals.tax_basis_total
     document.tax_total = totals.tax_total
     document.gross_total = totals.grand_total
@@ -498,6 +501,7 @@ def convert_quote_to_invoice(
             created_by=created_by,
             origin=origin,
             idempotency_key=idempotency_key,
+            language=quote.language,
             intro_text=quote.intro_text,
             closing_text=quote.closing_text,
             document_discount_percent=quote.document_discount_percent,
@@ -533,6 +537,7 @@ def cancel_invoice(invoice: Document, *, issue_date: dt.date, reason: str, creat
             service_period_end=invoice.service_period_end,
             document_discount_percent=invoice.document_discount_percent,
             cancellation_reason=reason.strip(),
+            language=invoice.language,
             created_by=created_by,
         )
         lines = _copy_lines(invoice, storno)
@@ -676,6 +681,8 @@ def remove_deduction(document: Document, partial: Document) -> None:
 
 def _partial_lines(quote: Document, *, percent: Decimal | None, net_amount: Decimal | None) -> list[dict]:
     """Split the requested share over the quote's tax treatments (proportional to their net amounts)."""
+    lang = Lang(quote.language)
+    title = lang.title(quote.doc_type)
     if (percent is None) == (net_amount is None):
         raise DocumentError("Entweder einen Prozentsatz oder einen Nettobetrag angeben")
     groups: dict[str, Decimal] = {}
@@ -690,19 +697,19 @@ def _partial_lines(quote: Document, *, percent: Decimal | None, net_amount: Deci
         if not Decimal("0") < percent <= Decimal("100"):
             raise DocumentError("Der Abschlag muss zwischen 0 und 100 % liegen")
         share = percent / 100
-        label = f"Abschlag {percent.normalize():f} % gemäß {quote.get_doc_type_display()} {quote.number}"
+        label = lang("down_payment_percent", percent=lang.quantity(percent), title=title, number=quote.number)
     else:
         if not Decimal("0") < net_amount <= total:
             raise DocumentError(f"Der Abschlag muss zwischen 0 und {total.quantize(CENT)} € (netto) liegen")
         share = net_amount / total
-        label = f"Abschlag gemäß {quote.get_doc_type_display()} {quote.number}"
+        label = lang("down_payment", title=title, number=quote.number)
     lines, remaining = [], (total * share).quantize(CENT)
     treatments = sorted(groups, key=lambda t: groups[t])
     for index, treatment in enumerate(treatments):
         # rounding difference goes into the largest group so the parts add up to the requested amount
         amount = remaining if index == len(treatments) - 1 else (groups[treatment] * share).quantize(CENT)
         remaining -= amount
-        suffix = f" ({TREATMENT_LABELS[TaxTreatment(treatment)]})" if len(groups) > 1 else ""
+        suffix = f" ({lang.treatment(treatment)})" if len(groups) > 1 else ""
         lines.append(
             {
                 "text": label + suffix,
@@ -760,6 +767,7 @@ def create_order_confirmation(
             created_by=created_by,
             origin=origin,
             idempotency_key=idempotency_key,
+            language=quote.language,
             intro_text=quote.intro_text,
             closing_text=quote.closing_text,
             document_discount_percent=quote.document_discount_percent,
@@ -794,6 +802,7 @@ def create_partial_invoice(
             created_by=created_by,
             origin=origin,
             idempotency_key=idempotency_key,
+            language=quote.language,
             parent=quote,
         )
         for line in _partial_lines(quote, percent=percent, net_amount=net_amount):
@@ -824,6 +833,7 @@ def create_final_invoice(
             created_by=created_by,
             origin=origin,
             idempotency_key=idempotency_key,
+            language=quote.language,
             intro_text=quote.intro_text,
             closing_text=quote.closing_text,
             document_discount_percent=quote.document_discount_percent,

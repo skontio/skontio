@@ -34,6 +34,7 @@ from skontio.tax.engine import TaxTreatment
 from skontio.tools.customers import find_customer
 from skontio.tools.inputs import (
     CustomerNumber,
+    DocumentLanguage,
     DocumentNumber,
     IdempotencyKey,
     Input,
@@ -97,6 +98,7 @@ class DraftInput(DatesInput):
     intro_text: Text = ""
     closing_text: Text = ""
     document_discount_percent: Percent = Decimal("0")
+    language: DocumentLanguage | None = None  # default: the customer's language
     allow_duplicate: bool = False
 
     @model_validator(mode="after")
@@ -224,6 +226,7 @@ def _create(ctx, doc_type: Document.Type, args: DraftInput, **extra) -> Out:
         intro_text=args.intro_text,
         closing_text=args.closing_text,
         document_discount_percent=args.document_discount_percent,
+        language=args.language,
         **{k: v for k, v in extra.items() if v is not None},
     )
     replace_lines(document, line_args, origin=document.origin)
@@ -276,6 +279,7 @@ class UpdateInput(DatesInput):
     document_discount_percent: Percent | None = None
     due_date: dt.date | None = None
     valid_until: dt.date | None = None
+    language: DocumentLanguage | None = None
 
     @model_validator(mode="after")
     def something_to_change(self):

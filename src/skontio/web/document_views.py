@@ -73,6 +73,7 @@ HEADER_FIELDS = [
     "document_discount_percent",
     "intro_text",
     "closing_text",
+    "language",
 ]
 
 
@@ -251,6 +252,7 @@ def document_detail(request, pk: int):
         for field in HEADER_FIELDS:
             setattr(doc, field, data[field])
         doc.document_discount_percent = data["document_discount_percent"] or Decimal("0")
+        doc.language = data["language"] or header.initial["language"]
         doc.save()
         return redirect(f"/dokumente/{doc.pk}/")
     return render(request, "web/documents/draft.html", {"header": header, **_lines_context(request, doc)})

@@ -38,6 +38,7 @@ Der vollständige Plan steht in [`docs/plan.md`](docs/plan.md), Architekturentsc
 | Zugangstokens und stdio-Bridge `skontio-mcp` für Claude Desktop und Claude Code | ✅ 1b |
 | Auftragsbestätigung, Abschlags- und Schlussrechnung (§ 14 Abs. 5 UStG) | ✅ 1b |
 | CRM: Aktivitäten, Wiedervorlagen, Dateiablage mit Aufbewahrungsfrist | ✅ 1b |
+| Dokumente auf Deutsch oder Englisch (PDF, E-Rechnung, Mailtext) | ✅ 1b |
 | Assistent, EÜR/USt-VA, Bankabgleich | Phase 1b–3 |
 
 Betrieb auf TrueNAS: [`docs/betrieb.md`](docs/betrieb.md).

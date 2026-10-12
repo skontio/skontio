@@ -8,7 +8,8 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from skontio.documents.models import INVOICE_TYPES, REFERENCE_PREFIX, Document, PartySnapshot
+from skontio.documents.languages import Lang
+from skontio.documents.models import INVOICE_TYPES, Document, PartySnapshot
 from skontio.einvoice.model import Invoice, LineData, Party, PaymentInstructions, PrecedingInvoice, build_invoice
 from skontio.tax.engine import ResolvedTax
 
@@ -22,15 +23,18 @@ TYPE_CODES = {
 
 def deduction_notes(document: Document) -> list[str]:
     """§ 14 Abs. 5 Satz 2 UStG: deducted payments with their tax amounts, per partial invoice and rate."""
-    notes = []
-    for deduction in document.deductions.select_related("source"):
-        source = deduction.source
-        notes.append(
-            f"Abzüglich Abschlagsrechnung {source.number} vom {source.issue_date:%d.%m.%Y}: "
-            f"Entgelt {deduction.net_amount} EUR, Umsatzsteuer {deduction.tax_rate.normalize():f} % "
-            f"{deduction.tax_amount} EUR"
+    t = Lang(document.language)
+    return [
+        t(
+            "deduction_note",
+            number=d.source.number,
+            date=t.date(d.source.issue_date),
+            net=d.net_amount,
+            rate=f"{d.tax_rate.normalize():f}",
+            tax=d.tax_amount,
         )
-    return notes
+        for d in document.deductions.select_related("source")
+    ]
 
 
 class SnapshotMismatch(RuntimeError):
@@ -90,21 +94,22 @@ def invoice_from_document(document: Document) -> Invoice:
         if document.service_period_start and document.service_period_end
         else None
     )
+    t = Lang(document.language)
     preceding = None
     notes = []
     if document.doc_type == Document.Type.CANCELLATION:
         parent = document.parent
         preceding = PrecedingInvoice(parent.number, parent.issue_date)
-        notes.append(f"Stornierung der Rechnung {parent.number} vom {parent.issue_date:%d.%m.%Y}")
+        notes.append(t("cancellation_of", number=parent.number, date=t.date(parent.issue_date)))
         if document.cancellation_reason:
-            notes.append(f"Grund: {document.cancellation_reason}")
-        payment_terms = "Der Rechnungsbetrag wird gutgeschrieben bzw. erstattet."
+            notes.append(t("reason", reason=document.cancellation_reason))
+        payment_terms = t("credit_terms")
     else:
         if document.doc_type == Document.Type.PARTIAL_INVOICE and document.parent:
-            prefix = REFERENCE_PREFIX.get(Document.Type(document.parent.doc_type), "zu")
-            notes.append(f"Abschlagsrechnung {prefix} {document.parent.number}")
+            prefix = t.texts["basis_prefix"].get(Document.Type(document.parent.doc_type), "")
+            notes.append(t("partial_of", basis=f"{prefix} {document.parent.number}".strip()))
         payment_terms = document.payment_terms_text or (
-            f"Zahlbar ohne Abzug bis {document.due_date:%d.%m.%Y}." if document.due_date else ""
+            t("payable_by", date=t.date(document.due_date)) if document.due_date else ""
         )
 
     invoice = build_invoice(

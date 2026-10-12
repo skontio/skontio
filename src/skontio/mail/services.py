@@ -14,8 +14,9 @@ from django.core.validators import validate_email
 from skontio.archive.services import load
 from skontio.crm.activities import log_activity
 from skontio.crm.models import Activity
+from skontio.documents.languages import Lang
 from skontio.documents.models import INVOICE_TYPES, Document, Rendition
-from skontio.documents.renditions import TITLES, de_amount
+from skontio.documents.renditions import TITLES
 from skontio.documents.services import amount_due
 from skontio.mail.models import MailLog
 
@@ -39,17 +40,17 @@ def smtp_configured() -> bool:
 
 
 def default_message(document: Document) -> tuple[str, str]:
-    title = TITLES[Document.Type(document.doc_type)]
+    """Suggested subject and text in the document's language (editable before sending)."""
+    t = Lang(document.language)
+    title = t.title(document.doc_type)
     company = document.company.name
-    subject = f"{title} {document.number} von {company}"
-    lines = ["Guten Tag,", "", f"anbei erhalten Sie unsere {title} {document.number}."]
+    subject = t("mail_subject", title=title, number=document.number, company=company)
+    in_sentence = title if t.code == "de" else title.lower()
+    lines = [t("mail_greeting"), "", t("mail_attached", title=in_sentence, number=document.number)]
     if document.doc_type in INVOICE_TYPES and document.due_date:
-        lines.append(
-            f"Bitte überweisen Sie {de_amount(amount_due(document))} € bis zum {document.due_date:%d.%m.%Y} "
-            f"unter Angabe der Rechnungsnummer."
-        )
-        lines.append("Die angehängte PDF-Datei enthält die E-Rechnung im Format ZUGFeRD (EN 16931).")
-    lines += ["", "Mit freundlichen Grüßen", document.company.contact_name or company]
+        lines.append(t("mail_pay", amount=t.money(amount_due(document)), date=t.date(document.due_date)))
+        lines.append(t("mail_einvoice"))
+    lines += ["", t("mail_regards"), document.company.contact_name or company]
     return subject, "\n".join(lines)
 
 

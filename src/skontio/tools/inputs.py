@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+
+from skontio.core.models import DOCUMENT_LANGUAGES
 
 Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
 Text = Annotated[str, StringConstraints(strip_whitespace=True, max_length=2000)]
@@ -18,6 +20,7 @@ UnitCode = Annotated[
 ]
 Money = Annotated[Decimal, Field(ge=0, le=Decimal("10000000"), max_digits=14, decimal_places=4)]
 Quantity = Annotated[Decimal, Field(ge=0, le=Decimal("1000000"), max_digits=14, decimal_places=4)]
+DocumentLanguage = Literal[tuple(dict(DOCUMENT_LANGUAGES))]  # "de" | "en": wording of PDF, e-invoice, e-mail
 Percent = Annotated[Decimal, Field(ge=0, le=100, max_digits=5, decimal_places=2)]
 CustomerNumber = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=32)]
 DocumentNumber = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64)]

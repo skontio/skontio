@@ -1,5 +1,8 @@
 from django.db import models
 
+# Languages of what customers receive (PDF, e-invoice notes, e-mail); the UI stays German
+DOCUMENT_LANGUAGES = [("de", "Deutsch"), ("en", "Englisch")]
+
 
 class Company(models.Model):
     """A legal entity issuing documents. Every business table is scoped to one company."""

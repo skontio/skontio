@@ -12,6 +12,7 @@ from __future__ import annotations
 from django.conf import settings
 from django.db import models
 
+from skontio.core.models import DOCUMENT_LANGUAGES
 from skontio.tax.engine import Regime, TaxTreatment
 
 
@@ -54,7 +55,7 @@ class Document(models.Model):
     due_date = models.DateField(null=True, blank=True)
     valid_until = models.DateField(null=True, blank=True)
     currency = models.CharField(max_length=3, default="EUR")
-    language = models.CharField(max_length=5, default="de")
+    language = models.CharField("Sprache", max_length=5, choices=DOCUMENT_LANGUAGES, default="de")
     intro_text = models.TextField(blank=True, default="")
     closing_text = models.TextField(blank=True, default="")
     payment_terms_text = models.TextField(blank=True, default="")
@@ -136,7 +137,6 @@ INVOICE_TYPES = frozenset({Document.Type.INVOICE, Document.Type.PARTIAL_INVOICE,
 # Documents an invoice, Abschlags- or Schlussrechnung can be based on
 BASIS_TYPES = frozenset({Document.Type.QUOTE, Document.Type.ORDER_CONFIRMATION})
 # "zum Angebot …" / "zur Auftragsbestätigung …" in printed references
-REFERENCE_PREFIX = {Document.Type.QUOTE: "zum Angebot", Document.Type.ORDER_CONFIRMATION: "zur Auftragsbestätigung"}
 
 
 class DocumentLine(models.Model):
