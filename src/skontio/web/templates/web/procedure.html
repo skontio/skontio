@@ -1,0 +1,27 @@
+{% extends "web/base.html" %}
+{% block title %}Verfahrensdokumentation{% endblock %}
+{% block content %}
+<h1>Verfahrensdokumentation</h1>
+<p>Die GoBD verlangen eine Beschreibung, wie Belege entstehen, geprüft, gespeichert und geschützt werden. Skontio
+   erzeugt sie aus der laufenden Konfiguration – Nummernkreise, Steuerstatus, Zugänge, Archiv, Sicherung, KI-Zugriff
+   und die Prüfung des Änderungsprotokolls. Jede Version wird als PDF/A 10 Jahre unveränderbar archiviert.
+   Gelb markierte Stellen im PDF betreffen Abläufe außerhalb von Skontio und gehören von dir ergänzt.</p>
+<p class="muted">Neue Version erstellen, wenn sich etwas Wesentliches ändert: Steuerstatus, Benutzer, Sicherung,
+   KI-Zugriff oder ein Skontio-Update.</p>
+<form method="post" action="/einstellungen/verfahrensdokumentation/neu/" class="form card">
+  {% csrf_token %}
+  <label for="note">Anlass</label>
+  <input id="note" name="note" maxlength="300" required placeholder="{% if versions %}z. B. Wechsel zur Regelbesteuerung{% else %}Ersterstellung{% endif %}">
+  <button type="submit">Neue Version erstellen</button>
+</form>
+<h2>Versionen</h2>
+{% if versions %}
+<div class="table-scroll"><table class="list">
+  <thead><tr><th>Version</th><th>Datum</th><th>Anlass</th><th class="hide-small">Erstellt von</th></tr></thead>
+  <tbody>{% for v in versions %}
+    <tr><td><a href="/einstellungen/verfahrensdokumentation/{{ v.pk }}/">v{{ v.version }} (PDF)</a></td><td>{{ v.created_at|date:"d.m.Y H:i" }}</td>
+      <td>{{ v.note }}</td><td class="hide-small">{{ v.created_by|default:"–" }}</td></tr>
+  {% endfor %}</tbody>
+</table></div>
+{% else %}<p class="muted">Noch keine Version.</p>{% endif %}
+{% endblock %}

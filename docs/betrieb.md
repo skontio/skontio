@@ -106,6 +106,15 @@ zusammen mit fertigen Einträgen:
 - Per Kommandozeile: `skontio mcp_token create <Benutzer> --name "Claude Code" --scope drafts:read --scope drafts:write`,
   `skontio mcp_token list`, `skontio mcp_token revoke skt_Ab12Cd34`. Anlegen und Widerruf stehen im Änderungsprotokoll.
 
+## 5b. Verfahrensdokumentation (GoBD)
+
+*Einstellungen → Firmendaten → Verfahrensdokumentation → Neue Version erstellen* (mit Anlass, z. B.
+„Ersterstellung“). Skontio beschreibt darin Belegfluss, Nummernkreise, Steuerstatus, Zugänge, KI-Zugriff,
+Archiv, Aufbewahrungsfristen und Sicherung – so, wie sie gerade eingestellt sind – und prüft dabei das
+Änderungsprotokoll. Jede Version wird als PDF/A 10 Jahre unveränderbar archiviert. Gelb markierte Abschnitte
+(Papierbelege, externe Sicherungskopie, Bankabgleich) selbst ergänzen. Eine neue Version erstellen, wenn sich
+Wesentliches ändert: Steuerstatus, Benutzer, Sicherung, KI-Zugriff, Skontio-Update.
+
 ## 6. Backups
 
 TrueNAS: *System → Advanced → Cron Jobs* → täglich 02:30:

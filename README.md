@@ -41,6 +41,7 @@ Der vollständige Plan steht in [`docs/plan.md`](docs/plan.md), Architekturentsc
 | Dokumente auf Deutsch oder Englisch (PDF, E-Rechnung, Mailtext) | ✅ 1b |
 | Vorlagen (Logo, Farbe, zwei Layouts, Fußzeile), Textbausteine, PDF-Vorschau für Entwürfe | ✅ 1b |
 | Steuerstatus-Wechsel mit Bestätigung, Korrektur-Assistent bei rückwirkend überschrittener Grenze | ✅ 1b |
+| Verfahrensdokumentation (GoBD) aus der Konfiguration, versioniert und archiviert | ✅ 1b |
 | Assistent, EÜR/USt-VA, Bankabgleich | Phase 1b–3 |
 
 Betrieb auf TrueNAS: [`docs/betrieb.md`](docs/betrieb.md).

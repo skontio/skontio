@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Verfahrensdokumentation {{ company.name }} – Version {{ version }}</title>
+<style>
+  @page { size: A4; margin: 20mm 18mm 22mm 20mm;
+          @bottom-center { content: "Verfahrensdokumentation v{{ version }} · Seite " counter(page) " von " counter(pages); font-family: "DejaVu Sans", "Liberation Sans", sans-serif; font-size: 7.5pt; color: #5b636b; } }
+  body { font-family: "DejaVu Sans", "Liberation Sans", sans-serif; font-size: 9.5pt; line-height: 1.45; color: #1d2125; }
+  h1 { font-size: 17pt; margin: 0 0 2mm; color: #1f5f8b; }
+  h2 { font-size: 12pt; margin: 7mm 0 2mm; color: #1f5f8b; border-bottom: 0.5pt solid #d6dadf; padding-bottom: 1mm; }
+  h3 { font-size: 10pt; margin: 4mm 0 1mm; }
+  table { width: 100%; border-collapse: collapse; margin: 2mm 0; }
+  th { text-align: left; font-size: 8pt; color: #5b636b; border-bottom: 1pt solid #1f5f8b; padding: 1mm; }
+  td { border-bottom: 0.5pt solid #d6dadf; padding: 1mm; vertical-align: top; }
+  .muted { color: #5b636b; }
+  .todo { background: #fff4d6; border-left: 2pt solid #8a5a00; padding: 2mm 3mm; margin: 2mm 0; }
+  .ok { color: #1f6b3a; } .bad { color: #a4262c; font-weight: bold; }
+  ul { margin: 1mm 0 1mm 5mm; padding: 0; }
+</style>
+</head>
+<body>
+<h1>Verfahrensdokumentation</h1>
+<p><strong>{{ company.name }}</strong> · {{ company.street }}, {{ company.postcode }} {{ company.city }}<br>
+   Version {{ version }} vom {{ today|date:"d.m.Y" }} · Anlass: {{ note }}<br>
+   <span class="muted">Erstellt mit Skontio {{ version_info }} aus der laufenden Konfiguration. Frühere Versionen bleiben
+   unverändert im Archiv ({{ procedure_years }} Jahre Aufbewahrung, § 147 AO).</span></p>
+<p class="todo">Dieses Dokument beschreibt die Abläufe in Skontio. Abläufe außerhalb von Skontio – z. B. Papierbelege,
+   Kasse, Bank, Buchhaltung, Steuerberatung – bitte ergänzen. Es ist eine Vorlage, keine Rechts- oder Steuerberatung.</p>
+
+<h2>1. Allgemeine Beschreibung</h2>
+<table>
+  <tr><td>Unternehmen</td><td>{{ company.name }}{% if company.contact_name %}, Inhaber/in: {{ company.contact_name }}{% endif %}</td></tr>
+  <tr><td>Tätigkeit</td><td>{{ company.get_activity_display }}{% if company.side_business %} im Nebenerwerb{% endif %}</td></tr>
+  <tr><td>Steuernummer / USt-IdNr.</td><td>{{ company.tax_number|default:"–" }} / {{ company.vat_id|default:"–" }}</td></tr>
+  <tr><td>Software</td><td>Skontio {{ version_info }} (Open Source, AGPL-3.0), selbst betrieben</td></tr>
+  <tr><td>Datenbank / Zeitzone</td><td>{{ database }} / {{ time_zone }}</td></tr>
+  <tr><td>Adresse der Anwendung</td><td>{{ public_url }}</td></tr>
+</table>
+<p>Skontio erstellt Angebote, Auftragsbestätigungen und Rechnungen (auch Abschlags-, Schluss- und Stornorechnungen),
+   erfasst Zahlungseingänge, nimmt E-Rechnungen entgegen und archiviert alle Belege. Verantwortlich für Betrieb und
+   Inhalte ist das Unternehmen selbst.</p>
+
+<h3>Steuerstatus</h3>
+<table>
+  <thead><tr><th>Ab</th><th>Bis</th><th>Besteuerung</th><th>Grund</th><th>Bestätigt</th></tr></thead>
+  <tbody>{% for row in periods %}<tr><td>{{ row.period.valid_from|date:"d.m.Y" }}</td><td>{{ row.period.valid_to|date:"d.m.Y"|default:"–" }}</td>
+    <td>{{ row.regime }}</td><td>{{ row.period.get_reason_display }}</td><td>{{ row.period.confirmed_by|default:"–" }}, {{ row.period.confirmed_at|date:"d.m.Y" }}</td></tr>{% endfor %}</tbody>
+</table>
+<p>Ein Wechsel wird nie automatisch vorgenommen, sondern von einer Person mit Stichtag und Grund bestätigt und im
+   Änderungsprotokoll festgehalten. Maßgeblich für die Besteuerung eines Dokuments ist das Leistungsdatum.</p>
+
+<h2>2. Anwenderdokumentation: Belegfluss</h2>
+<h3>Ausgangsbelege</h3>
+<ul>
+  <li><strong>Entwurf:</strong> frei änderbar, ohne Nummer. Entwürfe, die über die KI-Schnittstelle entstanden sind,
+      brauchen vor dem Festschreiben eine Prüfung durch einen Menschen.</li>
+  <li><strong>Festschreiben:</strong> Skontio prüft Pflichtangaben nach § 14 Abs. 4 UStG (u. a. Leistungsdatum,
+      vollständige Anschriften, Steuernummer/USt-IdNr.), berechnet Steuern und Summen, friert Firmen- und Kundendaten
+      als Schnappschuss mit SHA-256 ein und vergibt die nächste Nummer – alles in einer Datenbanktransaktion.</li>
+  <li><strong>Unveränderbarkeit:</strong> Festgeschriebene Belege und ihre Positionen sind durch Datenbank-Trigger gegen
+      Ändern und Löschen gesperrt. Korrekturen erfolgen ausschließlich über eine Stornorechnung und ggf. eine neue
+      Rechnung, die auf die alte verweist (Korrektur-Assistent).</li>
+  <li><strong>Ausgabe:</strong> PDF/A-3 mit eingebetteter E-Rechnung (ZUGFeRD, Profil EN 16931) und, wenn möglich,
+      XRechnung; Angebote und Auftragsbestätigungen als PDF/A.</li>
+  <li><strong>Versand:</strong> per E-Mail {% if smtp %}über den eingerichteten SMTP-Server{% else %}(SMTP noch nicht eingerichtet){% endif %};
+      jeder Versand steht im Versandprotokoll und in der Kundenhistorie.</li>
+  <li><strong>Zahlungen:</strong> werden als Buchung erfasst; Korrekturen nur per Gegenbuchung, die ursprüngliche
+      Buchung bleibt sichtbar.</li>
+</ul>
+<h3>Nummernkreise</h3>
+{% if sequences %}<table><thead><tr><th>Belegart</th><th>Muster</th><th>Zurücksetzen</th></tr></thead><tbody>
+  {% for s in sequences %}<tr><td>{{ s.label }}</td><td>{{ s.pattern }}</td><td>{{ s.reset }}</td></tr>{% endfor %}</tbody></table>
+  <p>Abschlags- und Schlussrechnungen nutzen den Nummernkreis der Rechnungen. Der Zähler läuft nur in der Transaktion
+     weiter, die den Beleg festschreibt; dadurch entstehen keine Lücken.</p>
+{% else %}<p class="muted">Noch keine Belege festgeschrieben.</p>{% endif %}
+{% if finalized %}<table><thead><tr><th>Belegart</th><th>Anzahl festgeschrieben</th><th>Letzter Beleg vom</th></tr></thead><tbody>
+  {% for f in finalized %}<tr><td>{{ f.label }}</td><td>{{ f.count }}</td><td>{{ f.last|date:"d.m.Y" }}</td></tr>{% endfor %}</tbody></table>{% endif %}
+<h3>Eingangsbelege</h3>
+<p>E-Rechnungen (XRechnung/CII, UBL, ZUGFeRD) werden hochgeladen, geprüft, lesbar angezeigt und im Original
+   unverändert archiviert. Weitere Dateien (Verträge, Fotos) lassen sich Kunden und Dokumenten zuordnen; ihr Dateityp
+   wird am Inhalt erkannt.</p>
+<p class="todo">Ergänzen: Wie gelangen Papierbelege und sonstige Eingangsrechnungen zur Buchhaltung bzw. Steuerberatung?
+   Wer prüft sie, wo werden sie aufbewahrt? Gibt es eine Kasse?</p>
+
+<h2>3. Technische Systemdokumentation</h2>
+<h3>Archiv</h3>
+<p>Alle Belegdateien liegen in einem inhaltsadressierten Archiv: Dateiname ist die SHA-256-Prüfsumme, Dateien werden
+   nur einmal geschrieben und beim Lesen gegen ihre Prüfsumme geprüft. Derzeit {{ archive_blobs }} Dateien,
+   {{ legal_holds }} davon mit Aufbewahrungssperre (Legal Hold).</p>
+<table>
+  <tr><td>Rechnungen und Buchungsbelege</td><td>{{ invoice_years }} Jahre ab Ende des Kalenderjahres (§ 147 Abs. 3 AO)</td></tr>
+  <tr><td>Angebote, Auftragsbestätigungen, Geschäftsbriefe</td><td>{{ letter_years }} Jahre</td></tr>
+  <tr><td>Verfahrensdokumentation</td><td>{{ procedure_years }} Jahre</td></tr>
+</table>
+<p>Vor Fristablauf kann nichts gelöscht werden. Nach Ablauf werden personenbezogene Daten geschwärzt; Nummern,
+   Beträge und Prüfsummen bleiben erhalten.</p>
+<h3>Änderungsprotokoll</h3>
+<p>Wichtige Vorgänge (Freigaben für KI-Clients, KI-Aktionen, Steuerstatus-Wechsel, Korrekturen, Zugangstokens, diese
+   Dokumentation) stehen in einem hashverketteten Protokoll: Jeder Eintrag enthält die Prüfsumme seines Vorgängers,
+   Änderungen und Lücken werden erkannt (<code>skontio verify_audit</code>).
+   Stand heute: {{ audit_events }} Einträge –
+   {% if audit_problems %}<span class="bad">Prüfung meldet Probleme:</span> {{ audit_problems|join:"; " }}{% else %}<span class="ok">Prüfung ohne Befund.</span>{% endif %}</p>
+
+<h2>4. Betriebsdokumentation</h2>
+<h3>Zugriff</h3>
+<p>Anmeldung über OpenID Connect{% if oidc_issuer %} ({{ oidc_issuer }}){% endif %}. Ein Notfall-Login mit Passwort
+   ist nur aus den Netzen {{ local_login_networks|join:", " }} möglich{% if local_login_2fa %} und verlangt einen
+   zweiten Faktor (TOTP){% endif %}. Passwörter werden mit Argon2id gespeichert.</p>
+<table>
+  <thead><tr><th>Benutzer</th><th>Rolle</th><th>Aktiv</th><th>OIDC</th><th>2FA</th><th>Letzte Anmeldung</th></tr></thead>
+  <tbody>{% for u in users %}<tr><td>{{ u.username }}</td><td>{{ u.role }}</td><td>{{ u.active|yesno:"ja,nein" }}</td>
+    <td>{{ u.oidc|yesno:"ja,nein" }}</td><td>{{ u.totp|yesno:"ja,nein" }}</td><td>{{ u.last_login|date:"d.m.Y"|default:"–" }}</td></tr>{% endfor %}</tbody>
+</table>
+<h3>KI-Zugriff (MCP)</h3>
+<p>KI-Assistenten können nur nach Freigabe durch einen Administrator zugreifen (OAuth mit Einwilligung oder
+   persönlicher Zugangstoken, höchstens 90 Tage). Sie dürfen Daten lesen und <strong>Entwürfe</strong> anlegen;
+   Festschreiben, Versenden, Stornieren, Löschen, Zahlungen und Einstellungen bleiben Menschen vorbehalten.
+   Privatkunden werden {% if mcp_pseudonymise %}pseudonymisiert{% else %}<strong>nicht</strong> pseudonymisiert{% endif %} übermittelt.
+   Verbundene OAuth-Clients: {{ mcp_clients }}; aktive Zugangstokens: {{ mcp_tokens|length }}.</p>
+{% if mcp_tokens %}<table><thead><tr><th>Token</th><th>Benutzer</th><th>Berechtigungen</th><th>Gültig bis</th></tr></thead><tbody>
+  {% for t in mcp_tokens %}<tr><td>{{ t.name }} ({{ t.prefix }}…)</td><td>{{ t.user }}</td><td>{{ t.scopes }}</td><td>{{ t.expires_at|date:"d.m.Y" }}</td></tr>{% endfor %}</tbody></table>{% endif %}
+<h3>Datensicherung</h3>
+<p>Sicherungen (Datenbank und Archiv mit Prüfsummen) werden in {{ backup_dir }} abgelegt; die letzten
+   {{ backup_keep }} bleiben erhalten. Vor jedem Update entsteht automatisch eine Sicherung.
+   {% if latest_backup %}Letzte Sicherung: {{ latest_backup.name }} vom {{ latest_backup.taken|date:"d.m.Y H:i" }}
+   ({{ latest_backup.count }} vorhanden).{% else %}<span class="bad">Keine Sicherung gefunden.</span>{% endif %}
+   Eine Wiederherstellung prüft alle Prüfsummen, bevor sie Daten schreibt.</p>
+<p class="todo">Ergänzen: Wo liegt eine Kopie der Sicherungen außerhalb des Servers (z. B. verschlüsselt extern)? Wie oft
+   wird eine Wiederherstellung testweise geprüft? Wo liegt die Datei <code>secret_key</code> (Passwort-Manager)?</p>
+
+<h2>5. Internes Kontrollsystem</h2>
+<ul>
+  <li>Pflichtangaben-Prüfung vor jedem Festschreiben; Kleinunternehmer können keinen Steuerausweis festschreiben (§ 14c UStG).</li>
+  <li>Überwachung der Kleinunternehmergrenze mit Warnungen bei 80, 90 und 100 %.</li>
+  <li>KI-Entwürfe sind gekennzeichnet und brauchen eine menschliche Freigabe.</li>
+  <li>Doppelte Abzüge von Abschlagsrechnungen und Lücken in Nummernkreisen sind technisch ausgeschlossen.</li>
+  <li>Prüfsummen für Archiv, Sicherungen und Änderungsprotokoll.</li>
+</ul>
+<p class="todo">Ergänzen: Wer prüft wann offene Posten, Mahnungen und den Abgleich mit dem Bankkonto?</p>
+
+<h2>Versionen</h2>
+<table><thead><tr><th>Version</th><th>Datum</th><th>Anlass</th><th>Erstellt von</th></tr></thead><tbody>
+  {% for v in versions %}<tr><td>{{ v.version }}</td><td>{{ v.created_at|date:"d.m.Y" }}</td><td>{{ v.note }}</td><td>{{ v.created_by|default:"–" }}</td></tr>{% endfor %}
+  <tr><td>{{ version }}</td><td>{{ today|date:"d.m.Y" }}</td><td>{{ note }}</td><td>(diese Version)</td></tr></tbody></table>
+</body>
+</html>

@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 # Languages of what customers receive (PDF, e-invoice notes, e-mail); the UI stays German
@@ -35,3 +36,23 @@ class Company(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+
+class ProcedureDocument(models.Model):
+    """One version of the Verfahrensdokumentation (GoBD Rz. 151 ff.), archived as PDF for 10 years."""
+
+    company = models.ForeignKey(Company, on_delete=models.PROTECT, related_name="procedure_documents")
+    version = models.PositiveIntegerField()
+    blob = models.ForeignKey("archive.Blob", on_delete=models.PROTECT, related_name="+")
+    note = models.CharField("Anlass der Änderung", max_length=300, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT)
+
+    class Meta:
+        ordering = ["-version"]
+        constraints = [models.UniqueConstraint(fields=["company", "version"], name="uniq_procedure_version")]
+        verbose_name = "Verfahrensdokumentation"
+        verbose_name_plural = "Verfahrensdokumentationen"
+
+    def __str__(self) -> str:
+        return f"Verfahrensdokumentation v{self.version}"
