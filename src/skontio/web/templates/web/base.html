@@ -6,8 +6,13 @@
 <meta name="color-scheme" content="light dark">
 <meta name="htmx-config" content='{"includeIndicatorStyles": false}'>
 <title>{% block title %}Skontio{% endblock %} · Skontio</title>
+<meta name="theme-color" content="#1f5f8b">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" href="{% static 'web/icons/favicon-32.png' %}">
+<link rel="apple-touch-icon" href="{% static 'web/icons/apple-touch-icon.png' %}">
 <link rel="stylesheet" href="{% static 'web/app.css' %}">
 <script src="{% static 'web/vendor/htmx.min.js' %}" defer></script>
+<script src="{% static 'web/app.js' %}" defer></script>
 </head>
 <body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
 <header class="topbar">

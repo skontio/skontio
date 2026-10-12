@@ -1,9 +1,11 @@
 from django.urls import path
 
 from skontio.web import document_views as docs
-from skontio.web import views
+from skontio.web import pwa, views
 
 urlpatterns = [
+    path("manifest.webmanifest", pwa.manifest, name="manifest"),
+    path("sw.js", pwa.service_worker, name="service_worker"),
     path("dokumente/", docs.document_list, name="document_list"),
     path("dokumente/neu/", docs.document_new, name="document_new"),
     path("dokumente/<int:pk>/", docs.document_detail, name="document_detail"),
