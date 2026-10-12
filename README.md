@@ -3,7 +3,7 @@
 **Open-Source-Rechnungen und CRM für Selbstständige** – selbst hostbar, E-Rechnung inklusive,
 alle Funktionen frei (auch eigenes Logo, mehrere Vorlagen und Hosting für Dritte).
 
-> ⚠️ **Frühe Entwicklungsphase (Phase 0).** Noch nicht für den Echtbetrieb geeignet.
+> ⚠️ **Frühe Entwicklungsphase (Phase 1a).** Vor dem Echtbetrieb bitte mit der eigenen Steuerberatung prüfen.
 > Skontio ist **keine Steuer- oder Rechtsberatung**. Die Software unterstützt die
 > Einhaltung von GoBD, UStG und AO; die Verantwortung bleibt bei dir.
 
@@ -17,16 +17,23 @@ alle Funktionen frei (auch eigenes Logo, mehrere Vorlagen und Hosting für Dritt
 
 Der vollständige Plan steht in [`docs/plan.md`](docs/plan.md), Architekturentscheidungen in [`docs/adr/`](docs/adr/).
 
-## Stand Phase 0
+## Stand Phase 1a
 
 | Baustein | Status |
 |---|---|
-| Nummernkreise (lückenlos, parallel sicher auf SQLite und Postgres) | ✅ getestet |
-| Festschreibung inkl. Datenbank-Triggern | ✅ getestet |
-| XRechnung (CII) gegen **KoSIT-Validator** | ✅ akzeptiert |
-| ZUGFeRD EN 16931 + **PDF/A-3b** gegen **Mustang/veraPDF** | ✅ gültig |
-| OAuth 2.1 für MCP (PKCE, RFC 8707, RFC 9728) | ✅ getestet |
-| `skontio doctor oidc` | ✅ |
+| Steuer-Engine DE (19/7/0 %, § 19, § 13b, ig. Lieferung, Ausfuhr), Summen nach EN 16931 | ✅ |
+| Steuerstatus Kleinunternehmer ↔ Regelbesteuerung mit Stichtag, Grenzwert-Überwachung | ✅ |
+| Kunden, Leistungskatalog, Angebot → Rechnung, Storno, lückenlose Nummernkreise | ✅ |
+| Festschreibung (ORM + Datenbank-Trigger), Schwärzen statt Löschen nach Fristablauf | ✅ |
+| ZUGFeRD/XRechnung erzeugen – geprüft mit **KoSIT** und **Mustang/veraPDF** | ✅ |
+| E-Rechnungs-Eingang (CII, UBL, ZUGFeRD-PDF), revisionssicheres Archiv | ✅ |
+| Zahlungen, offene Posten, GiroCode, Versand per SMTP mit Protokoll | ✅ |
+| Login über OIDC (Pocket ID), Notfall-Login nur aus dem LAN | ✅ |
+| Oberfläche (Mobile-first), installierbare PWA | ✅ |
+| Backup/Restore mit Prüfsummen, Sicherung vor Updates | ✅ |
+| MCP-Tools, Assistent, EÜR/USt-VA, Bankabgleich | Phase 1b–3 |
+
+Betrieb auf TrueNAS: [`docs/betrieb.md`](docs/betrieb.md).
 
 ## Entwickeln
 

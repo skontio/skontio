@@ -4,9 +4,9 @@
 #   /mnt/POOL/apps/skontio/data      SQLite database, configuration
 #   /mnt/POOL/apps/skontio/archive   finalized PDFs/XML and receipts (revisionssicher, 8–10 Jahre)
 #   /mnt/POOL/apps/skontio/backups   nightly application backups
-#   /mnt/POOL/apps/skontio-secrets   read-only for 568: secret_key, oidc_client_secret
+#   /mnt/POOL/apps/skontio-secrets   read-only for 568: secret_key, oidc_client_secret, smtp_password
 #                                    (keep a copy in your password manager – backups are useless without it)
-# Replace POOL and NAS_LAN_IP. Caddy (TrueNAS app) proxies https://skontio.example.org to NAS_LAN_IP:8085.
+# Step-by-step guide: docs/betrieb.md. Replace POOL and NAS_LAN_IP. Caddy (TrueNAS app) proxies https://skontio.example.org to NAS_LAN_IP:8085.
 
 services:
   skontio:
@@ -26,6 +26,14 @@ services:
       SKONTIO_OIDC_CLIENT_SECRET_FILE: /secrets/oidc_client_secret
       SKONTIO_TIME_ZONE: Europe/Berlin
       SKONTIO_WEB_WORKERS: "2"
+      SKONTIO_BACKUP_KEEP: "14"
+      # outgoing mail (your own SMTP server)
+      SKONTIO_SMTP_HOST: smtp.example.org
+      SKONTIO_SMTP_PORT: "587"
+      SKONTIO_SMTP_SECURITY: starttls          # starttls | ssl | none
+      SKONTIO_SMTP_USER: rechnung@example.org
+      SKONTIO_SMTP_PASSWORD_FILE: /secrets/smtp_password
+      SKONTIO_MAIL_FROM: "Skontio <rechnung@example.org>"
     volumes:
       - /mnt/POOL/apps/skontio/data:/data
       - /mnt/POOL/apps/skontio/archive:/archive
