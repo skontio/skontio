@@ -108,6 +108,7 @@ INSTALLED_APPS = [
     "skontio.payments",
     "skontio.accounts",
     "skontio.web",
+    "skontio.mail",
 ]
 
 MIDDLEWARE = [
@@ -150,6 +151,17 @@ USE_TZ = True
 ARCHIVE_DIR = Path(os.environ.get("SKONTIO_ARCHIVE_DIR", BASE_DIR.parent.parent / "var" / "archive"))
 BACKUP_DIR = Path(os.environ.get("SKONTIO_BACKUP_DIR", BASE_DIR.parent.parent / "var" / "backups"))
 BACKUP_KEEP = int(os.environ.get("SKONTIO_BACKUP_KEEP", "14"))
+
+# Outgoing mail via your own SMTP server (plan: Versand über eigenen SMTP-Server)
+EMAIL_BACKEND = os.environ.get("SKONTIO_EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
+EMAIL_HOST = os.environ.get("SKONTIO_SMTP_HOST", "")
+EMAIL_PORT = int(os.environ.get("SKONTIO_SMTP_PORT", "587"))
+EMAIL_HOST_USER = os.environ.get("SKONTIO_SMTP_USER", "")
+EMAIL_HOST_PASSWORD = read_secret("SKONTIO_SMTP_PASSWORD", "") or ""
+EMAIL_USE_TLS = os.environ.get("SKONTIO_SMTP_SECURITY", "starttls") == "starttls"
+EMAIL_USE_SSL = os.environ.get("SKONTIO_SMTP_SECURITY", "starttls") == "ssl"
+EMAIL_TIMEOUT = 30
+DEFAULT_FROM_EMAIL = os.environ.get("SKONTIO_MAIL_FROM", "skontio@localhost")
 
 STATIC_URL = "static/"
 STATIC_ROOT = Path(os.environ.get("SKONTIO_STATIC_ROOT", BASE_DIR.parent.parent / "var" / "static"))

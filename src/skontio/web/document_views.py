@@ -25,9 +25,10 @@ from skontio.documents.services import (
     finalize,
     preview_totals,
 )
+from skontio.mail.services import MailError, default_message, send_document
 from skontio.payments.services import PaymentError, open_amount, payment_status, record_payment
 from skontio.tax.engine import TaxTreatment
-from skontio.web.forms import CancelForm, ConvertForm, HeaderForm, LineForm, NewDocumentForm, PaymentForm
+from skontio.web.forms import CancelForm, ConvertForm, HeaderForm, LineForm, NewDocumentForm, PaymentForm, SendForm
 from skontio.web.support import company_view, is_htmx
 
 Type = Document.Type
@@ -125,6 +126,8 @@ def _finalized_context(doc: Document, **extra) -> dict:
         "net": de_amount(doc.net_total),
         "tax": de_amount(doc.tax_total),
         "children": doc.children.all(),
+        "mail_logs": doc.mail_logs.all(),
+        "send_form": _send_form(doc),
     }
     if doc.doc_type == Type.INVOICE:
         context |= {
@@ -305,6 +308,36 @@ def document_convert(request, pk: int):
         except DocumentError as exc:
             form.add_error(None, str(exc))
     return render(request, "web/documents/finalized.html", _finalized_context(doc, convert_form=form))
+
+
+def _send_form(doc: Document, data=None) -> SendForm:
+    subject, body = default_message(doc)
+    recipient = doc.customer.email if doc.customer else ""
+    return SendForm(data, initial={"to": recipient, "subject": subject, "body": body})
+
+
+@require_POST
+@company_view
+def document_send(request, pk: int):
+    doc = _document(request, pk)
+    if doc.status != Document.Status.FINALIZED:
+        return HttpResponse("Nur festgeschriebene Dokumente können versendet werden.", status=409)
+    form = _send_form(doc, request.POST)
+    if form.is_valid():
+        data = form.cleaned_data
+        try:
+            send_document(
+                doc,
+                to=SendForm.split(data["to"]),
+                cc=SendForm.split(data["cc"]),
+                subject=data["subject"],
+                body=data["body"],
+                sent_by=request.user,
+            )
+            return redirect(f"/dokumente/{doc.pk}/")
+        except MailError as exc:
+            form.add_error(None, str(exc))
+    return render(request, "web/documents/finalized.html", _finalized_context(doc, send_form=form))
 
 
 @require_POST

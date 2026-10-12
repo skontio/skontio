@@ -29,6 +29,21 @@
 </table>
 {% if doc.tax_note %}<p class="note">{{ doc.tax_note|linebreaksbr }}</p>{% endif %}
 
+<details class="card" {% if send_form.errors %}open{% endif %}>
+  <summary><h2>Per E-Mail senden</h2></summary>
+  <form method="post" action="/dokumente/{{ doc.pk }}/senden/" class="form">
+    {% csrf_token %}
+    {% with form=send_form %}{% include "web/_fields.html" %}{% endwith %}
+    <button type="submit">Senden</button>
+  </form>
+</details>
+{% if mail_logs %}
+<section class="card">
+  <h2>Versandprotokoll</h2>
+  <ul class="plain">{% for log in mail_logs %}<li>{{ log.sent_at|date:"d.m.Y H:i" }} · {{ log.get_status_display }} an {{ log.to|join:", " }}{% if log.error %} · <span class="danger">{{ log.error }}</span>{% endif %}</li>{% endfor %}</ul>
+</section>
+{% endif %}
+
 {% if payment_form and not cancelled %}
 <section class="card">
   <h2>Zahlungen · {{ payment_status }}</h2>

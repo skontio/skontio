@@ -17,6 +17,7 @@ urlpatterns = [
     path("dokumente/<int:pk>/stornieren/", docs.document_cancel, name="document_cancel"),
     path("dokumente/<int:pk>/in-rechnung/", docs.document_convert, name="document_convert"),
     path("dokumente/<int:pk>/pruefen/", docs.document_review, name="document_review"),
+    path("dokumente/<int:pk>/senden/", docs.document_send, name="document_send"),
     path("dokumente/<int:pk>/loeschen/", docs.document_delete, name="document_delete"),
     path("", views.dashboard, name="dashboard"),
     path("einrichtung/", views.setup, name="setup"),

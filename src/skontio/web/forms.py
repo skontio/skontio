@@ -194,6 +194,17 @@ class PaymentForm(forms.Form):
     note = forms.CharField(label="Notiz", required=False)
 
 
+class SendForm(forms.Form):
+    to = forms.CharField(label="An", help_text="Mehrere Adressen mit Komma trennen")
+    cc = forms.CharField(label="Kopie an", required=False)
+    subject = forms.CharField(label="Betreff", max_length=300)
+    body = forms.CharField(label="Nachricht", widget=forms.Textarea(attrs={"rows": 8}))
+
+    @staticmethod
+    def split(value: str) -> list[str]:
+        return [part.strip() for part in value.replace(";", ",").split(",") if part.strip()]
+
+
 class CancelForm(forms.Form):
     reason = forms.CharField(label="Grund für den Storno", max_length=300)
 
