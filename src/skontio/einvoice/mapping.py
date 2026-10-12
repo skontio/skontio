@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from skontio.documents.models import INVOICE_TYPES, Document, PartySnapshot
+from skontio.documents.models import INVOICE_TYPES, REFERENCE_PREFIX, Document, PartySnapshot
 from skontio.einvoice.model import Invoice, LineData, Party, PaymentInstructions, PrecedingInvoice, build_invoice
 from skontio.tax.engine import ResolvedTax
 
@@ -101,7 +101,8 @@ def invoice_from_document(document: Document) -> Invoice:
         payment_terms = "Der Rechnungsbetrag wird gutgeschrieben bzw. erstattet."
     else:
         if document.doc_type == Document.Type.PARTIAL_INVOICE and document.parent:
-            notes.append(f"Abschlagsrechnung zum Angebot {document.parent.number}")
+            prefix = REFERENCE_PREFIX.get(Document.Type(document.parent.doc_type), "zu")
+            notes.append(f"Abschlagsrechnung {prefix} {document.parent.number}")
         payment_terms = document.payment_terms_text or (
             f"Zahlbar ohne Abzug bis {document.due_date:%d.%m.%Y}." if document.due_date else ""
         )

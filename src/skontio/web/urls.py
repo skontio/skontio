@@ -21,6 +21,11 @@ urlpatterns = [
     path("dokumente/<int:pk>/stornieren/", docs.document_cancel, name="document_cancel"),
     path("dokumente/<int:pk>/in-rechnung/", docs.document_convert, name="document_convert"),
     path("dokumente/<int:pk>/abschlag/", docs.document_partial, name="document_partial"),
+    path(
+        "dokumente/<int:pk>/auftragsbestaetigung/",
+        docs.document_order_confirmation,
+        name="document_order_confirmation",
+    ),
     path("dokumente/<int:pk>/schlussrechnung/", docs.document_final, name="document_final"),
     path("dokumente/<int:pk>/abzuege/", docs.deduction_add, name="deduction_add"),
     path("dokumente/<int:pk>/abzuege/<int:partial_pk>/entfernen/", docs.deduction_remove, name="deduction_remove"),

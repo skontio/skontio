@@ -18,6 +18,7 @@ from django.utils import timezone
 
 from skontio.catalog.models import Item, Unit
 from skontio.documents.models import (
+    BASIS_TYPES,
     INVOICE_TYPES,
     Document,
     DocumentLine,
@@ -53,9 +54,11 @@ __all__ = [
     "convert_quote_to_invoice",
     "create_draft",
     "create_final_invoice",
+    "create_order_confirmation",
     "create_partial_invoice",
     "eligible_partial_invoices",
     "finalize",
+    "open_partials_for",
     "prepaid_total",
     "preview_totals",
     "redact_party_snapshot",
@@ -483,9 +486,7 @@ def convert_quote_to_invoice(
     origin: Document.Origin = Document.Origin.UI,
     idempotency_key: str = "",
 ) -> Document:
-    quote = Document.objects.select_related("company", "customer").get(pk=quote.pk)  # never trust stale objects
-    if quote.doc_type != Type.QUOTE or quote.status != Document.Status.FINALIZED:
-        raise DocumentError("Nur festgeschriebene Angebote können in eine Rechnung übernommen werden")
+    quote = _require_basis(quote)  # never trust stale objects
     with transaction.atomic():
         invoice = create_draft(
             quote.company,
@@ -684,17 +685,17 @@ def _partial_lines(quote: Document, *, percent: Decimal | None, net_amount: Deci
     groups = {treatment: net * factor for treatment, net in groups.items()}
     total = sum(groups.values(), Decimal("0"))
     if total <= 0:
-        raise DocumentError("Das Angebot hat keinen positiven Nettobetrag")
+        raise DocumentError(f"{quote.get_doc_type_display()} {quote.number} hat keinen positiven Nettobetrag")
     if percent is not None:
         if not Decimal("0") < percent <= Decimal("100"):
             raise DocumentError("Der Abschlag muss zwischen 0 und 100 % liegen")
         share = percent / 100
-        label = f"Abschlag {percent.normalize():f} % gemäß Angebot {quote.number}"
+        label = f"Abschlag {percent.normalize():f} % gemäß {quote.get_doc_type_display()} {quote.number}"
     else:
         if not Decimal("0") < net_amount <= total:
             raise DocumentError(f"Der Abschlag muss zwischen 0 und {total.quantize(CENT)} € (netto) liegen")
         share = net_amount / total
-        label = f"Abschlag gemäß Angebot {quote.number}"
+        label = f"Abschlag gemäß {quote.get_doc_type_display()} {quote.number}"
     lines, remaining = [], (total * share).quantize(CENT)
     treatments = sorted(groups, key=lambda t: groups[t])
     for index, treatment in enumerate(treatments):
@@ -714,11 +715,58 @@ def _partial_lines(quote: Document, *, percent: Decimal | None, net_amount: Deci
     return lines
 
 
-def _require_finalized_quote(quote: Document) -> Document:
-    quote = Document.objects.select_related("company", "customer").get(pk=quote.pk)
-    if quote.doc_type != Type.QUOTE or quote.status != Document.Status.FINALIZED:
-        raise DocumentError("Nur aus festgeschriebenen Angeboten")
-    return quote
+def _require_basis(basis: Document) -> Document:
+    """A finalized quote or order confirmation, freshly loaded."""
+    basis = Document.objects.select_related("company", "customer").get(pk=basis.pk)
+    if basis.doc_type not in BASIS_TYPES or basis.status != Document.Status.FINALIZED:
+        raise DocumentError("Nur aus festgeschriebenen Angeboten oder Auftragsbestätigungen")
+    return basis
+
+
+def _related_basis_ids(basis: Document) -> set[int]:
+    """Quote and its order confirmations belong to the same order (Abschläge may hang on either)."""
+    quote_id = basis.parent_id if basis.doc_type == Type.ORDER_CONFIRMATION and basis.parent_id else basis.pk
+    confirmations = Document.objects.filter(parent_id=quote_id, doc_type=Type.ORDER_CONFIRMATION)
+    return {quote_id, basis.pk, *confirmations.values_list("pk", flat=True)}
+
+
+def open_partials_for(basis: Document) -> list[Document]:
+    ids = _related_basis_ids(basis)
+    return [p for p in eligible_partial_invoices(basis.company, basis.customer) if p.parent_id in ids]
+
+
+def create_order_confirmation(
+    quote: Document,
+    *,
+    issue_date: dt.date,
+    created_by=None,
+    origin: Document.Origin = Document.Origin.UI,
+    idempotency_key: str = "",
+) -> Document:
+    """Auftragsbestätigung as a draft copy of a finalized quote."""
+    quote = _require_basis(quote)
+    if quote.doc_type != Type.QUOTE:
+        raise DocumentError("Eine Auftragsbestätigung entsteht aus einem Angebot")
+    with transaction.atomic():
+        confirmation = create_draft(
+            quote.company,
+            Type.ORDER_CONFIRMATION,
+            quote.customer,
+            issue_date=issue_date,
+            service_date=quote.service_date,
+            service_period=(
+                (quote.service_period_start, quote.service_period_end) if quote.service_period_start else None
+            ),
+            created_by=created_by,
+            origin=origin,
+            idempotency_key=idempotency_key,
+            intro_text=quote.intro_text,
+            closing_text=quote.closing_text,
+            document_discount_percent=quote.document_discount_percent,
+            parent=quote,
+        )
+        _copy_lines(quote, confirmation)
+    return confirmation
 
 
 def create_partial_invoice(
@@ -734,7 +782,7 @@ def create_partial_invoice(
     idempotency_key: str = "",
 ) -> Document:
     """Abschlagsrechnung over a share of a finalized quote (one position per tax treatment)."""
-    quote = _require_finalized_quote(quote)
+    quote = _require_basis(quote)
     with transaction.atomic():
         partial = create_draft(
             quote.company,
@@ -764,7 +812,7 @@ def create_final_invoice(
     idempotency_key: str = "",
 ) -> Document:
     """Schlussrechnung over the whole quote, deducting every open Abschlagsrechnung for it."""
-    quote = _require_finalized_quote(quote)
+    quote = _require_basis(quote)
     with transaction.atomic():
         final = create_draft(
             quote.company,
@@ -782,9 +830,11 @@ def create_final_invoice(
             parent=quote,
         )
         _copy_lines(quote, final)
-        partials = [p for p in eligible_partial_invoices(quote.company, quote.customer) if p.parent_id == quote.pk]
+        partials = open_partials_for(quote)
         if not partials:
-            raise DocumentError(f"Zu Angebot {quote.number} gibt es keine offene Abschlagsrechnung")
+            raise DocumentError(
+                f"Zu {quote.get_doc_type_display()} {quote.number} gibt es keine offene Abschlagsrechnung"
+            )
         for partial in partials:
             add_deduction(final, partial)
     return final

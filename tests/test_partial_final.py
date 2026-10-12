@@ -320,3 +320,32 @@ def test_mcp_tools_create_partial_and_final_drafts(quote, django_user_model):
     finalize(partial_doc)
     final = call_tool(ctx, "final_invoice_draft_create", {**args, "idempotency_key": "schluss-0001"})
     assert final["totals"]["prepaid"] == "3891.00" and final["totals"]["due"] == "9079.00"
+
+
+class TestOrderConfirmation:
+    def test_quote_to_order_confirmation_to_partial_and_final(self, quote):
+        from skontio.documents.services import create_order_confirmation
+
+        confirmation = finalize(create_order_confirmation(quote, issue_date=DAY))
+        assert confirmation.number == "AB-2026-0001" and confirmation.parent == quote
+        assert [line.text for line in confirmation.lines.all()] == ["Montage", "Fachbuch"]
+        on_quote = partial(quote, percent=D("10"))
+        on_confirmation = partial(confirmation, percent=D("20"))
+        assert "gemäß Auftragsbestätigung AB-2026-0001" in on_confirmation.lines.first().text
+        assert "zur Auftragsbestätigung AB-2026-0001" in render_document_html(on_confirmation)
+        final = finalize(create_final_invoice(confirmation, issue_date=DAY, service_date=DAY))
+        assert {d.source for d in final.deductions.all()} == {on_quote, on_confirmation}
+
+    def test_order_confirmation_only_from_quote(self, quote):
+        from skontio.documents.services import create_order_confirmation
+
+        confirmation = finalize(create_order_confirmation(quote, issue_date=DAY))
+        with pytest.raises(DocumentError, match="aus einem Angebot"):
+            create_order_confirmation(confirmation, issue_date=DAY)
+
+    def test_ui_button(self, client, quote, django_user_model):
+        client.force_login(django_user_model.objects.create_user("inhaber", is_staff=True))
+        assert "Auftragsbestätigung erstellen" in client.get(f"/dokumente/{quote.pk}/").content.decode()
+        response = client.post(f"/dokumente/{quote.pk}/auftragsbestaetigung/")
+        confirmation = Document.objects.get(doc_type=Document.Type.ORDER_CONFIRMATION)
+        assert response["Location"] == f"/dokumente/{confirmation.pk}/"

@@ -70,10 +70,18 @@
 </details>
 {% endif %}
 
+{% if can_confirm_order %}
+<section class="card">
+  <h2>Auftrag bestätigen</h2>
+  <p class="muted">Übernimmt das Angebot in eine Auftragsbestätigung (Entwurf).</p>
+  <form method="post" action="/dokumente/{{ doc.pk }}/auftragsbestaetigung/">{% csrf_token %}<button type="submit" class="secondary">Auftragsbestätigung erstellen</button></form>
+</section>
+{% endif %}
+
 {% if partial_form %}
 <section class="card">
   <h2>Abschlagsrechnung</h2>
-  <p class="muted">Rechnet einen Teil des Angebots vorab ab – aufgeteilt nach Steuersätzen. Die Schlussrechnung zieht alle Abschläge später ab (§ 14 Abs. 5 UStG).</p>
+  <p class="muted">Rechnet einen Teil des Auftrags vorab ab – aufgeteilt nach Steuersätzen. Die Schlussrechnung zieht alle Abschläge später ab (§ 14 Abs. 5 UStG).</p>
   <form method="post" action="/dokumente/{{ doc.pk }}/abschlag/" class="form">
     {% csrf_token %}
     {% with form=partial_form %}{% include "web/_fields.html" %}{% endwith %}

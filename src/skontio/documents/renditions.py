@@ -11,7 +11,7 @@ from decimal import Decimal
 from django.template.loader import render_to_string
 
 from skontio.archive.services import retention_end, store
-from skontio.documents.models import INVOICE_TYPES, Document, PartySnapshot, Rendition
+from skontio.documents.models import INVOICE_TYPES, REFERENCE_PREFIX, Document, PartySnapshot, Rendition
 from skontio.einvoice.cii import EInvoiceDataError, Profile, build_cii
 from skontio.einvoice.hybrid import embed_xml
 from skontio.einvoice.mapping import invoice_from_document
@@ -52,6 +52,11 @@ def de_percent(value: Decimal) -> str:
     return f"{de_quantity(value)} %"
 
 
+def _basis_reference(basis: Document) -> str:
+    prefix = REFERENCE_PREFIX.get(Type(basis.doc_type), "zu")
+    return f"{prefix} {basis.number} vom {basis.issue_date:%d.%m.%Y}"
+
+
 def _view(document: Document) -> dict:
     snapshots = {s.role: s.data for s in document.party_snapshots.all()}
     seller, buyer = snapshots[PartySnapshot.Role.SELLER], snapshots[PartySnapshot.Role.BUYER]
@@ -83,9 +88,9 @@ def _view(document: Document) -> dict:
             reference += f" Grund: {document.cancellation_reason}"
 
     if doc_type == Type.PARTIAL_INVOICE and document.parent:
-        reference = f"Abschlagsrechnung zum Angebot {document.parent.number} vom {document.parent.issue_date:%d.%m.%Y}."
+        reference = f"Abschlagsrechnung {_basis_reference(document.parent)}."
     if doc_type == Type.FINAL_INVOICE and document.parent:
-        reference = f"Schlussrechnung zum Angebot {document.parent.number} vom {document.parent.issue_date:%d.%m.%Y}."
+        reference = f"Schlussrechnung {_basis_reference(document.parent)}."
 
     deductions = list(document.deductions.select_related("source"))
     due = totals.grand_total - sum((d.gross_amount for d in deductions), Decimal("0"))

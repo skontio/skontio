@@ -11,7 +11,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from skontio.archive.services import load
-from skontio.documents.models import INVOICE_TYPES, Document, DocumentLine, Rendition
+from skontio.documents.models import BASIS_TYPES, INVOICE_TYPES, Document, DocumentLine, Rendition
 from skontio.documents.renditions import UNIT_LABELS, de_amount, de_percent, de_quantity
 from skontio.documents.services import (
     DocumentError,
@@ -24,9 +24,11 @@ from skontio.documents.services import (
     convert_quote_to_invoice,
     create_draft,
     create_final_invoice,
+    create_order_confirmation,
     create_partial_invoice,
     eligible_partial_invoices,
     finalize,
+    open_partials_for,
     prepaid_total,
     preview_totals,
     remove_deduction,
@@ -186,10 +188,11 @@ def _finalized_context(doc: Document, **extra) -> dict:
             "payment_form": PaymentForm(initial={"amount": open_amount(doc)}),
             "cancel_form": CancelForm(),
         }
-    if doc.doc_type == Type.QUOTE:
+    if doc.doc_type in BASIS_TYPES:
         context["convert_form"] = ConvertForm()
         context["partial_form"] = PartialForm(initial={"percent": 30})
-        context["open_partials"] = eligible_partial_invoices_for_quote(doc)
+        context["open_partials"] = open_partials_for(doc)
+        context["can_confirm_order"] = doc.doc_type == Type.QUOTE
     return context | extra
 
 
@@ -411,8 +414,15 @@ def document_delete(request, pk: int):
     return redirect("/dokumente/")
 
 
-def eligible_partial_invoices_for_quote(quote: Document) -> list[Document]:
-    return [p for p in eligible_partial_invoices(quote.company, quote.customer) if p.parent_id == quote.pk]
+@require_POST
+@company_view
+def document_order_confirmation(request, pk: int):
+    quote = _document(request, pk)
+    try:
+        confirmation = create_order_confirmation(quote, issue_date=timezone.localdate(), created_by=request.user)
+    except DocumentError as exc:
+        return HttpResponse(str(exc), status=409)
+    return redirect(f"/dokumente/{confirmation.pk}/")
 
 
 @require_POST

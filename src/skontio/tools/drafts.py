@@ -19,12 +19,13 @@ from django.utils import timezone
 from pydantic import model_validator
 
 from skontio.catalog.models import Item
-from skontio.documents.models import Document
+from skontio.documents.models import BASIS_TYPES, Document
 from skontio.documents.services import (
     AI_ORIGINS,
     convert_quote_to_invoice,
     create_draft,
     create_final_invoice,
+    create_order_confirmation,
     create_partial_invoice,
     replace_lines,
     update_draft,
@@ -330,9 +331,7 @@ def quote_to_invoice_draft(ctx, args: ConvertInput) -> Out:
     Das Leistungsdatum der Rechnung angeben (service_date oder Leistungszeitraum)."""
     if done := _already_created(ctx, args.idempotency_key, Document.Type.INVOICE):
         return done
-    quote = Document.objects.filter(company=ctx.company, doc_type=Document.Type.QUOTE, number=args.quote_number).first()
-    if quote is None:
-        raise ToolError(f"Festgeschriebenes Angebot {args.quote_number!r} nicht gefunden")
+    quote = _finalized_quote(ctx, args.quote_number)
     period = (args.service_period_start, args.service_period_end) if args.service_period_start else None
     invoice = convert_quote_to_invoice(
         quote,
@@ -347,10 +346,11 @@ def quote_to_invoice_draft(ctx, args: ConvertInput) -> Out:
 
 
 def _finalized_quote(ctx, number: str) -> Document:
-    quote = Document.objects.filter(company=ctx.company, doc_type=Document.Type.QUOTE, number=number).first()
-    if quote is None:
-        raise ToolError(f"Festgeschriebenes Angebot {number!r} nicht gefunden")
-    return quote
+    """Quote or order confirmation (both are the basis of an order)."""
+    basis = Document.objects.filter(company=ctx.company, doc_type__in=BASIS_TYPES, number=number).first()
+    if basis is None:
+        raise ToolError(f"Festgeschriebenes Angebot bzw. Auftragsbestätigung {number!r} nicht gefunden")
+    return basis
 
 
 def _period(args: DatesInput):
@@ -420,6 +420,34 @@ def final_invoice_draft_create(ctx, args: ConvertInput) -> Out:
         idempotency_key=args.idempotency_key,
     )
     return Out(document_view(final, ctx), "document", final.pk)
+
+
+class OrderConfirmationInput(Input):
+    quote_number: DocumentNumber
+    idempotency_key: IdempotencyKey
+    issue_date: dt.date | None = None
+
+
+@tool(
+    name="order_confirmation_draft_create",
+    title="Auftragsbestätigung entwerfen",
+    scope="drafts:write",
+    input_model=OrderConfirmationInput,
+    read_only=False,
+    idempotent=True,
+)
+def order_confirmation_draft_create(ctx, args: OrderConfirmationInput) -> Out:
+    """Übernimmt ein festgeschriebenes Angebot in den Entwurf einer Auftragsbestätigung."""
+    if done := _already_created(ctx, args.idempotency_key, Document.Type.ORDER_CONFIRMATION):
+        return done
+    confirmation = create_order_confirmation(
+        _finalized_quote(ctx, args.quote_number),
+        issue_date=args.issue_date or timezone.localdate(),
+        created_by=ctx.user,
+        origin=_origin(ctx),
+        idempotency_key=args.idempotency_key,
+    )
+    return Out(document_view(confirmation, ctx), "document", confirmation.pk)
 
 
 class DocumentInput(Input):

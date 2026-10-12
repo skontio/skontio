@@ -133,6 +133,12 @@ class Document(models.Model):
 INVOICE_TYPES = frozenset({Document.Type.INVOICE, Document.Type.PARTIAL_INVOICE, Document.Type.FINAL_INVOICE})
 
 
+# Documents an invoice, Abschlags- or Schlussrechnung can be based on
+BASIS_TYPES = frozenset({Document.Type.QUOTE, Document.Type.ORDER_CONFIRMATION})
+# "zum Angebot …" / "zur Auftragsbestätigung …" in printed references
+REFERENCE_PREFIX = {Document.Type.QUOTE: "zum Angebot", Document.Type.ORDER_CONFIRMATION: "zur Auftragsbestätigung"}
+
+
 class DocumentLine(models.Model):
     document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name="lines")
     position = models.PositiveIntegerField()
