@@ -5,6 +5,7 @@ from skontio.web import dunning_views as dunning
 from skontio.web import expense_views as expenses
 from skontio.web import inbox_views as inbox
 from skontio.web import pwa, views
+from skontio.web import recurring_views as recurring
 
 urlpatterns = [
     path("manifest.webmanifest", pwa.manifest, name="manifest"),
@@ -47,6 +48,11 @@ urlpatterns = [
     path("mahnwesen/rechnung/<int:pk>/", dunning.dunning_create, name="dunning_create"),
     path("mahnwesen/<int:pk>/pdf/", dunning.dunning_pdf, name="dunning_pdf"),
     path("mahnwesen/<int:pk>/senden/", dunning.dunning_send, name="dunning_send"),
+    path("wiederkehrend/", recurring.recurring_list, name="recurring_list"),
+    path("wiederkehrend/erzeugen/", recurring.recurring_generate, name="recurring_generate"),
+    path("wiederkehrend/aus-rechnung/<int:pk>/", recurring.recurring_from_invoice, name="recurring_from_invoice"),
+    path("wiederkehrend/<int:pk>/erzeugen/", recurring.recurring_run, name="recurring_run"),
+    path("wiederkehrend/<int:pk>/umschalten/", recurring.recurring_toggle, name="recurring_toggle"),
     path("", views.dashboard, name="dashboard"),
     path("einrichtung/", views.setup, name="setup"),
     path("kunden/", views.customer_list, name="customer_list"),

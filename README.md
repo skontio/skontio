@@ -44,7 +44,8 @@ Der vollständige Plan steht in [`docs/plan.md`](docs/plan.md), Architekturentsc
 | Verfahrensdokumentation (GoBD) aus der Konfiguration, versioniert und archiviert | ✅ 1b |
 | Ausgaben mit Belegfoto, EÜR (Zufluss/Abfluss, Wechsel im Jahr, § 13b-Hinweis), CSV-Journal | ✅ 2 |
 | Mahnwesen: einstellbare Stufen, Mahnschreiben als PDF/A mit GiroCode, Versand mit Rechnung | ✅ 2 |
-| Assistent, USt-VA, DATEV, wiederkehrende Rechnungen, Bankabgleich | Phase 2–3 |
+| Wiederkehrende Rechnungen als Entwürfe (Nachholen ohne Doppelte, Cron-Befehl) | ✅ 2 |
+| Assistent, USt-VA, DATEV, Bankabgleich | Phase 2–3 |
 
 Betrieb auf TrueNAS: [`docs/betrieb.md`](docs/betrieb.md).
 

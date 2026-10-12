@@ -41,7 +41,8 @@
   <section class="card">
     <h2>Entwürfe</h2>
     <p class="big">{{ drafts }}</p>
-    <p><a class="button" href="/dokumente/neu/?typ=invoice">Neue Rechnung</a> <a class="button secondary" href="/dokumente/neu/?typ=quote">Neues Angebot</a></p>
+    {% if recurring_due %}<p><a class="button secondary" href="/wiederkehrend/">{{ recurring_due }} wiederkehrende Rechnung{{ recurring_due|pluralize:"en" }} fällig</a></p>{% endif %}
+    <p><a class="button" href="/dokumente/neu/?typ=invoice">Neue Rechnung</a> <a class="button secondary" href="/dokumente/neu/?typ=quote">Neues Angebot</a> <a href="/wiederkehrend/">Wiederkehrende</a> · <a href="/mahnwesen/">Mahnwesen</a></p>
   </section>
 </div>
 {% endblock %}

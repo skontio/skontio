@@ -118,6 +118,7 @@ INSTALLED_APPS = [
     "skontio.attachments",
     "skontio.expenses",
     "skontio.dunning",
+    "skontio.recurring",
 ]
 
 MIDDLEWARE = [

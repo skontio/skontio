@@ -115,6 +115,17 @@ Archiv, Aufbewahrungsfristen und Sicherung – so, wie sie gerade eingestellt si
 (Papierbelege, externe Sicherungskopie, Bankabgleich) selbst ergänzen. Eine neue Version erstellen, wenn sich
 Wesentliches ändert: Steuerstatus, Benutzer, Sicherung, KI-Zugriff, Skontio-Update.
 
+## 5c. Wiederkehrende Rechnungen und Mahnwesen
+
+Wiederkehrende Rechnungen (Wartung, Hosting, Abos) legst du an einer Rechnung über „Als wiederkehrend anlegen“
+an. Fällige Zeiträume werden zu **Entwürfen** – festschreiben und versenden bleibt Handarbeit. Damit das ohne
+Klick passiert, in TrueNAS einen täglichen Cron-Job anlegen:
+`docker exec <container> skontio recurring`. Mehrfache oder parallele Läufe erzeugen keinen Zeitraum doppelt.
+
+Das Mahnwesen (*Übersicht → Mahnwesen*) schlägt fällige Zahlungserinnerungen und Mahnungen vor. Stufen, Fristen
+und Gebühren unter *Mahnwesen → Mahnstufen*. Mahnschreiben werden als PDF archiviert und zusammen mit der
+Rechnung per E-Mail verschickt.
+
 ## 6. Backups
 
 TrueNAS: *System → Advanced → Cron Jobs* → täglich 02:30:

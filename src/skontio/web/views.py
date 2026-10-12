@@ -18,6 +18,7 @@ from skontio.documents.models import INVOICE_TYPES, Document
 from skontio.documents.renditions import de_amount
 from skontio.dunning.services import candidates as dunning_candidates
 from skontio.payments.services import open_amount
+from skontio.recurring.services import due as recurring_due
 from skontio.tax.engine import Regime
 from skontio.taxstatus.services import TaxStatusError, regime_for, start_regime
 from skontio.taxstatus.thresholds import small_business_status
@@ -51,6 +52,7 @@ def dashboard(request):
             "overdue": [doc for doc, _ in open_items if doc.due_date and doc.due_date < today],
             "follow_ups": due_follow_ups(company, today),
             "dunning_due": len(dunning_candidates(company, today)),
+            "recurring_due": len(recurring_due(company, today)),
             "drafts": Document.objects.filter(company=company, status=Document.Status.DRAFT).count(),
             "today": today,
         },

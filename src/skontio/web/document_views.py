@@ -51,6 +51,7 @@ from skontio.web.forms import (
     PaymentForm,
     SendForm,
 )
+from skontio.web.recurring_views import RecurringForm
 from skontio.web.support import company_view, is_htmx
 
 Type = Document.Type
@@ -193,6 +194,12 @@ def _finalized_context(doc: Document, **extra) -> dict:
     }
     context |= _deduction_context(doc)
     context["replacement"] = doc.replaced_by.order_by("-pk").first()
+    context["is_invoice"] = doc.doc_type in INVOICE_TYPES
+    if context["is_invoice"]:
+        start = (doc.service_period_end or doc.service_date or doc.issue_date) + dt.timedelta(days=1)
+        context["recurring_form"] = RecurringForm(
+            initial={"name": doc.customer.name if doc.customer else "", "start_date": start}, auto_id="rec_%s"
+        )
     notices = list(doc.dunning_notices.order_by("level"))
     context["dunning_notices"] = notices
     if notices:

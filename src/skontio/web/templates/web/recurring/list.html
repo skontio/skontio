@@ -1,0 +1,22 @@
+{% extends "web/base.html" %}
+{% block title %}Wiederkehrende Rechnungen{% endblock %}
+{% block content %}
+<div class="heading">
+  <h1>Wiederkehrende Rechnungen</h1>
+  {% if due_count %}<form method="post" action="/wiederkehrend/erzeugen/">{% csrf_token %}<button type="submit">{{ due_count }} fällige als Entwurf anlegen</button></form>{% endif %}
+</div>
+<p class="muted">Anlegen über eine Rechnung: „Als wiederkehrend anlegen“. Skontio erzeugt nur Entwürfe mit dem passenden
+   Leistungszeitraum; Festschreiben und Versenden bleiben bei dir. Für automatische Entwürfe täglich
+   <code>skontio recurring</code> ausführen.</p>
+{% if rows %}
+<div class="table-scroll"><table class="list">
+  <thead><tr><th>Bezeichnung</th><th class="hide-small">Kunde</th><th>Rhythmus</th><th>Nächste</th><th></th></tr></thead>
+  <tbody>{% for row in rows %}{% with r=row.recurring %}
+    <tr{% if not r.active %} class="muted"{% endif %}><td>{{ r.name }}</td><td class="hide-small">{{ r.customer.name }}</td><td>{{ r.get_interval_display }}</td>
+      <td>{% if row.next %}{{ row.next|date:"d.m.Y" }}{% if row.due %} <span class="badge danger">fällig</span>{% endif %}{% elif r.active %}beendet{% else %}pausiert{% endif %}</td>
+      <td>{% if row.due %}<form method="post" action="/wiederkehrend/{{ r.pk }}/erzeugen/" class="inline-form">{% csrf_token %}<button type="submit" class="secondary">Entwurf</button></form>{% endif %}
+        <form method="post" action="/wiederkehrend/{{ r.pk }}/umschalten/" class="inline-form">{% csrf_token %}<button type="submit" class="link">{% if r.active %}pausieren{% else %}fortsetzen{% endif %}</button></form></td></tr>
+  {% endwith %}{% endfor %}</tbody>
+</table></div>
+{% else %}<p>Noch keine wiederkehrenden Rechnungen.</p>{% endif %}
+{% endblock %}
