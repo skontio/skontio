@@ -11,6 +11,7 @@
 {% if not expense.cancelled_at %}
 <form method="post" enctype="multipart/form-data" class="form">
   {% csrf_token %}
+  {% if bank %}<input type="hidden" name="bank" value="{{ bank.pk }}"><p class="muted">Aus Bankumsatz vom {{ bank.booked_on|date:"d.m.Y" }} – wird nach dem Speichern verknüpft.</p>{% endif %}
   {% include "web/_fields.html" %}
   <button type="submit">Speichern</button>
 </form>

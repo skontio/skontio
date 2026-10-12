@@ -1,5 +1,6 @@
 from django.urls import path
 
+from skontio.web import banking_views as banking
 from skontio.web import document_views as docs
 from skontio.web import dunning_views as dunning
 from skontio.web import expense_views as expenses
@@ -53,6 +54,10 @@ urlpatterns = [
     path("wiederkehrend/aus-rechnung/<int:pk>/", recurring.recurring_from_invoice, name="recurring_from_invoice"),
     path("wiederkehrend/<int:pk>/erzeugen/", recurring.recurring_run, name="recurring_run"),
     path("wiederkehrend/<int:pk>/umschalten/", recurring.recurring_toggle, name="recurring_toggle"),
+    path("bank/", banking.bank_list, name="bank_list"),
+    path("bank/import/", banking.bank_import, name="bank_import"),
+    path("bank/<int:pk>/zuordnen/", banking.bank_match, name="bank_match"),
+    path("bank/<int:pk>/ignorieren/", banking.bank_ignore, name="bank_ignore"),
     path("", views.dashboard, name="dashboard"),
     path("einrichtung/", views.setup, name="setup"),
     path("kunden/", views.customer_list, name="customer_list"),

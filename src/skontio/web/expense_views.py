@@ -16,6 +16,8 @@ from django.views.decorators.http import require_POST
 
 from skontio.archive.services import load
 from skontio.audit.models import AuditEvent
+from skontio.banking.models import BankTransaction
+from skontio.banking.services import link_expense
 from skontio.documents.renditions import de_amount
 from skontio.expenses.models import Expense
 from skontio.expenses.services import ExpenseError, cancel_expense, create_expense, hints, update_expense
@@ -102,20 +104,42 @@ def _save(request, expense: Expense | None):
             form.add_error(None, str(exc))
         else:
             messages.success(request, f"Ausgabe {expense.number} gespeichert.")
-            return redirect(f"/ausgaben/{expense.pk}/"), form
-    return None, form
+            return redirect(f"/ausgaben/{expense.pk}/"), form, expense
+    return None, form, expense
+
+
+def _bank_transaction(request):
+    """``?bank=<pk>``: an outgoing bank transaction to prefill from and link to after saving."""
+    pk = request.GET.get("bank") or request.POST.get("bank")
+    if not pk or not str(pk).isdigit():
+        return None
+    tx = BankTransaction.objects.filter(pk=pk, company=request.company, amount__lt=0).first()
+    return tx if tx is not None and not tx.done else None
 
 
 @company_view
 def expense_create(request):
+    tx = _bank_transaction(request)
     if request.method == "POST":
-        response, form = _save(request, None)
+        response, form, expense = _save(request, None)
         if response:
+            if tx is not None:
+                link_expense(tx, expense, user=request.user)
             return response
     else:
         today = timezone.localdate()
-        form = ExpenseForm(initial={"receipt_date": today, "paid_on": today})
-    return render(request, "web/expenses/form.html", {"form": form, "expense": None})
+        initial = {"receipt_date": today, "paid_on": today}
+        if tx is not None:
+            initial |= {
+                "receipt_date": tx.booked_on,
+                "paid_on": tx.booked_on,
+                "supplier": tx.counterparty,
+                "gross_amount": -tx.amount,
+                "description": tx.purpose[:300],
+                "method": Expense.Method.BANK,
+            }
+        form = ExpenseForm(initial=initial)
+    return render(request, "web/expenses/form.html", {"form": form, "expense": None, "bank": tx})
 
 
 def _regime(company, day):
@@ -131,7 +155,7 @@ def expense_detail(request, pk: int):
     if request.method == "POST":
         if expense.cancelled_at:
             return HttpResponse("Diese Ausgabe ist storniert.", status=409)
-        response, form = _save(request, expense)
+        response, form, _ = _save(request, expense)
         if response:
             return response
     else:

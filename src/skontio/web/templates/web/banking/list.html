@@ -1,0 +1,35 @@
+{% extends "web/base.html" %}
+{% block title %}Bank{% endblock %}
+{% block content %}
+<div class="heading"><h1>Bankumsätze</h1>
+  <a class="button secondary" href="?{% if show_all %}{% else %}alle=1{% endif %}">{% if show_all %}Nur offene{% else %}Alle anzeigen{% endif %}</a></div>
+<form method="post" action="/bank/import/" enctype="multipart/form-data" class="form card">
+  {% csrf_token %}
+  <label for="statement">Kontoauszug (CAMT.053 als XML oder CSV aus dem Online-Banking)</label>
+  <input id="statement" type="file" name="statement" accept=".xml,.csv,.txt,text/csv,application/xml" required>
+  <button type="submit">Importieren</button>
+  <small>Doppelt importierte Zeiträume schaden nicht – bekannte Umsätze werden übersprungen.</small>
+</form>
+<p>{{ open_count }} Umsätze ohne Zuordnung.</p>
+{% if rows %}
+<div class="table-scroll"><table class="list">
+  <thead><tr><th>Datum</th><th>Gegenpartei / Zweck</th><th class="num">Betrag</th><th>Zuordnen</th></tr></thead>
+  <tbody>{% for row in rows %}{% with tx=row.tx %}
+    <tr{% if tx.ignored %} class="muted"{% endif %}><td>{{ tx.booked_on|date:"d.m.Y" }}</td>
+      <td>{{ tx.counterparty|default:"–" }}<br><span class="muted">{{ tx.purpose|truncatechars:120 }}</span></td>
+      <td class="num">{{ row.amount }} €</td>
+      <td>{% if tx.payment %}<a href="/dokumente/{{ tx.payment.document.pk }}/">{{ tx.payment.document.number }}</a>
+        {% elif tx.expense %}<a href="/ausgaben/{{ tx.expense.pk }}/">{{ tx.expense.number }}</a>
+        {% elif not tx.ignored %}
+          {% for s in row.suggestions %}<form method="post" action="/bank/{{ tx.pk }}/zuordnen/" class="inline-form">{% csrf_token %}
+            <input type="hidden" name="{{ s.kind }}" value="{{ s.target.pk }}">
+            <button type="submit" class="secondary">{{ s.target.number }} ({{ s.amount }} €)</button></form>
+            <small class="muted">{{ s.reason }}</small><br>{% endfor %}
+          {% if tx.amount < 0 %}<a href="/ausgaben/neu/?bank={{ tx.pk }}">Ausgabe anlegen</a> · {% endif %}
+        {% endif %}
+        {% if not tx.payment and not tx.expense %}<form method="post" action="/bank/{{ tx.pk }}/ignorieren/" class="inline-form">{% csrf_token %}<button type="submit" class="link">{% if tx.ignored %}wieder anzeigen{% else %}privat/ignorieren{% endif %}</button></form>{% endif %}
+      </td></tr>
+  {% endwith %}{% endfor %}</tbody>
+</table></div>
+{% else %}<p class="muted">Keine offenen Umsätze.</p>{% endif %}
+{% endblock %}

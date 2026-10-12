@@ -23,6 +23,7 @@
     <a href="/kunden/" {% if request.path|slice:":8" == "/kunden/" %}aria-current="page"{% endif %}>Kunden</a>
     <a href="/leistungen/" {% if request.path|slice:":12" == "/leistungen/" %}aria-current="page"{% endif %}>Leistungen</a>
     <a href="/ausgaben/" {% if request.path|slice:":10" == "/ausgaben/" %}aria-current="page"{% endif %}>Ausgaben</a>
+    <a href="/bank/" {% if request.path|slice:":6" == "/bank/" %}aria-current="page"{% endif %}>Bank</a>
     <a href="/eingang/" {% if request.path|slice:":9" == "/eingang/" %}aria-current="page"{% endif %}>Eingang</a>
     <a href="/auswertungen/euer/" {% if request.path|slice:":14" == "/auswertungen/" %}aria-current="page"{% endif %}>EÜR</a>
     {% if user.is_staff %}<a href="/einrichtung/" {% if request.path == "/einrichtung/" %}aria-current="page"{% endif %}>Einstellungen</a>{% endif %}
