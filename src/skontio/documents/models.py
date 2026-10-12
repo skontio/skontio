@@ -56,6 +56,10 @@ class Document(models.Model):
     valid_until = models.DateField(null=True, blank=True)
     currency = models.CharField(max_length=3, default="EUR")
     language = models.CharField("Sprache", max_length=5, choices=DOCUMENT_LANGUAGES, default="de")
+    # layout used for the PDF; set when finalizing (None on a draft = the company's default template)
+    template = models.ForeignKey(
+        "documents.DocumentTemplate", null=True, blank=True, on_delete=models.PROTECT, related_name="documents"
+    )
     intro_text = models.TextField(blank=True, default="")
     closing_text = models.TextField(blank=True, default="")
     payment_terms_text = models.TextField(blank=True, default="")
@@ -233,3 +237,53 @@ class PartySnapshot(models.Model):
 
     def __str__(self) -> str:
         return f"{self.document} · {self.role}"
+
+
+class DocumentTemplate(models.Model):
+    """Briefpapier: layout, accent colour, logo and footer of the PDFs."""
+
+    class Layout(models.TextChoices):
+        CLASSIC = "classic", "Klassisch"
+        MODERN = "modern", "Modern (Farbbalken)"
+
+    company = models.ForeignKey("core.Company", on_delete=models.PROTECT, related_name="document_templates")
+    name = models.CharField("Name", max_length=100)
+    layout = models.CharField("Layout", max_length=10, choices=Layout.choices, default=Layout.CLASSIC)
+    accent_color = models.CharField("Akzentfarbe", max_length=7, default="#1f5f8b")
+    logo = models.ForeignKey("archive.Blob", null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    footer_text = models.CharField("Zusatz in der Fußzeile", max_length=300, blank=True, default="")
+    is_default = models.BooleanField("Standard", default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-is_default", "name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["company"], condition=models.Q(is_default=True), name="uniq_default_document_template"
+            ),
+        ]
+        verbose_name = "Vorlage"
+        verbose_name_plural = "Vorlagen"
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class TextBlock(models.Model):
+    """Default introduction and closing text per document type and language (Textbaustein)."""
+
+    company = models.ForeignKey("core.Company", on_delete=models.PROTECT, related_name="text_blocks")
+    doc_type = models.CharField(max_length=32, choices=Document.Type.choices)
+    language = models.CharField(max_length=5, choices=DOCUMENT_LANGUAGES, default="de")
+    intro_text = models.TextField("Einleitung", blank=True, default="")
+    closing_text = models.TextField("Schlusstext", blank=True, default="")
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["company", "doc_type", "language"], name="uniq_text_block"),
+        ]
+        verbose_name = "Textbaustein"
+        verbose_name_plural = "Textbausteine"
+
+    def __str__(self) -> str:
+        return f"{self.get_doc_type_display()} ({self.language})"

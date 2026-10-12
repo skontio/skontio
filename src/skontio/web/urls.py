@@ -16,6 +16,7 @@ urlpatterns = [
     path("dokumente/<int:pk>/positionen/", docs.line_add, name="line_add"),
     path("dokumente/<int:pk>/positionen/<int:line_pk>/entfernen/", docs.line_remove, name="line_remove"),
     path("dokumente/<int:pk>/festschreiben/", docs.document_finalize, name="document_finalize"),
+    path("dokumente/<int:pk>/vorschau.pdf", docs.document_preview, name="document_preview"),
     path("dokumente/<int:pk>/datei/<str:kind>/", docs.document_file, name="document_file"),
     path("dokumente/<int:pk>/zahlung/", docs.document_payment, name="document_payment"),
     path("dokumente/<int:pk>/stornieren/", docs.document_cancel, name="document_cancel"),

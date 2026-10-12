@@ -88,3 +88,5 @@ pre.snippet { background: var(--bg); border: 1px solid var(--rule); border-radiu
               overflow-x: auto; white-space: pre-wrap; word-break: break-all; user-select: all; }
 fieldset { border: 1px solid var(--rule); border-radius: var(--radius); }
 fieldset label { display: block; }
+.swatch { vertical-align: middle; }
+.logo-preview { max-height: 48px; vertical-align: middle; background: #fff; padding: 4px; border: 1px solid var(--rule); }

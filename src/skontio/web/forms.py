@@ -10,6 +10,7 @@ from skontio.catalog.models import Item, Unit
 from skontio.core.models import DOCUMENT_LANGUAGES, Company
 from skontio.crm.models import Activity, Customer
 from skontio.crm.services import normalise_vat_id
+from skontio.documents.models import DocumentTemplate
 from skontio.payments.models import Payment
 from skontio.tax.engine import Regime, TaxTreatment
 
@@ -144,6 +145,15 @@ class HeaderForm(forms.Form):
     intro_text = forms.CharField(label="Einleitung", widget=forms.Textarea(attrs={"rows": 2}), required=False)
     closing_text = forms.CharField(label="Schlusstext", widget=forms.Textarea(attrs={"rows": 2}), required=False)
     language = forms.ChoiceField(label="Sprache des Dokuments", choices=DOCUMENT_LANGUAGES, required=False)
+    template = forms.ModelChoiceField(
+        label="Vorlage", queryset=DocumentTemplate.objects.none(), required=False, empty_label="Standardvorlage"
+    )
+
+    def __init__(self, *args, company=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["template"].queryset = DocumentTemplate.objects.filter(company=company)
+        if company is None or not self.fields["template"].queryset.exists():
+            del self.fields["template"]  # nothing to choose
 
     def clean(self):
         data = super().clean()

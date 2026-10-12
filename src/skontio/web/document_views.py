@@ -31,6 +31,7 @@ from skontio.documents.services import (
     finalize,
     open_partials_for,
     prepaid_total,
+    preview_pdf,
     preview_totals,
     remove_deduction,
 )
@@ -74,6 +75,7 @@ HEADER_FIELDS = [
     "intro_text",
     "closing_text",
     "language",
+    "template",
 ]
 
 
@@ -246,11 +248,13 @@ def document_detail(request, pk: int):
         if request.method == "POST":
             return _locked()
         return render(request, "web/documents/finalized.html", _finalized_context(doc))
-    header = HeaderForm(request.POST or None, initial={f: getattr(doc, f) for f in HEADER_FIELDS})
+    initial = {f: getattr(doc, f) for f in HEADER_FIELDS}
+    header = HeaderForm(request.POST or None, initial=initial, company=request.company)
     if request.method == "POST" and header.is_valid():
         data = header.cleaned_data
         for field in HEADER_FIELDS:
-            setattr(doc, field, data[field])
+            if field in data:  # "template" only exists when the company has templates
+                setattr(doc, field, data[field])
         doc.document_discount_percent = data["document_discount_percent"] or Decimal("0")
         doc.language = data["language"] or header.initial["language"]
         doc.save()
@@ -312,7 +316,7 @@ def document_finalize(request, pk: int):
         return _locked()
     except DocumentError as exc:
         doc.refresh_from_db()
-        header = HeaderForm(initial={f: getattr(doc, f) for f in HEADER_FIELDS})
+        header = HeaderForm(initial={f: getattr(doc, f) for f in HEADER_FIELDS}, company=request.company)
         context = {"header": header, "finalize_error": str(exc), **_lines_context(request, doc)}
         return render(request, "web/documents/draft.html", context)
     return redirect(f"/dokumente/{doc.pk}/")
@@ -328,6 +332,21 @@ def document_file(request, pk: int, kind: str):
     return FileResponse(
         io.BytesIO(load(rendition.blob)), as_attachment=True, filename=filename, content_type=rendition.blob.mime
     )
+
+
+@company_view
+def document_preview(request, pk: int):
+    """Draft as PDF (marked as draft) – to check layout, texts and totals before finalizing."""
+    doc = _document(request, pk)
+    if doc.status != Document.Status.DRAFT:
+        return redirect(f"/dokumente/{doc.pk}/")
+    try:
+        pdf = preview_pdf(doc)
+    except DocumentError as exc:
+        return HttpResponse(f"Keine Vorschau möglich: {exc}", status=409, content_type="text/plain; charset=utf-8")
+    response = FileResponse(io.BytesIO(pdf), filename="entwurf.pdf", content_type="application/pdf")
+    response["Cache-Control"] = "no-store"
+    return response
 
 
 @require_POST

@@ -50,6 +50,7 @@
 {% endif %}
 
 <div class="actions">
+  <p><a class="button secondary" href="/dokumente/{{ doc.pk }}/vorschau.pdf" target="_blank" rel="noopener">Vorschau (PDF)</a></p>
   <form method="post" action="/dokumente/{{ doc.pk }}/festschreiben/">
     {% csrf_token %}
     <p class="muted">Nach dem Festschreiben erhält das Dokument seine Nummer und kann nicht mehr geändert werden. Korrekturen sind dann nur noch per Storno möglich.</p>

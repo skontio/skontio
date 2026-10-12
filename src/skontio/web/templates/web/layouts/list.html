@@ -1,0 +1,26 @@
+{% extends "web/base.html" %}
+{% block title %}Vorlagen{% endblock %}
+{% block content %}
+<div class="heading"><h1>Vorlagen</h1><a class="button secondary" href="/einstellungen/textbausteine/">Textbausteine</a></div>
+<p>Briefpapier für Angebote und Rechnungen: Layout, Farbe, Logo und Fußzeile. Festgeschriebene Dokumente behalten
+   ihr Aussehen, auch wenn du eine Vorlage später änderst. Eine Vorschau zeigt jeder Entwurf über „Vorschau (PDF)“.</p>
+{% if templates %}
+<div class="table-scroll"><table class="list">
+  <thead><tr><th>Name</th><th>Layout</th><th class="hide-small">Logo</th><th></th></tr></thead>
+  <tbody>{% for t in templates %}
+    <tr><td><a href="/einstellungen/vorlagen/{{ t.pk }}/">{{ t.name }}</a>{% if t.is_default %} <span class="badge">Standard</span>{% endif %}</td>
+      <td><svg class="swatch" width="12" height="12" aria-hidden="true"><rect width="12" height="12" rx="3" fill="{{ t.accent_color }}"/></svg> {{ t.get_layout_display }}</td>
+      <td class="hide-small">{% if t.logo %}ja{% else %}–{% endif %}</td>
+      <td><form method="post" action="/einstellungen/vorlagen/{{ t.pk }}/loeschen/">{% csrf_token %}<button type="submit" class="link">löschen</button></form></td></tr>
+  {% endfor %}</tbody>
+</table></div>
+{% else %}<p class="muted">Noch keine Vorlage – Dokumente nutzen das klassische Layout ohne Logo.</p>{% endif %}
+<details class="card"{% if form.errors %} open{% endif %}>
+  <summary><h2>Neue Vorlage</h2></summary>
+  <form method="post" action="/einstellungen/vorlagen/neu/" enctype="multipart/form-data" class="form">
+    {% csrf_token %}
+    {% include "web/_fields.html" %}
+    <button type="submit">Anlegen</button>
+  </form>
+</details>
+{% endblock %}

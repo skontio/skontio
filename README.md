@@ -39,6 +39,7 @@ Der vollständige Plan steht in [`docs/plan.md`](docs/plan.md), Architekturentsc
 | Auftragsbestätigung, Abschlags- und Schlussrechnung (§ 14 Abs. 5 UStG) | ✅ 1b |
 | CRM: Aktivitäten, Wiedervorlagen, Dateiablage mit Aufbewahrungsfrist | ✅ 1b |
 | Dokumente auf Deutsch oder Englisch (PDF, E-Rechnung, Mailtext) | ✅ 1b |
+| Vorlagen (Logo, Farbe, zwei Layouts, Fußzeile), Textbausteine, PDF-Vorschau für Entwürfe | ✅ 1b |
 | Assistent, EÜR/USt-VA, Bankabgleich | Phase 1b–3 |
 
 Betrieb auf TrueNAS: [`docs/betrieb.md`](docs/betrieb.md).

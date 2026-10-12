@@ -76,6 +76,8 @@ TEXTS = {
         "mail_pay": "Bitte überweisen Sie {amount} bis zum {date} unter Angabe der Rechnungsnummer.",
         "mail_einvoice": "Die angehängte PDF-Datei enthält die E-Rechnung im Format ZUGFeRD (EN 16931).",
         "mail_regards": "Mit freundlichen Grüßen",
+        "draft": "(Entwurf)",
+        "draft_mark": "ENTWURF – nicht gültig",
         "down_payment_percent": "Abschlag {percent} % gemäß {title} {number}",
         "down_payment": "Abschlag gemäß {title} {number}",
         "treatments": {
@@ -144,6 +146,8 @@ TEXTS = {
         "mail_pay": "Please transfer {amount} by {date}, quoting the invoice number.",
         "mail_einvoice": "The attached PDF contains the e-invoice in ZUGFeRD format (EN 16931).",
         "mail_regards": "Kind regards",
+        "draft": "(draft)",
+        "draft_mark": "DRAFT – not valid",
         "down_payment_percent": "Down payment of {percent}% as per {title} {number}",
         "down_payment": "Down payment as per {title} {number}",
         "treatments": {
@@ -218,6 +222,7 @@ class Lang:
         return text.replace(",", " ").replace(".", ",").replace(" ", ".")
 
     def quantity(self, value: Decimal) -> str:
+        value = Decimal(value)
         places = max(0, -value.normalize().as_tuple().exponent)
         return self.amount(value, places)
 

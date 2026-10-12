@@ -12,6 +12,7 @@ from django.template.loader import render_to_string
 
 from skontio.archive.services import retention_end, store
 from skontio.documents.languages import TEXTS, Lang
+from skontio.documents.layouts import layout_context, template_for
 from skontio.documents.models import INVOICE_TYPES, Document, PartySnapshot, Rendition
 from skontio.einvoice.cii import EInvoiceDataError, Profile, build_cii
 from skontio.einvoice.hybrid import embed_xml
@@ -33,13 +34,15 @@ class RenditionError(ValueError):
     pass
 
 
-def _view(document: Document) -> dict:
+def _view(document: Document, *, draft: tuple[list[LineInput], dict, dict] | None = None) -> dict:
+    """Template context. Finalized documents use their snapshot only; ``draft`` = (resolved line
+    inputs, seller data, buyer data) renders a preview of a draft from current master data."""
     t = Lang(document.language)
-    snapshots = {s.role: s.data for s in document.party_snapshots.all()}
-    seller, buyer = snapshots[PartySnapshot.Role.SELLER], snapshots[PartySnapshot.Role.BUYER]
     lines = list(document.lines.all())
-    totals = calculate(
-        [
+    if draft is None:
+        snapshots = {s.role: s.data for s in document.party_snapshots.all()}
+        seller, buyer = snapshots[PartySnapshot.Role.SELLER], snapshots[PartySnapshot.Role.BUYER]
+        inputs = [
             LineInput(
                 line.quantity,
                 line.unit_price,
@@ -47,9 +50,10 @@ def _view(document: Document) -> dict:
                 line.discount_percent,
             )
             for line in lines
-        ],
-        document_discount_percent=document.document_discount_percent,
-    )
+        ]
+    else:
+        inputs, seller, buyer = draft
+    totals = calculate(inputs, document_discount_percent=document.document_discount_percent)
     show_rates = totals.tax_total != 0 or any(b.category == "S" for b in totals.breakdown)
     doc_type = Type(document.doc_type)
     title = t.title(doc_type)
@@ -75,7 +79,7 @@ def _view(document: Document) -> dict:
     payment_text, girocode = "", ""
     if doc_type in INVOICE_TYPES and due > 0 and document.due_date:
         payment_text = document.payment_terms_text or t("pay_by", amount=t.money(due), date=t.date(document.due_date))
-        if seller.get("iban") and document.currency == "EUR":
+        if seller.get("iban") and document.currency == "EUR" and draft is None:
             girocode = girocode_svg_data_uri(
                 name=seller.get("account_holder") or seller["name"],
                 iban=seller["iban"],
@@ -84,14 +88,20 @@ def _view(document: Document) -> dict:
                 reference=document.number,
             )
 
+    if draft is None:
+        tax_notes = [note for note in document.tax_note.split("\n") if note]
+    else:
+        tax_notes = list(dict.fromkeys(t.tax_note(b.exemption_reason) for b in totals.breakdown if b.exemption_reason))
     iban = seller.get("iban", "")
     return {
+        **layout_context(template_for(document)),
         "doc": document,
+        "draft": draft is not None,
+        "number": document.number or t("draft"),
         "t": t.texts,
         "title": title,
         "number_label": t("number", title=title),
         "language": t.code,
-        "accent_color": "#1f5f8b",
         "seller": seller,
         "buyer": buyer,
         "iban_formatted": " ".join(iban[i : i + 4] for i in range(0, len(iban), 4)),
@@ -114,7 +124,7 @@ def _view(document: Document) -> dict:
                 "unit_price": t.amount(line.unit_price),
                 "discount": t.percent(line.discount_percent) if line.discount_percent else "",
                 "net": t.amount(result.net_amount),
-                "rate": t.percent(line.tax_rate),
+                "rate": t.percent(result.tax.rate),
             }
             for line, result in zip(lines, totals.lines, strict=True)
         ],
@@ -133,7 +143,7 @@ def _view(document: Document) -> dict:
             "grand_total": t.money(totals.grand_total),
         },
         "grand_label": t("grand_total") if show_rates else t("invoice_total"),
-        "tax_notes": [note for note in document.tax_note.split("\n") if note],
+        "tax_notes": tax_notes,
         "deductions": [
             {
                 "label": t("less_partial", number=d.source.number, date=t.date(d.source.issue_date)),
@@ -156,6 +166,10 @@ def _view(document: Document) -> dict:
 
 def render_document_html(document: Document) -> str:
     return render_to_string("documents/pdf.html", _view(document))
+
+
+def render_preview_pdf(document: Document, inputs: list[LineInput], seller: dict, buyer: dict) -> bytes:
+    return render_html_pdf_a3(render_to_string("documents/pdf.html", _view(document, draft=(inputs, seller, buyer))))
 
 
 def _add(document: Document, kind: Rendition.Kind, data: bytes, mime: str, years: int) -> Rendition:

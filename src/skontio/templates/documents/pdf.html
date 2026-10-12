@@ -2,7 +2,7 @@
 <html lang="{{ language }}">
 <head>
 <meta charset="utf-8">
-<title>{{ title }} {{ doc.number }}</title>
+<title>{{ title }} {{ number }}</title>
 <style>
   @page {
     size: A4;
@@ -40,18 +40,30 @@
   .payment img { width: 28mm; height: 28mm; }
   footer { position: running(footer); width: 170mm; font-size: 7pt; color: var(--muted); border-top: 0.5pt solid var(--rule); padding-top: 2mm; display: flex; justify-content: space-between; gap: 4mm; }
   footer div { flex: 1; }
+  footer { flex-wrap: wrap; }
+  footer .footer-note { flex-basis: 100%; margin-top: 1.5mm; }
+  .logo { max-width: 60mm; max-height: 22mm; }
+  .layout-modern header { background: var(--accent); color: #ffffff; margin: -20mm -18mm 12mm -22mm; padding: 9mm 18mm 7mm 22mm; align-items: center; }
+  .layout-modern .brand { color: #ffffff; }
+  .layout-modern .logo { max-height: 16mm; background: #ffffff; padding: 1.5mm; }
+  .layout-modern h1 { color: var(--accent); }
+  .layout-modern table.lines th { background: var(--accent); color: #ffffff; border-bottom: none; }
+  .draft-mark { position: fixed; top: 105mm; left: 0; width: 170mm; text-align: center; transform: rotate(-30deg);
+                font-size: 34pt; font-weight: bold; color: rgba(164, 38, 44, 0.18); }
 </style>
 </head>
-<body>
+<body class="layout-{{ layout }}">
+{% if draft %}<div class="draft-mark">{{ t.draft_mark }}</div>{% endif %}
 <footer>
   <div>{{ seller.name }}<br>{{ seller.street }}<br>{{ seller.postcode }} {{ seller.city }}</div>
   <div>{% if seller.email %}{{ seller.email }}<br>{% endif %}{% if seller.phone %}{{ seller.phone }}{% endif %}</div>
   <div>{% if seller.tax_number %}{{ t.tax_number }}: {{ seller.tax_number }}<br>{% endif %}{% if seller.vat_id %}{{ t.vat_id }}: {{ seller.vat_id }}{% endif %}</div>
   <div>{% if seller.iban %}IBAN: {{ iban_formatted }}<br>{% endif %}{% if seller.bic %}BIC: {{ seller.bic }}{% endif %}</div>
+  {% if footer_text %}<div class="footer-note">{{ footer_text }}</div>{% endif %}
 </footer>
 
 <header>
-  <div class="brand">{{ seller.name }}</div>
+  {% if logo %}<img class="logo" src="{{ logo }}" alt="{{ seller.name }}">{% if layout == "modern" %}<div class="brand">{{ seller.name }}</div>{% endif %}{% else %}<div class="brand">{{ seller.name }}</div>{% endif %}
 </header>
 
 <div class="top">
@@ -61,7 +73,7 @@
   </div>
   <div class="meta">
     <table>
-      <tr><td>{{ number_label }}</td><td>{{ doc.number }}</td></tr>
+      <tr><td>{{ number_label }}</td><td>{{ number }}</td></tr>
       <tr><td>{{ t.date }}</td><td>{{ issue_date }}</td></tr>
       {% if service %}<tr><td>{{ service_label }}</td><td>{{ service }}</td></tr>{% endif %}
       {% if buyer.number %}<tr><td>{{ t.customer_number }}</td><td>{{ buyer.number }}</td></tr>{% endif %}
@@ -72,7 +84,7 @@
   </div>
 </div>
 
-<h1>{{ title }} {{ doc.number }}</h1>
+<h1>{{ title }} {{ number }}</h1>
 {% if reference %}<p>{{ reference }}</p>{% endif %}
 {% if doc.intro_text %}<div class="intro">{{ doc.intro_text }}</div>{% endif %}
 
@@ -115,7 +127,7 @@
 {% if payment_text %}
 <div class="payment">
   {% if girocode %}<img src="{{ girocode }}" alt="GiroCode">{% endif %}
-  <div>{{ payment_text }}{% if seller.iban %}<br>IBAN {{ iban_formatted }}{% if seller.bic %} · BIC {{ seller.bic }}{% endif %}<br>{{ t.payment_reference }}: {{ doc.number }}{% endif %}</div>
+  <div>{{ payment_text }}{% if seller.iban %}<br>IBAN {{ iban_formatted }}{% if seller.bic %} · BIC {{ seller.bic }}{% endif %}{% if not draft %}<br>{{ t.payment_reference }}: {{ doc.number }}{% endif %}{% endif %}</div>
 </div>
 {% endif %}
 

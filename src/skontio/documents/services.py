@@ -19,6 +19,7 @@ from django.utils import timezone
 from skontio.catalog.models import Item, Unit
 from skontio.documents.languages import LANGUAGES, Lang
 from skontio.documents.languages import normalise as normalise_language
+from skontio.documents.layouts import template_for, text_block
 from skontio.documents.models import (
     BASIS_TYPES,
     INVOICE_TYPES,
@@ -28,7 +29,7 @@ from skontio.documents.models import (
     PartySnapshot,
     PrepaymentDeduction,
 )
-from skontio.documents.renditions import RenditionError, create_renditions
+from skontio.documents.renditions import RenditionError, create_renditions, render_preview_pdf
 from skontio.numbering.models import NumberSequence
 from skontio.numbering.services import allocate_number
 from skontio.tax.engine import (
@@ -123,6 +124,10 @@ def create_draft(
         language = normalise_language(customer.language if customer is not None else None)
     elif language not in LANGUAGES:
         raise DocumentError(f"Unbekannte Dokumentsprache: {language}")
+    if block := text_block(company, doc_type, language):
+        for field in ("intro_text", "closing_text"):
+            if not texts.get(field):
+                texts[field] = getattr(block, field)
     return Document.objects.create(
         company=company,
         doc_type=doc_type,
@@ -327,6 +332,16 @@ def preview_totals(document: Document) -> Totals:
     return _calculate(document, inputs)
 
 
+def preview_pdf(document: Document) -> bytes:
+    """The draft as PDF with current master data, marked as draft (no number, no GiroCode)."""
+    _require_draft(document)
+    if document.customer is None or not document.lines.exists():
+        raise DocumentError("Für die Vorschau braucht der Entwurf einen Kunden und mindestens eine Position")
+    _, inputs = _line_inputs(document, _regime(document))
+    _calculate(document, inputs)  # readable error instead of a broken PDF
+    return render_preview_pdf(document, inputs, _seller_data(document.company), _buyer_data(document.customer))
+
+
 # --- finalizing -------------------------------------------------------------------------------
 
 
@@ -414,6 +429,7 @@ def _seal(
     document.seller_snapshot_sha256 = _store_snapshot(document, PartySnapshot.Role.SELLER, seller)
     document.buyer_snapshot_sha256 = _store_snapshot(document, PartySnapshot.Role.BUYER, buyer)
     document.regime = regime
+    document.template = template_for(document)  # recorded: the archived PDF was rendered with it
     reasons = (lang.tax_note(b.exemption_reason) for b in totals.breakdown if b.exemption_reason)
     document.tax_note = "\n".join(dict.fromkeys(reasons))
     document.net_total = totals.tax_basis_total
@@ -538,6 +554,7 @@ def cancel_invoice(invoice: Document, *, issue_date: dt.date, reason: str, creat
             document_discount_percent=invoice.document_discount_percent,
             cancellation_reason=reason.strip(),
             language=invoice.language,
+            template=invoice.template,
             created_by=created_by,
         )
         lines = _copy_lines(invoice, storno)

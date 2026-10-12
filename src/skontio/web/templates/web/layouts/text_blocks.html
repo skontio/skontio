@@ -1,0 +1,20 @@
+{% extends "web/base.html" %}
+{% block title %}Textbausteine{% endblock %}
+{% block content %}
+<div class="heading"><h1>Textbausteine</h1><a class="button secondary" href="/einstellungen/vorlagen/">Vorlagen</a></div>
+<p>Einleitung und Schlusstext, mit denen neue Entwürfe starten – je Dokumentart und Sprache. Im Entwurf lassen sie
+   sich jederzeit anpassen. Leere Felder bedeuten: kein Standardtext.</p>
+<form method="post" class="form">
+  {% csrf_token %}
+  {% for row in rows %}
+  <details class="card"{% if row.intro or row.closing %} open{% endif %}>
+    <summary><h2>{{ row.label }}</h2></summary>
+    <label for="{{ row.key }}-intro">Einleitung</label>
+    <textarea id="{{ row.key }}-intro" name="{{ row.key }}-intro" rows="2">{{ row.intro }}</textarea>
+    <label for="{{ row.key }}-closing">Schlusstext</label>
+    <textarea id="{{ row.key }}-closing" name="{{ row.key }}-closing" rows="2">{{ row.closing }}</textarea>
+  </details>
+  {% endfor %}
+  <button type="submit">Speichern</button>
+</form>
+{% endblock %}

@@ -9,6 +9,7 @@ from skontio.attachments import views as attachment_views
 from skontio.mcp import views as mcp_views
 from skontio.mcp.auth import mcp_endpoint
 from skontio.web import security_views as security
+from skontio.web import template_views as layouts
 
 
 def healthz(request):
@@ -40,6 +41,11 @@ urlpatterns = [
     path("dateien/hochladen/", attachment_views.upload, name="attachment_upload"),
     path("dateien/<int:pk>/", attachment_views.download, name="attachment_download"),
     path("dateien/<int:pk>/loeschen/", attachment_views.remove, name="attachment_remove"),
+    path("einstellungen/vorlagen/", layouts.template_list, name="template_list"),
+    path("einstellungen/vorlagen/neu/", layouts.template_create, name="template_create"),
+    path("einstellungen/vorlagen/<int:pk>/", layouts.template_edit, name="template_edit"),
+    path("einstellungen/vorlagen/<int:pk>/loeschen/", layouts.template_delete, name="template_delete"),
+    path("einstellungen/textbausteine/", layouts.text_blocks, name="text_blocks"),
     path("einstellungen/sicherheit/", security.security, name="security"),
     path("einstellungen/sicherheit/einrichten/", security.security_start, name="security_start"),
     path("einstellungen/sicherheit/bestaetigen/", security.security_confirm, name="security_confirm"),
