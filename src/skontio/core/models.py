@@ -70,3 +70,27 @@ class ProcedureDocument(models.Model):
 
     def __str__(self) -> str:
         return f"Verfahrensdokumentation v{self.version}"
+
+
+class JobRun(models.Model):
+    """One scheduled background job per day (``skontio worker``): prevents double runs after restarts."""
+
+    class Status(models.TextChoices):
+        RUNNING = "running", "läuft"
+        OK = "ok", "erfolgreich"
+        FAILED = "failed", "fehlgeschlagen"
+
+    job = models.CharField(max_length=40)
+    day = models.DateField()
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.RUNNING)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    started_at = models.DateTimeField()
+    finished_at = models.DateTimeField(null=True, blank=True)
+    message = models.TextField(blank=True, default="")
+
+    class Meta:
+        ordering = ["-day", "job"]
+        constraints = [models.UniqueConstraint(fields=["job", "day"], name="uniq_job_per_day")]
+
+    def __str__(self) -> str:
+        return f"{self.job} {self.day:%d.%m.%Y}: {self.get_status_display()}"

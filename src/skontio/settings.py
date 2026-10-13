@@ -163,6 +163,9 @@ USE_TZ = True
 ARCHIVE_DIR = Path(os.environ.get("SKONTIO_ARCHIVE_DIR", BASE_DIR.parent.parent / "var" / "archive"))
 BACKUP_DIR = Path(os.environ.get("SKONTIO_BACKUP_DIR", BASE_DIR.parent.parent / "var" / "backups"))
 BACKUP_KEEP = int(os.environ.get("SKONTIO_BACKUP_KEEP", "14"))
+# daily jobs of the worker container (HH:MM local time, "off" disables)
+WORKER_BACKUP_AT = os.environ.get("SKONTIO_BACKUP_AT", "02:30")
+WORKER_RECURRING_AT = os.environ.get("SKONTIO_RECURRING_AT", "06:00")
 # pg_dump/pg_restore/psql for Postgres backups; the image pins the client version here
 PG_BIN_DIR = os.environ.get("SKONTIO_PG_BIN_DIR", "")
 

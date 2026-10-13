@@ -1,7 +1,7 @@
 #!/bin/sh
 # Container roles:
 #   web     – apply migrations, then serve UI, API, OAuth and /mcp via Granian (ASGI)
-#   worker  – background jobs (mail, reminders, bank sync) – arrives in Phase 1a
+#   worker  – daily jobs: nightly backup, recurring invoices (skontio worker)
 #   *       – any other argument is passed to the `skontio` management CLI
 set -eu
 
@@ -20,8 +20,7 @@ case "$role" in
       skontio.asgi:application
     ;;
   worker)
-    echo "skontio worker: Hintergrund-Jobs folgen in Phase 1a" >&2
-    exec sleep infinity
+    exec skontio worker
     ;;
   *)
     exec skontio "$@"

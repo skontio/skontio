@@ -44,7 +44,7 @@ Der vollständige Plan steht in [`docs/plan.md`](docs/plan.md), Architekturentsc
 | Verfahrensdokumentation (GoBD) aus der Konfiguration, versioniert und archiviert | ✅ 1b |
 | Ausgaben mit Belegfoto, Belegeingang und „Teilen an Skontio“ (Web Share Target), EÜR (Zufluss/Abfluss, Wechsel im Jahr, § 13b-Hinweis), CSV-Journal | ✅ 2 |
 | Mahnwesen: einstellbare Stufen, Mahnschreiben als PDF/A mit GiroCode, Versand mit Rechnung | ✅ 2 |
-| Wiederkehrende Rechnungen als Entwürfe (Nachholen ohne Doppelte, Cron-Befehl) | ✅ 2 |
+| Wiederkehrende Rechnungen als Entwürfe (Nachholen ohne Doppelte, täglich im Worker) | ✅ 2 |
 | Bankumsätze aus CAMT.053/CSV, Vorschläge und Zuordnung zu Rechnungen und Ausgaben | ✅ 2 |
 | USt-Voranmeldung (Ist): Kennzahlen mit Kopier-Knöpfen für Mein ELSTER, Frist, § 13b, Übermittlung vermerken | ✅ 2 |
 | KI-Assistent in der App (Ollama lokal, OpenAI-kompatibel, Anthropic) mit denselben Entwurfs-Werkzeugen wie MCP | ✅ 2 |

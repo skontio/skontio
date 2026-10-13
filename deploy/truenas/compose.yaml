@@ -1,5 +1,6 @@
 # Skontio on TrueNAS (Apps → Discover → "Install via YAML").
 #
+# Image tags: :0.2 (fixed minor version, recommended), :0.2.0 (exact), :edge (latest main – test instances only).
 # Before installing, create these datasets and give UID/GID 568 (apps) read/write access:
 #   /mnt/POOL/apps/skontio/data      SQLite database, configuration
 #   /mnt/POOL/apps/skontio/archive   finalized PDFs/XML and receipts (revisionssicher, 8–10 Jahre)
@@ -10,7 +11,7 @@
 
 services:
   skontio:
-    image: ghcr.io/skontio/skontio:0.1
+    image: ghcr.io/skontio/skontio:0.2
     command: ["web"]
     user: "568:568"
     restart: unless-stopped
@@ -28,7 +29,6 @@ services:
       # optional Postgres instead of SQLite (backups via the pg_dump 18 shipped in the image):
       # SKONTIO_DATABASE_URL: postgres://skontio:PASSWORT@NAS_LAN_IP:5432/skontio
       SKONTIO_WEB_WORKERS: "2"
-      SKONTIO_BACKUP_KEEP: "14"
       # outgoing mail (your own SMTP server)
       SKONTIO_SMTP_HOST: smtp.example.org
       SKONTIO_SMTP_PORT: "587"
@@ -49,15 +49,20 @@ services:
     cap_drop: [ALL]
 
   skontio-worker:
-    image: ghcr.io/skontio/skontio:0.1
+    image: ghcr.io/skontio/skontio:0.2
     command: ["worker"]
     user: "568:568"
     restart: unless-stopped
     depends_on: [skontio]
-    environment:
+    environment:   # nightly backup and recurring invoices; `skontio doctor worker` shows the last runs
       SKONTIO_PUBLIC_URL: https://skontio.example.org
       SKONTIO_SECRET_KEY_FILE: /secrets/secret_key
       SKONTIO_TIME_ZONE: Europe/Berlin
+      # same database as the web container (only needed with Postgres):
+      # SKONTIO_DATABASE_URL: postgres://skontio:PASSWORT@NAS_LAN_IP:5432/skontio
+      SKONTIO_BACKUP_AT: "02:30"       # HH:MM local time, "off" disables
+      SKONTIO_BACKUP_KEEP: "14"
+      SKONTIO_RECURRING_AT: "06:00"    # recurring invoices become drafts
     volumes:
       - /mnt/POOL/apps/skontio/data:/data
       - /mnt/POOL/apps/skontio/archive:/archive

@@ -55,6 +55,7 @@ Anthropics Netz `160.79.104.0/21` und private Netze freigegeben; die IP-Bereiche
 docker exec -it <skontio-container> skontio doctor oidc     # Pocket ID erreichbar, Issuer, PKCE, Uhrzeit
 docker exec -it <skontio-container> skontio doctor smtp     # SMTP-Anmeldung (es wird nichts versendet)
 docker exec -it <skontio-container> skontio doctor backup   # Backup-Verzeichnis, bei Postgres pg_dump-Version
+docker exec -it <skontio-container> skontio doctor worker   # letzte Läufe von Backup und wiederkehrenden Rechnungen
 ```
 
 Scheitert `discovery`, kann der Router vermutlich kein NAT-Loopback: im lokalen DNS die Domain
@@ -118,9 +119,9 @@ Wesentliches ändert: Steuerstatus, Benutzer, Sicherung, KI-Zugriff, Skontio-Upd
 ## 5c. Wiederkehrende Rechnungen und Mahnwesen
 
 Wiederkehrende Rechnungen (Wartung, Hosting, Abos) legst du an einer Rechnung über „Als wiederkehrend anlegen“
-an. Fällige Zeiträume werden zu **Entwürfen** – festschreiben und versenden bleibt Handarbeit. Damit das ohne
-Klick passiert, in TrueNAS einen täglichen Cron-Job anlegen:
-`docker exec <container> skontio recurring`. Mehrfache oder parallele Läufe erzeugen keinen Zeitraum doppelt.
+an. Fällige Zeiträume werden zu **Entwürfen** – festschreiben und versenden bleibt Handarbeit. Das erledigt der
+Container `skontio-worker` täglich um `SKONTIO_RECURRING_AT` (Standard 06:00); von Hand: `skontio recurring`.
+Mehrfache oder parallele Läufe erzeugen keinen Zeitraum doppelt.
 
 Das Mahnwesen (*Übersicht → Mahnwesen*) schlägt fällige Zahlungserinnerungen und Mahnungen vor. Stufen, Fristen
 und Gebühren unter *Mahnwesen → Mahnstufen*. Mahnschreiben werden als PDF archiviert und zusammen mit der
@@ -145,11 +146,10 @@ Zahlungen bleiben bei dir; jeder KI-Entwurf ist markiert und braucht deine Prüf
 
 ## 6. Backups
 
-TrueNAS: *System → Advanced → Cron Jobs* → täglich 02:30:
-
-```sh
-docker exec <skontio-container> skontio backup --reason nightly
-```
+Der Container `skontio-worker` erstellt jede Nacht um `SKONTIO_BACKUP_AT` (Standard 02:30) ein geprüftes Backup.
+War der Worker zu der Zeit aus (Update, Neustart), holt er es beim Start nach; Fehlschläge versucht er stündlich
+bis zu dreimal. Kein Cron-Job nötig. `skontio doctor worker` meldet, wenn das letzte Backup älter als einen Tag
+ist oder fehlgeschlagen ist. Von Hand: `docker exec <skontio-container> skontio backup --reason manual`.
 
 Behält standardmäßig die letzten 14 Backups (`SKONTIO_BACKUP_KEEP`). Zusätzlich empfohlen:
 periodische ZFS-Snapshots von `tank/apps/skontio` und eine Replikation bzw. Cloud-Sync-Aufgabe nach extern.
@@ -173,8 +173,30 @@ spielt er nur in eine leere Datenbank ein.
 
 ## 8. Updates
 
-Image-Tag in der Compose-Datei erhöhen (feste Minor-Version, z. B. `0.2`), App aktualisieren.
-Migrationen laufen beim Start nach dem automatischen Backup.
+Images entstehen automatisch auf GitHub (`ghcr.io/skontio/skontio`):
+
+| Tag | Inhalt | Für |
+|---|---|---|
+| `:0.2` | neueste Version 0.2.x (Fehlerbehebungen) | Produktivbetrieb |
+| `:0.2.0` | genau diese Version | festhalten, zurückgehen |
+| `:edge` | aktueller Stand von `main` | Testinstanz |
+
+**Produktiv:** Image-Tag in der Compose-Datei erhöhen (z. B. `0.2` → `0.3`), App aktualisieren. Vor den
+Migrationen legt Skontio automatisch ein Backup `vor-update-<version>` an. Zurück geht es mit dem alten Tag;
+haben Migrationen die Datenbank umgebaut, zusätzlich dieses Backup einspielen (Abschnitt 7).
+
+## 9. Testinstanz für neue Funktionen
+
+Festgeschriebene Rechnungen lassen sich (GoBD) weder ändern noch löschen, und jede Rechnungsnummer ist vergeben.
+Neue Funktionen deshalb in einer **eigenen Instanz** ausprobieren:
+
+1. Eigene Datasets (`tank/apps/skontio-test/{data,archive,backups}`) und eigene Geheimnisse mit neuem `secret_key`.
+2. Eigene Subdomain (z. B. `skontio-test.example.org`) in Caddy und ein eigener OIDC-Client in Pocket ID.
+3. Compose-Datei kopieren: Image `:edge`, anderer Port (z. B. `8086`), neue Pfade, App-Name `skontio-test`.
+4. **Kein echter SMTP-Server** – sonst gehen Test-Rechnungen an echte Kunden. Ein Testpostfach oder SMTP weglassen.
+
+Neue Version testen: In TrueNAS die Test-App aktualisieren bzw. mit erneutem Image-Pull neu ausrollen, damit
+das aktuelle `:edge` geladen wird. Die Testinstanz kann jederzeit weggeworfen und neu angelegt werden.
 
 ---
 

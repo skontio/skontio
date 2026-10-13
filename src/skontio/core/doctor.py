@@ -152,3 +152,20 @@ def check_backup(backup_dir: Path, *, vendor: str, pg_versions=None) -> list[Che
         else:
             checks.append(Check("pg_dump", True, f"pg_dump {client} für Postgres-Server {server}"))
     return checks
+
+
+def check_worker(statuses, *, today: dt.date) -> list[Check]:
+    """Last run of each daily job (``skontio doctor worker``); older than yesterday means the worker is not running."""
+    checks = []
+    for job, run in statuses:
+        if run is None:
+            checks.append(Check(job.name, False, "noch nie gelaufen", "Läuft der Container skontio-worker?"))
+        elif run.status != "ok":
+            checks.append(Check(job.name, False, f"{run.day:%d.%m.%Y}: {run.message}", "Log des Workers prüfen"))
+        elif run.day < today - dt.timedelta(days=1):
+            checks.append(
+                Check(job.name, False, f"zuletzt am {run.day:%d.%m.%Y}", "Läuft der Container skontio-worker?")
+            )
+        else:
+            checks.append(Check(job.name, True, f"{run.day:%d.%m.%Y}: {run.message}"))
+    return checks
