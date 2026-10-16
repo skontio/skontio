@@ -1,6 +1,4 @@
 from django.contrib import admin
-from django.db import connection
-from django.http import JsonResponse
 from django.urls import include, path
 from oauth2_provider import urls as oauth2_urls
 
@@ -14,16 +12,8 @@ from skontio.web import security_views as security
 from skontio.web import taxstatus_views as taxstatus
 from skontio.web import template_views as layouts
 
-
-def healthz(request):
-    """Liveness and DB check for Docker/TrueNAS health checks."""
-    with connection.cursor() as cursor:
-        cursor.execute("SELECT 1")
-    return JsonResponse({"status": "ok"})
-
-
 urlpatterns = [
-    path("healthz", healthz, name="healthz"),
+    # /healthz is answered by skontio.core.health.HealthCheckMiddleware
     path("admin/", admin.site.urls),
     # RFC 8414 / RFC 9728 documents must live at the origin root
     path("", include((oauth2_urls.metadata_urlpatterns, "oauth2_metadata"))),

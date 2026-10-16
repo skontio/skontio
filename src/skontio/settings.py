@@ -124,6 +124,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "skontio.core.health.HealthCheckMiddleware",  # first: answers before the ALLOWED_HOSTS check
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",

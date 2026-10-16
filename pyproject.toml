@@ -1,6 +1,6 @@
 [project]
 name = "skontio"
-version = "0.2.0"
+version = "0.2.1"
 description = "Open-Source-Rechnungen und CRM für Selbstständige – selbst hostbar, E-Rechnung inklusive"
 authors = [
     { name = "Artur Dick", email = "4679329+unix0r@users.noreply.github.com" }

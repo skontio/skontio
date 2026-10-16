@@ -54,6 +54,8 @@ services:
     user: "568:568"
     restart: unless-stopped
     depends_on: [skontio]
+    healthcheck:   # the image's check probes the web server on :8000, which the worker does not run
+      disable: true
     environment:   # nightly backup and recurring invoices; `skontio doctor worker` shows the last runs
       SKONTIO_PUBLIC_URL: https://skontio.example.org
       SKONTIO_SECRET_KEY_FILE: /secrets/secret_key
