@@ -1,6 +1,6 @@
 # Skontio – Gesamtplan
 
-Stand: 2026-10-11 · zusammengeführt aus den Planfassungen v1–v6 · bestätigt am 2026-10-11
+Stand: 2026-10-29 · zusammengeführt aus den Planfassungen v1–v6 · bestätigt am 2026-10-11 · Abgleich mit Papierkram (§13) am 2026-10-29
 
 Skontio ist ein Open-Source-Rechnungs- und CRM-Programm für Selbstständige. Es ist selbst hostbar und
 eine Alternative zu Papierkram und sevdesk. Alle Funktionen sind frei, auch eigenes Logo, mehrere
@@ -289,6 +289,7 @@ Anthropic-Cloud ─► /mcp (Caddy: nur Anthropic-IP-Bereiche + LAN)
 | Auth | Testcontainer mit Pocket ID und Keycloak; OAuth-Konformität |
 | PWA | Lighthouse-Gate, Playwright mit Android-Viewport, kein Cache mit personenbezogenen Daten |
 | Betrieb | Backup und Restore, Migrationen SQLite/PG, Upgrade N-1→N, TrueNAS-Compose als 568:568 |
+| Container (lokal und CI) | `tools/smoke.sh` mit `compose.dev.yaml`: echtes Image (read-only, 568:568), Web und Worker, Beispieldaten (`skontio demo`), Login, alle Hauptseiten, PDF und eingebettetes ZUGFeRD-XML (XSD), Archiv-Prüfsummen, Backup; je einmal mit SQLite und Postgres |
 
 Abdeckung mindestens 80 %; 100 % der Zweige in `tax`, `numbering`, `documents.lock`, `einvoice` und `taxstatus`.
 
@@ -302,12 +303,140 @@ Abdeckung mindestens 80 %; 100 % der Zweige in `tax`, `numbering`, `documents.lo
 | **1a MVP** | Steuer-Engine mit Steuerstatus und Wechsel, Nummernkreise, Festschreibung, Katalog, CRM-Basis, Angebot → Rechnung, Storno, Branding-PDF, GiroCode, ZUGFeRD/XRechnung, SMTP, E-Rechnungs-Eingang, **Zahlungserfassung und Grenzwertprüfung**, OIDC/lokaler Login, SQLite/PG, Backup, **installierbare PWA**, Deployment | 13–17 |
 | **1b** | MCP über das Internet (OAuth-Autorisierungsserver, Feldfilter, Pseudonyme, Audit), stdio-Bridge, Korrektur-Assistent, Auftragsbestätigung, Abschlags- und Schlussrechnung, Vorlagen, Mehrsprachigkeit, UBL-Import, Aktivitäten, Wiedervorlagen, Dokumentenablage, 2FA, Verfahrensdokumentation, PDF teilen | 10–12 |
 | **2** | Ausgaben mit Belegen (PWA-Kamera, Share Target, Offline-Warteschlange), § 13b, EÜR, Umsatzsteuer-Voranmeldung, Belegarchiv, DATEV/CSV, Mahnwesen, wiederkehrende Rechnungen, Bank-CSV, Web Push, **Schnellerfassung**, **LLM-Schnittstelle und Assistent**, MCP-Auswertungs-Tools, mehrere Firmen | 17–21 |
-| **3** | PSD2 (Enable Banking) und FinTS, Abgleich, **Rücklagen**, Anlagen und AfA, Portal, Projekte, Zeiterfassung, REST-API, Webhooks; ERiC optional | 15–20 |
+| **2b Alltagsparität** (aus §13) | Lieferanten als Kontakte, CSV-Import und -Export (Kontakte, Leistungen, Angebote, Rechnungen, Belege, Gesamtexport), Rechnungsimport aus Papierkram/sevdesk, Positionsgruppen und Gesamtrabatt, Bruttopreise, Firmenstandard für das Zahlungsziel, Lieferschein, Anhänge beim Versand, Zahlungslink (PayPal o. Ä.), Lohnkostenausweis § 35a EStG, sonstige Einnahmen ohne Rechnung, wiederkehrende Ausgaben, Beleg-Postfach (IMAP), mehrere Bankkonten mit Zuordnungsregeln und Suche, SKR03/SKR04, Nummernkreise in der Oberfläche, Postausgang, Schnellsuche, filterbare Übersichten, Umsatzsteuer-Jahresansicht, Zusammenfassende Meldung, frei wählbare Berichtszeiträume | 8–11 |
+| **3** | PSD2 (Enable Banking) und FinTS, PayPal-Abruf, Abgleich, **Rücklagen**, Anlagen und AfA, Kassenbuch, Portal, Projekte (Budget, Aufgaben, Weiterberechnung), Zeiterfassung, REST-API, Webhooks, Steuerberaterzugang, BWA und Cashflow, Belegerkennung über den LLM-Port, Briefpapier-PDF und Folgeseiten, eigene Schriften und CSS-Layouts, eigene Datenfelder, GoBD-Datenexport für die Betriebsprüfung, SEPA-Lastschrift; ERiC optional | 20–26 |
 | Später | Hosting für Dritte, TWA/APK, Peppol/B2G | – |
 
 ---
 
-## 13. Risiken
+## 13. Abgleich mit Papierkram
+
+Stand 2026-10-29, Quelle: <https://www.papierkram.de/preise/#funktionen-im-detail> (Tarife Free, S, M, L).
+Skontio hat keine Tarife; die Spalte „Tarif“ zeigt nur, wie Papierkram die Funktion einordnet.
+
+Legende: ✅ vorhanden · 🟡 teilweise · 📅 schon geplant · ➕ neu aufgenommen · ➖ bewusst nicht
+
+### 13.1 Angebote und Rechnungen
+
+| Funktion (Papierkram) | Tarif | Skontio | Phase / Anmerkung |
+|---|---|---|---|
+| Angebote und Rechnungen, beliebig viele Positionen, PDF-Download, Versand | Free | ✅ | Versand per SMTP mit Protokoll |
+| Versand zusätzlicher Dokumente | M | ➕ | 2b: Anhänge aus der Dokumentenablage an die Mail hängen |
+| Versand über ein Kundenportal | M | 📅 | 3 (Portal) |
+| Abschlagsrechnungen | M | ✅ | inkl. Schlussrechnung nach § 14 Abs. 5 UStG |
+| Rabatte | S | 🟡 | Rabatt je Position vorhanden; ➕ 2b: Rabatt auf die Gesamtsumme (EN 16931 BG-20) |
+| Positionen gruppieren | S | ➕ | 2b: Gruppen mit Zwischensumme (nur Darstellung, Steuer weiter je Position) |
+| GiroCode | M | ✅ | |
+| PayPal-Link | M | ➕ | 2b: frei konfigurierbarer Zahlungslink (PayPal.me o. Ä.), keine Zahlungsabwicklung durch Skontio (ZAG) |
+| E-Rechnung, XRechnung, ZUGFeRD | Free/S | ✅ | mit KoSIT und Mustang geprüft |
+| Eigenes Briefpapier, ohne Fremdlogo | Free/S | 🟡 | Logo, Farbe, Fußzeile ✅; ➕ 3: Briefpapier als PDF-Hintergrund, eigenes Briefpapier für Folgeseiten |
+| Eigene Schriften, Layouts per CSS | S | ➕ | 3: Schrift-Upload (mit Einbettung für PDF/A) und CSS-Layouts in einer Sandbox (kein Netzwerkzugriff von WeasyPrint) |
+| Automatischer Lohnkostenausweis | S | ➕ | 2b: Arbeitskostenanteil je Position, Ausweis nach § 35a EStG für Privatkunden |
+| Englische Dokumente | S | ✅ | |
+| Wiederkehrende Rechnungen | S | ✅ | als Entwürfe |
+| Lieferschein aus Rechnung | S | ➕ | 2b: eigener Dokumenttyp ohne Preise, eigener Nummernkreis |
+| Brutto- und Nettorechnungen | Free | 🟡 | Netto ✅; ➕ 2b: Bruttopreise eingeben (B2C), Rundung bleibt EN-16931-konform |
+| Rechnungen ins EU-Ausland und in Drittländer | Free | ✅ | ig. Lieferung, § 13b, Ausfuhr |
+| Rechtskonforme Stornierung | Free | ✅ | |
+| Zahlungsziel zentral definierbar | Free | 🟡 | je Kunde ✅; ➕ 2b: Firmenstandard |
+| Filterbare Übersicht, CSV-Export | Free | 🟡 | Liste ✅; ➕ 2b: Filter (Status, Zeitraum, Kunde) und CSV-Export |
+
+### 13.2 Vorlagen, Mahnwesen, Zahlungen
+
+| Funktion (Papierkram) | Tarif | Skontio | Phase / Anmerkung |
+|---|---|---|---|
+| Mehrere Vorlagen je Dokumenttyp | S | ✅ | zwei Layouts, Textbausteine |
+| Inhaltsblöcke ein- und ausschalten | Free | 🟡 | ➕ 3: im Vorlagen-Editor einzeln schaltbar |
+| Eigene Datenfelder | M | ➕ | 3: frei definierbare Felder an Kunde und Dokument, optional im PDF |
+| Mahnungen, mehrere Stufen, freie Texte | S | ✅ | Stufen einstellbar, PDF/A mit GiroCode |
+| Offene Posten, Zahlungseingänge, Zahlung stornieren | Free | ✅ | |
+
+### 13.3 Belege, Kasse, Kontakte
+
+| Funktion (Papierkram) | Tarif | Skontio | Phase / Anmerkung |
+|---|---|---|---|
+| Ausgabenbelege, beliebig viele | Free | ✅ | Belegfoto, Teilen an Skontio |
+| E-Rechnungen empfangen | Free | ✅ | CII, UBL, ZUGFeRD |
+| Persönliches E-Mail-Postfach für Belege | Free | ➕ | 2b: Abruf eines eigenen Postfachs per IMAP im Worker; Anhänge landen im Belegeingang |
+| Einnahmenbelege | Free | ➕ | 2b: sonstige Einnahmen ohne Rechnung (z. B. Auszahlungen von Plattformen), in EÜR und UStVA |
+| Automatische Inhaltserkennung | S | 🟡 | E-Rechnungen werden ausgelesen ✅; ➕ 3: Belegerkennung (OCR und LLM) über den vorhandenen LLM-Port, standardmäßig lokal (Ollama) |
+| Wiederkehrende Belege | S | ➕ | 2b: wiederkehrende Ausgaben (Miete, Abos) als Vorschlag |
+| Belege an Kunden oder Projekte weiterberechnen | S | ➕ | 3, zusammen mit Projekten |
+| Anlagegüter | Free | 📅 | 3 (Anlagen und AfA) |
+| Kassenbuch | Free | ➕ | 3: Kassenbuch mit Festschreibung je Tag, Kassensturzfähigkeit; ob § 146a AO greift, wird vorher geprüft (**zu verifizieren**) |
+| Kunden und Lieferanten getrennt | Free | 🟡 | Kunden ✅, Lieferanten nur als Freitext an der Ausgabe; ➕ 2b: Lieferanten als Kontakt mit Stammdaten |
+| Kategorien, mehrere Personen je Kontakt | Free | ✅ | Tags, Ansprechpartner |
+| Logo oder Bild je Kontakt | Free | ➖ | kaum Nutzen für Solo-Selbstständige |
+| Bankdaten und SEPA-Mandat | Free | ➕ | 3: Mandat am Kunden, Export als pain.008 für das Onlinebanking |
+| CSV-Export und -Import der Kontakte | Free | ➕ | 2b |
+
+### 13.4 Projekte und Zeiterfassung
+
+| Funktion (Papierkram) | Tarif | Skontio | Phase / Anmerkung |
+|---|---|---|---|
+| Projekte mit Budget, Status, Dokument- und Finanzübersicht | Free | 📅 | 3 |
+| Aufgaben je Projekt, Aufgabenübersicht | Free | 📅 | 3 (ergänzt) |
+| Zeiterfassung im Browser, nachtragen, Kommentare | Free | 📅 | 3; Start/Stopp auch aus der PWA |
+| Zeiten und weiterberechnete Belege in die Rechnung | Free/S | 📅 | 3 |
+| Wochenreport | Free | 📅 | 3 (ergänzt) |
+| Projektarbeit im Team, Mitarbeiterreport | M | ➖ | Zielgruppe Solo; mehrere Benutzer siehe 13.6 |
+
+### 13.5 Schnittstellen, Banking, Import und Export
+
+| Funktion (Papierkram) | Tarif | Skontio | Phase / Anmerkung |
+|---|---|---|---|
+| DATEV-Export | S | 📅 | 2 (noch offen): EXTF Buchungsstapel, braucht SKR03/SKR04 |
+| DATEV-Datenservices (Belege online zu DATEV) | S | ➖ | erfordert eine DATEV-Partnerschaft; DATEV-Export mit Belegen genügt |
+| ELSTER-XML (UStVA) | S | 🟡 | Kopier-Knöpfe für Mein ELSTER ✅; ERiC optional später |
+| Kontoabruf PSD2 | S | 📅 | 3 (Enable Banking, FinTS) |
+| Kontoabruf PayPal | S | ➕ | 3: PayPal-Transaktionen über die PayPal-API oder den CSV-Export |
+| REST-API | M | 📅 | 3 |
+| Mehrere Konten | Free | ➕ | 2b: Bankkonto als eigene Entität; heute hängen Umsätze nur an der IBAN |
+| Import MT940/CAMT | S | 🟡 | CAMT.053 und CSV ✅; ➕ 2b: MT940 |
+| Umsätze mit Belegen und Rechnungen abgleichen, Dokument aus Umsatz anlegen | S | ✅ | Vorschläge und Zuordnung |
+| Gegenkonten und Regeln | S | ➕ | 2b: Regeln (Gegenpartei, Verwendungszweck → Kategorie) |
+| Suche in Kontobewegungen | S | ➕ | 2b |
+| Alle Daten als CSV exportieren | Free | ➕ | 2b: Gesamtexport als ZIP; ➕ 3: GoBD-Datenexport mit Beschreibungsstandard (index.xml) für die Betriebsprüfung |
+| Waren importieren (CSV) | Free | 📅 | 2b (stand schon in §6.2) |
+| Kunden und Lieferanten importieren (CSV) | Free | ➕ | 2b |
+| Rechnungen importieren (CSV) | Free | ➕ | 2b: Altbestand aus Papierkram oder sevdesk als „importiert“, ohne neue Festschreibung und ohne Nummernvergabe, Original-PDF im Archiv |
+
+### 13.6 Steuern, Auswertungen, Allgemeines
+
+| Funktion (Papierkram) | Tarif | Skontio | Phase / Anmerkung |
+|---|---|---|---|
+| Kleinunternehmerregelung | Free | ✅ | mit Grenzwertüberwachung und Wechsel |
+| Ist-Versteuerung | Free | ✅ | Soll vorgesehen |
+| UStVA monatlich oder vierteljährlich | S | ✅ | |
+| UStVA jährlich, Umsatzsteuer-Jahresansicht | S | ➕ | 2b: Jahresübersicht als Vorbereitung der USt-Erklärung |
+| Zusammenfassende Meldung | S | ➕ | 2b: aus ig. Lieferungen und § 13b-Leistungen ins EU-Ausland (nur bei Regelbesteuerung und USt-IdNr.) |
+| EÜR | S | ✅ | |
+| BWA, erweiterte BWA | S/M | ➕ | 3: monatliche Auswertung nach EÜR-Kategorien mit Vorjahresvergleich |
+| Individuelle Berichtszeiträume | M | ➕ | 2b: Von-bis für EÜR, Umsatz und CSV-Journal |
+| Cashflow | S | ➕ | 3: zusammen mit den Rücklagen |
+| Steuerberaterzugang | S | ➕ | 3: Rolle „nur lesen“ plus Exporte; braucht Rollen je Benutzer |
+| Postausgang | M | 🟡 | Versandprotokoll gespeichert; ➕ 2b: Übersicht aller versendeten Mails |
+| Mobile App | S | ✅ | PWA |
+| GoBD-zertifiziert | S | ➖ | keine Zertifizierung geplant; Festschreibung, Audit-Log und Verfahrensdokumentation ✅ |
+| Dashboard | Free | ✅ | |
+| Benachrichtigungen | Free | 📅 | 2 (Web Push), Wiedervorlagen ✅ |
+| Nummernkreise definierbar | Free | 🟡 | Muster im Datenmodell ✅; ➕ 2b: in der Oberfläche einstellbar |
+| Kontenrahmen SKR03 und SKR04 | Free | ➕ | 2b: Zuordnung der Kategorien, Voraussetzung für DATEV |
+| Schnellsuche über alle Inhalte | Free | ➕ | 2b: eine Suche für Kunden, Dokumente, Ausgaben, Leistungen |
+| Waren und Dienstleistungen mit Preisen | Free | ✅ | Leistungskatalog |
+| Weitere Benutzer | M | 🟡 | ein Inhaber über OIDC; ➕ 3: Rollen (Inhaber, Steuerberatung) |
+| Upload-Speicherplatz | alle | ➖ | selbst gehostet, kein Limit |
+
+### 13.7 Was Skontio darüber hinaus bietet
+
+Selbst hostbar unter AGPL, ohne Tarifgrenzen; Login über den eigenen Identity Provider (Passkey);
+MCP-Server und KI-Assistent nur für Entwürfe; Grenzwertüberwachung und Korrektur-Assistent beim Wechsel
+aus der Kleinunternehmerregelung; Hinweise zu § 13b als Empfänger; einstellbare Rücklagen (Phase 3);
+hashverkettetes Audit-Log und inhaltsadressiertes Archiv.
+
+---
+
+## 14. Risiken
 
 | Risiko | Stufe | Gegenmaßnahme |
 |---|---|---|
@@ -324,7 +453,7 @@ Abdeckung mindestens 80 %; 100 % der Zweige in `tax`, `numbering`, `documents.lo
 
 ---
 
-## 14. Offene Punkte (blockieren nicht)
+## 15. Offene Punkte (blockieren nicht)
 
 - RAM des N150 (wichtig erst für Ollama auf dem NAS)
 - Split-DNS oder NAT-Loopback (wird beim Deployment mit `skontio doctor oidc` geklärt)

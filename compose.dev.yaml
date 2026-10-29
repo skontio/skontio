@@ -1,0 +1,74 @@
+# Lokale Testinstanz – baut das Image aus diesem Checkout. NICHT für den Echtbetrieb.
+#
+#   docker compose -f compose.dev.yaml up -d --build                 # SQLite
+#   SKONTIO_DATABASE_URL=postgres://skontio:skontio@postgres:5432/skontio \
+#     docker compose -f compose.dev.yaml --profile pg up -d --build  # Postgres
+#   docker compose -f compose.dev.yaml exec skontio skontio demo     # Beispieldaten, Login demo/demo
+#   → http://localhost:8000/auth/local/
+#   docker compose -f compose.dev.yaml down -v                       # stoppen und alle Daten löschen
+#
+# tools/smoke.sh erledigt das automatisch und prüft das Ergebnis.
+# Gleiche Härtung wie deploy/truenas/compose.yaml (UID 568, read-only, keine Capabilities), aber:
+# festes Dev-Secret, Mails nur ins Container-Log, Passwort-Login ohne 2FA, kein OIDC.
+
+x-skontio: &skontio
+  image: skontio:dev
+  user: "568:568"
+  read_only: true
+  tmpfs: [/tmp]
+  security_opt: [no-new-privileges:true]
+  cap_drop: [ALL]
+  depends_on:
+    postgres:
+      condition: service_healthy
+      required: false   # only with --profile pg
+  environment:
+    SKONTIO_PUBLIC_URL: http://localhost:${SKONTIO_DEV_PORT:-8000}
+    SKONTIO_ALLOWED_HOSTS: localhost,127.0.0.1
+    SKONTIO_SECRET_KEY: local-dev-only-not-secret
+    SKONTIO_TIME_ZONE: Europe/Berlin
+    SKONTIO_MAIL_BACKEND: django.core.mail.backends.console.EmailBackend
+    SKONTIO_LOCAL_LOGIN_REQUIRE_2FA: "0"
+    SKONTIO_DEMO: "1"
+    SKONTIO_DATABASE_URL: ${SKONTIO_DATABASE_URL:-sqlite:////data/skontio.sqlite3}
+  volumes:
+    - data:/data
+    - archive:/archive
+    - backups:/backups
+
+services:
+  skontio:
+    <<: *skontio
+    build: .
+    command: ["web"]
+    ports:
+      - "127.0.0.1:${SKONTIO_DEV_PORT:-8000}:8000"
+
+  skontio-worker:
+    <<: *skontio
+    command: ["worker"]
+    depends_on:
+      skontio:
+        condition: service_healthy
+    healthcheck:   # the image's check probes the web server, which the worker does not run
+      disable: true
+
+  postgres:
+    image: postgres:17-alpine
+    profiles: [pg]
+    environment:
+      POSTGRES_USER: skontio
+      POSTGRES_PASSWORD: skontio
+      POSTGRES_DB: skontio
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "skontio"]
+      interval: 2s
+      retries: 30
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  data:
+  archive:
+  backups:
+  pgdata:

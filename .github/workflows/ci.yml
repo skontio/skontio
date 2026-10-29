@@ -71,16 +71,12 @@ jobs:
           context: .
           push: false
           load: true
-          tags: skontio:ci
-      - name: Smoke test (read-only, UID 568)
-        run: |
-          mkdir -p ci/data ci/archive ci/backups && chmod -R 777 ci
-          docker run -d --name smoke --user 568:568 --read-only --tmpfs /tmp --cap-drop ALL \
-            -e SKONTIO_SECRET_KEY=ci-smoke -e SKONTIO_ALLOWED_HOSTS=127.0.0.1 \
-            -v "$PWD/ci/data:/data" -v "$PWD/ci/archive:/archive" -v "$PWD/ci/backups:/backups" \
-            -p 127.0.0.1:8000:8000 skontio:ci
-          for i in $(seq 1 30); do curl -sf http://127.0.0.1:8000/healthz && exit 0; sleep 1; done
-          docker logs smoke; exit 1
+          tags: skontio:dev
+      # same end-to-end check as locally (compose.dev.yaml: read-only, UID 568, web + worker)
+      - name: Smoke test (SQLite)
+        run: tools/smoke.sh --no-build
+      - name: Smoke test (Postgres)
+        run: tools/smoke.sh --no-build --postgres
 
   # Publishes ghcr.io/skontio/skontio once everything above is green:
   #   push to main → :edge      tag v0.2.0 → :0.2.0 and :0.2

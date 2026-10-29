@@ -62,6 +62,22 @@ uv run pytest -m einvoice          # E-Rechnung gegen KoSIT und Mustang prüfen
 SKONTIO_DATABASE_URL=postgres://user:pw@localhost:5432/skontio uv run pytest   # Postgres (Backup-Tests brauchen postgresql-client ≥ Server)
 ```
 
+### Lokal im Container testen
+
+Docker mit Compose v2 genügt, OIDC und SMTP sind nicht nötig.
+
+```bash
+tools/smoke.sh                     # Image bauen, Web + Worker starten, Beispieldaten, Login, Seiten, PDF/ZUGFeRD, Backup prüfen
+tools/smoke.sh --postgres          # dasselbe mit Postgres 17
+tools/smoke.sh --keep              # danach weiterlaufen lassen: http://localhost:8099/auth/local/ (demo/demo)
+
+# von Hand
+docker compose -f compose.dev.yaml up -d --build
+docker compose -f compose.dev.yaml exec skontio skontio demo   # Beispieldaten, Login demo/demo
+# → http://localhost:8000/auth/local/   (Mails erscheinen in `docker compose -f compose.dev.yaml logs`)
+docker compose -f compose.dev.yaml down -v                     # stoppen und Daten löschen
+```
+
 ## Betrieb
 
 Docker-Image `ghcr.io/skontio/skontio`. Vorlagen für TrueNAS und Caddy liegen in [`deploy/`](deploy/).
