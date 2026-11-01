@@ -70,16 +70,18 @@ class TestSchedule:
             scheduler.jobs()
 
     def test_recurring_invoices_become_drafts(self, shop, settings):
-        settings.WORKER_BACKUP_AT, settings.WORKER_RECURRING_AT = "off", "06:00"
+        # Relative to today so exactly one date is due, whatever day and hour the suite runs.
+        settings.WORKER_BACKUP_AT, settings.WORKER_RECURRING_AT = "off", "00:00"
+        today = timezone.localdate()
         doc = create_draft(
             shop.company,
             Document.Type.INVOICE,
             shop.org,
-            issue_date=dt.date(2026, 9, 1),
-            service_date=dt.date(2026, 9, 1),
+            issue_date=today - dt.timedelta(days=40),
+            service_date=today - dt.timedelta(days=40),
         )
         add_line_from_item(doc, shop.item, quantity=Decimal("1"))
-        create_from_invoice(finalize(doc), name="Wartung", interval=1, start_date=dt.date(2026, 10, 1))
+        create_from_invoice(finalize(doc), name="Wartung", interval=1, start_date=today)
         (run,) = scheduler.run_due(timezone.now())
         assert run.status == JobRun.Status.OK and run.message.startswith("1 Entwurf")
         assert Document.objects.filter(status=Document.Status.DRAFT, origin=Document.Origin.RECURRING).count() == 1
