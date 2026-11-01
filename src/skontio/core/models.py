@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.core.validators import MaxValueValidator
 from django.db import models
 
 # Languages of what customers receive (PDF, e-invoice notes, e-mail); the UI stays German
@@ -42,6 +43,10 @@ class Company(models.Model):
         default="ist",
     )
     vat_extension = models.BooleanField("Dauerfristverlängerung", default=False)
+    # Used for customers without their own payment terms (BR-CO-25: invoices need a due date or terms)
+    default_payment_terms_days = models.PositiveSmallIntegerField(
+        "Zahlungsziel (Tage)", default=14, validators=[MaxValueValidator(365)]
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

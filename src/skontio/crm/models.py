@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.core.validators import MaxValueValidator
 from django.db import models
 
 from skontio.core.models import DOCUMENT_LANGUAGES
@@ -34,7 +35,10 @@ class Customer(models.Model):
     country = models.CharField(max_length=2, default="DE")
     language = models.CharField("Sprache", max_length=5, choices=DOCUMENT_LANGUAGES, default="de")
     buyer_reference = models.CharField("Käuferreferenz/Leitweg-ID", max_length=100, blank=True, default="")
-    payment_terms_days = models.PositiveSmallIntegerField(default=14)
+    # None: the company's default (Company.default_payment_terms_days)
+    payment_terms_days = models.PositiveSmallIntegerField(
+        null=True, blank=True, default=None, validators=[MaxValueValidator(365)]
+    )
     tags = models.ManyToManyField(Tag, blank=True, related_name="customers")
     archived_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -47,6 +51,11 @@ class Customer(models.Model):
 
     def __str__(self) -> str:
         return f"{self.number} {self.name}"
+
+    def effective_payment_terms_days(self) -> int:
+        if self.payment_terms_days is not None:
+            return self.payment_terms_days
+        return self.company.default_payment_terms_days
 
 
 class Contact(models.Model):

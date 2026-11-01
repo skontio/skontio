@@ -69,7 +69,7 @@ class CreateInput(Input):
     vat_id: Annotated[str, StringConstraints(strip_whitespace=True, max_length=20)] = ""
     email: Email = ""
     buyer_reference: Annotated[str, StringConstraints(strip_whitespace=True, max_length=100)] = ""
-    payment_terms_days: Annotated[int, Field(ge=0, le=120)] = 14
+    payment_terms_days: Annotated[int, Field(ge=0, le=120)] | None = None  # None: company default
 
 
 @tool(

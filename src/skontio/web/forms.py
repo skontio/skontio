@@ -73,6 +73,7 @@ class CompanyForm(forms.ModelForm):
             "vat_period",
             "vat_basis",
             "vat_extension",
+            "default_payment_terms_days",
         ]
         labels = {
             **ADDRESS_LABELS,
@@ -87,6 +88,7 @@ class CompanyForm(forms.ModelForm):
         ("Kontakt", ("contact_name", "email", "phone")),
         ("Steuer", ("tax_number", "vat_id", "seller_identifier", "regime", "regime_since")),
         ("Bankverbindung", ("account_holder", "iban", "bic")),
+        ("Rechnungen", ("default_payment_terms_days",)),
         ("Umsatzsteuer-Voranmeldung", ("vat_period", "vat_basis", "vat_extension")),
     )
 
@@ -102,8 +104,17 @@ class CompanyForm(forms.ModelForm):
         if rest:
             yield "Weitere Angaben", rest
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if "default_payment_terms_days" in self.fields:
+            self.fields["default_payment_terms_days"].required = False
+
     def clean_iban(self):
         return normalise_iban(self.cleaned_data["iban"])
+
+    def clean_default_payment_terms_days(self):
+        value = self.cleaned_data.get("default_payment_terms_days")
+        return 14 if value is None else value
 
     def clean_vat_id(self):
         try:
@@ -151,6 +162,7 @@ class CustomerForm(forms.ModelForm):
             "payment_terms_days",
         ]
         labels = {**ADDRESS_LABELS, "kind": "Art", "payment_terms_days": "Zahlungsziel (Tage)"}
+        help_texts = {"payment_terms_days": "Leer lassen für den Firmenstandard"}
 
     def clean_vat_id(self):
         try:

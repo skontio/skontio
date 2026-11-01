@@ -56,7 +56,7 @@ def customer_view(customer: Customer | None, ctx, *, detail: bool = False) -> di
         "pseudonymised": pseudonymised,
     }
     if detail:
-        view["payment_terms_days"] = customer.payment_terms_days
+        view["payment_terms_days"] = customer.effective_payment_terms_days()
         view["address_complete"] = bool(customer.street and customer.postcode and customer.city)
         if customer.kind == Customer.Kind.ORGANISATION:
             view["vat_id"] = customer.vat_id

@@ -118,7 +118,7 @@ def create_draft(
     if period_start and period_end and period_end < period_start:
         raise DocumentError("Der Leistungszeitraum endet vor seinem Beginn")
     if doc_type in INVOICE_TYPES and due_date is None and customer is not None:
-        due_date = issue_date + dt.timedelta(days=customer.payment_terms_days)
+        due_date = issue_date + dt.timedelta(days=customer.effective_payment_terms_days())
     if doc_type == Type.QUOTE and valid_until is None:
         valid_until = issue_date + dt.timedelta(days=DEFAULT_QUOTE_VALIDITY_DAYS)
     if language is None:
@@ -499,7 +499,7 @@ def finalize(document: Document) -> Document:
             if problems := _deduction_problems(doc):
                 raise DocumentError("; ".join(problems))
         if doc.doc_type in INVOICE_TYPES and doc.due_date is None:
-            doc.due_date = doc.issue_date + dt.timedelta(days=doc.customer.payment_terms_days)  # BR-CO-25
+            doc.due_date = doc.issue_date + dt.timedelta(days=doc.customer.effective_payment_terms_days())  # BR-CO-25
         regime = _regime(doc)
         lines, inputs = _line_inputs(doc, regime)
         totals = _calculate(doc, inputs)

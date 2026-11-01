@@ -86,7 +86,8 @@ class TestCustomers:
         customer = create_customer(company, name="Kunde GmbH")
         assert customer.country == "DE"
         assert customer.language == "de"
-        assert customer.payment_terms_days == 14
+        assert customer.payment_terms_days is None  # company default
+        assert customer.effective_payment_terms_days() == 14
 
     def test_search_by_name_number_city_and_email(self, company):
         create_customer(company, name="Kunde GmbH", city="Köln", email="einkauf@kunde.example")
