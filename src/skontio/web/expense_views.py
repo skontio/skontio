@@ -51,7 +51,7 @@ class ExpenseForm(forms.Form):
     receipt_date = forms.DateField(label="Belegdatum", widget=DATE)
     supplier = forms.CharField(label="Lieferant", max_length=200)
     gross_amount = forms.DecimalField(
-        label="Betrag (brutto, €)", min_value=Decimal("0.01"), decimal_places=2, localize=True
+        label="Betrag (brutto, €)", min_value=Decimal("0.01"), max_digits=12, decimal_places=2, localize=True
     )
     vat_rate = forms.TypedChoiceField(label="USt-Satz", choices=VAT_RATES, coerce=Decimal, initial="19")
     category = forms.ChoiceField(label="Kategorie", choices=Expense.Category.choices, initial=Expense.Category.OTHER)

@@ -17,6 +17,7 @@ from decimal import Decimal, InvalidOperation
 from lxml import etree
 
 MAX_ROWS = 20_000
+MAX_AMOUNT = Decimal("1e12")
 
 
 class StatementError(ValueError):
@@ -49,7 +50,10 @@ def parse_camt053(data: bytes) -> list[Row]:
         raise StatementError(f"CAMT-Datei nicht lesbar: {exc}") from exc
     rows = []
     for entry in root.xpath("//*[local-name()='Ntry']")[:MAX_ROWS]:
-        amount = Decimal(_text(entry, "./*[local-name()='Amt']/text()") or "0")
+        raw = _text(entry, "./*[local-name()='Amt']/text()") or "0"
+        if not re.fullmatch(r"\d{1,12}(\.\d{1,5})?", raw):  # ISO 20022 ActiveOrHistoricCurrencyAndAmount
+            raise StatementError(f"Betrag nicht lesbar: {raw[:40]!r}")
+        amount = Decimal(raw)
         currency = _text(entry, "./*[local-name()='Amt']/@Ccy") or "EUR"
         debit = _text(entry, "./*[local-name()='CdtDbtInd']/text()") == "DBIT"
         day = (
@@ -128,6 +132,9 @@ def parse_amount(value: str) -> Decimal:
         amount = Decimal(value)
     except InvalidOperation as exc:
         raise StatementError(f"Betrag nicht lesbar: {value!r}") from exc
+    # "NaN", "Infinity" and "1e99" are valid Decimals but no bank amount (the column holds 12 digits)
+    if not amount.is_finite() or abs(amount) >= MAX_AMOUNT:
+        raise StatementError(f"Betrag nicht lesbar: {value!r}")
     return -amount if negative else amount
 
 
@@ -153,7 +160,10 @@ def parse_csv(data: bytes) -> list[Row]:
     text = _decode(data)
     head = text.splitlines()[:20]
     delimiter = ";" if sum(line.count(";") for line in head) >= sum(line.count(",") for line in head) else ","
-    records = list(csv.reader(io.StringIO(text), delimiter=delimiter))
+    try:
+        records = list(csv.reader(io.StringIO(text, newline=""), delimiter=delimiter))
+    except csv.Error as exc:
+        raise StatementError(f"CSV-Datei nicht lesbar: {exc}") from exc
     for start, header in enumerate(records[:30]):  # noqa: B007 – used after the loop (header row)
         columns = {key: _find(header, names) for key, names in COLUMNS.items()}
         if columns["date"] is not None and (columns["amount"] is not None or columns["credit"] is not None):

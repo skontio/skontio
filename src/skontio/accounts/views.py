@@ -6,6 +6,7 @@ import time
 from django.conf import settings
 from django.contrib.auth import get_user_model, login, logout
 from django.contrib.auth.views import LoginView
+from django.core.cache import cache
 from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -23,6 +24,28 @@ SESSION_2FA = "local_2fa_pending"
 SESSION_2FA_NEXT = "local_2fa_next"
 SECOND_FACTOR_SECONDS = 300
 MAX_SECOND_FACTOR_ATTEMPTS = 5
+# Failed passwords and codes per IP and per username, across sessions (the per-session counter
+# above alone lets an attacker simply start a new session).
+LOCAL_LOGIN_FAILURES = 10
+LOCAL_LOGIN_LOCK_SECONDS = 15 * 60
+TOO_MANY = "Zu viele Fehlversuche. Bitte in 15 Minuten erneut versuchen."
+
+
+def _failure_keys(request: HttpRequest, username: str) -> list[str]:
+    return [f"local-login-fail:ip:{client_ip(request)}", f"local-login-fail:user:{username.strip().lower()[:150]}"]
+
+
+def _locked(keys: list[str]) -> bool:
+    return any((cache.get(key) or 0) >= LOCAL_LOGIN_FAILURES for key in keys)
+
+
+def _count_failure(keys: list[str]) -> None:
+    for key in keys:
+        cache.add(key, 0, timeout=LOCAL_LOGIN_LOCK_SECONDS)
+        try:
+            cache.incr(key)
+        except ValueError:  # expired between add and incr
+            cache.set(key, 1, timeout=LOCAL_LOGIN_LOCK_SECONDS)
 
 
 def _callback_uri() -> str:
@@ -100,7 +123,15 @@ class LocalLoginView(LoginView):
     def dispatch(self, request, *args, **kwargs):
         if not _from_lan(request):
             return HttpResponseForbidden("Der lokale Login ist nur aus dem lokalen Netz erlaubt.")
+        if request.method == "POST" and _locked(_failure_keys(request, request.POST.get("username", ""))):
+            log.warning("Local login locked after repeated failures (ip %s)", client_ip(request))
+            return render(request, self.template_name, {"form": self.get_form(), "locked": TOO_MANY}, status=429)
         return super().dispatch(request, *args, **kwargs)
+
+    def form_invalid(self, form):
+        if self.request.method == "POST":
+            _count_failure(_failure_keys(self.request, self.request.POST.get("username", "")))
+        return super().form_invalid(form)
 
     def form_valid(self, form):
         user = form.get_user()
@@ -133,12 +164,17 @@ def local_second_factor(request: HttpRequest) -> HttpResponse:
     error = ""
     if request.method == "POST":
         user = get_user_model().objects.filter(pk=pending["user"], is_active=True).first()
+        keys = _failure_keys(request, user.get_username() if user else "")
+        if _locked(keys):
+            request.session.pop(SESSION_2FA, None)
+            return render(request, "accounts/local_2fa.html", {"error": TOO_MANY}, status=429)
         if user is not None and twofactor.verify(user, request.POST.get("code", "")):
             request.session.pop(SESSION_2FA, None)
             target = request.session.pop(SESSION_2FA_NEXT, "/")
             login(request, user, backend=BACKEND)
             record("auth.local_login", actor=user, entity="user", entity_id=user.pk, data={"second_factor": True})
             return redirect(_safe_next(request, target))
+        _count_failure(keys)
         pending["attempts"] += 1
         if pending["attempts"] >= MAX_SECOND_FACTOR_ATTEMPTS:
             request.session.pop(SESSION_2FA, None)

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import io
+
 from django.contrib import messages
 from django.http import FileResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect
@@ -53,7 +55,7 @@ def download(request, pk: int):
     attachment = get_object_or_404(Attachment, pk=pk, company=request.company)
     inline = attachment.mime in {"application/pdf", "image/png", "image/jpeg", "image/webp"}
     response = FileResponse(
-        iter([load(attachment.blob)]),
+        io.BytesIO(load(attachment.blob)),  # a file object, so FileResponse sets Content-Disposition and length
         content_type=attachment.mime,
         as_attachment=not inline,
         filename=attachment.filename,

@@ -219,7 +219,7 @@ class LineForm(forms.Form):
         queryset=Item.objects.none(), required=False, label="Aus dem Katalog", empty_label="– freie Position –"
     )
     text = forms.CharField(required=False, label="Bezeichnung")
-    quantity = forms.DecimalField(label="Menge", min_value=0, decimal_places=4, localize=True)
+    quantity = forms.DecimalField(label="Menge", min_value=0, max_digits=14, decimal_places=4, localize=True)
     unit_code = forms.ModelChoiceField(
         queryset=Unit.objects.all(),
         to_field_name="code",
@@ -228,7 +228,7 @@ class LineForm(forms.Form):
         empty_label="Stück (Standard)",
     )
     unit_price = forms.DecimalField(
-        label="Einzelpreis (€)", min_value=0, decimal_places=4, localize=True, required=False
+        label="Einzelpreis (€)", min_value=0, max_digits=14, decimal_places=4, localize=True, required=False
     )
     discount_percent = forms.DecimalField(
         label="Rabatt (%)", min_value=0, max_value=100, decimal_places=2, localize=True, required=False
@@ -255,15 +255,19 @@ class LineEditForm(forms.Form):
     """Inline edit of one draft line (the row in the position table)."""
 
     text = forms.CharField(label="Bezeichnung")
-    quantity = forms.DecimalField(label="Menge", min_value=0, decimal_places=4, localize=True)
-    unit_price = forms.DecimalField(label="Einzelpreis (€)", min_value=0, decimal_places=4, localize=True)
+    quantity = forms.DecimalField(label="Menge", min_value=0, max_digits=14, decimal_places=4, localize=True)
+    unit_price = forms.DecimalField(
+        label="Einzelpreis (€)", min_value=0, max_digits=14, decimal_places=4, localize=True
+    )
     discount_percent = forms.DecimalField(
         label="Rabatt (%)", min_value=0, max_value=100, decimal_places=2, localize=True, required=False
     )
 
 
 class PaymentForm(forms.Form):
-    amount = forms.DecimalField(label="Betrag (€)", min_value=Decimal("0.01"), decimal_places=2, localize=True)
+    amount = forms.DecimalField(
+        label="Betrag (€)", min_value=Decimal("0.01"), max_digits=14, decimal_places=2, localize=True
+    )
     received_on = forms.DateField(label="Eingegangen am", initial=dt.date.today)
     method = forms.ChoiceField(label="Zahlungsart", choices=Payment.Method.choices)
     note = forms.CharField(label="Notiz", required=False)
@@ -293,7 +297,7 @@ class PartialForm(forms.Form):
         label="Abschlag in %", required=False, min_value=0, max_value=100, decimal_places=2, localize=True
     )
     net_amount = forms.DecimalField(
-        label="oder Nettobetrag (€)", required=False, min_value=0, decimal_places=2, localize=True
+        label="oder Nettobetrag (€)", required=False, min_value=0, max_digits=14, decimal_places=2, localize=True
     )
     service_date = forms.DateField(label="Leistungsdatum", required=False)
 
@@ -308,7 +312,7 @@ class ItemForm(forms.ModelForm):
     unit = forms.ModelChoiceField(
         queryset=Unit.objects.all(), to_field_name="code", label="Einheit", empty_label="– Einheit wählen –"
     )
-    net_price = forms.DecimalField(label="Nettopreis (€)", min_value=0, decimal_places=4, localize=True)
+    net_price = forms.DecimalField(label="Nettopreis (€)", min_value=0, max_digits=14, decimal_places=4, localize=True)
     tax_treatment = forms.ChoiceField(label="Steuerbehandlung", choices=list(TAX_TREATMENT_LABELS.items()))
 
     class Meta:
