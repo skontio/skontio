@@ -65,7 +65,7 @@
         <tbody>{% for p in payments %}<tr><td>{{ p.received_on|date:"d.m.Y" }}</td><td>{{ p.get_method_display }}</td><td class="hide-small">{{ p.note }}</td><td class="num">{{ p.amount|floatformat:"2g" }} €</td></tr>{% endfor %}</tbody>
       </table></div>
       {% endif %}
-      {% if open_amount != "0,00" %}
+      {% if open_amount != "0,00" and can_finalize %}
       <form method="post" action="/dokumente/{{ doc.pk }}/zahlung/" class="form grid2">
         {% csrf_token %}
         {% with form=payment_form %}{% include "web/_fields.html" %}{% endwith %}
@@ -75,7 +75,7 @@
     </details>
     {% endif %}
 
-    <details class="card" id="senden" {% if send_form.errors %}open{% endif %}>
+    {% if can_finalize %}<details class="card" id="senden" {% if send_form.errors %}open{% endif %}>
       <summary><h2>Per E-Mail senden</h2></summary>
       <form method="post" action="/dokumente/{{ doc.pk }}/senden/" class="form">
         {% csrf_token %}
@@ -86,7 +86,7 @@
       <h3>Versandprotokoll</h3>
       <ul class="plain">{% for log in mail_logs %}<li>{{ log.sent_at|date:"d.m.Y H:i" }}: {{ log.get_status_display }} an {{ log.to|join:", " }}{% if log.error %} <span class="danger">({{ log.error }})</span>{% endif %}</li>{% endfor %}</ul>
       {% endif %}
-    </details>
+    </details>{% endif %}
 
     {% if dunning_notices %}
     <section class="card" id="mahnungen">
@@ -94,7 +94,7 @@
       <ul class="plain">{% for n in dunning_notices %}
         <li><a href="/mahnwesen/{{ n.pk }}/pdf/" target="_blank" rel="noopener">{{ n.title }} {{ n.number }}</a> vom {{ n.issued_on|date:"d.m.Y" }}: {{ n.total|floatformat:"2g" }} € bis {{ n.pay_by|date:"d.m.Y" }}{% if n.sent_at %}, versendet {{ n.sent_at|date:"d.m.Y" }}{% else %} <span class="badge">nicht versendet</span>{% endif %}</li>
       {% endfor %}</ul>
-      {% if dunning_mail and not dunning_mail.notice.sent_at %}
+      {% if dunning_mail and not dunning_mail.notice.sent_at and can_finalize %}
       <details open><summary>{{ dunning_mail.notice.title }} per E-Mail senden</summary>
         <form method="post" action="/mahnwesen/{{ dunning_mail.notice.pk }}/senden/" class="form">
           {% csrf_token %}
@@ -166,7 +166,7 @@
     </section>
     {% endif %}
 
-    {% if is_invoice and not cancelled %}
+    {% if is_invoice and not cancelled and can_finalize %}
     <details class="card">
       <summary><h2>Als wiederkehrend anlegen</h2></summary>
       <form method="post" action="/wiederkehrend/aus-rechnung/{{ doc.pk }}/" class="form">
@@ -182,7 +182,7 @@
       {% include "web/_attachments.html" with no_heading=True %}
     </details>
 
-    {% if payment_form and not cancelled %}
+    {% if payment_form and not cancelled and can_finalize %}
     <details class="card">
       <summary><h2>Stornieren</h2></summary>
       <p class="muted">Erzeugt eine Stornorechnung mit denselben Beträgen. Die Rechnung selbst bleibt unverändert erhalten.</p>
@@ -205,10 +205,10 @@
       <p class="amount">{{ gross }} €</p>
       {% endif %}
       <div class="stack">
-        {% if payment_form and not cancelled and open_amount != "0,00" %}<a class="button" href="#zahlungen">Zahlung erfassen</a>{% endif %}
+        {% if payment_form and not cancelled and open_amount != "0,00" and can_finalize %}<a class="button" href="#zahlungen">Zahlung erfassen</a>{% endif %}
         {% if convert_form %}<a class="button" href="#weiter">In Rechnung übernehmen</a>{% endif %}
-        <a class="button secondary" href="#senden">Per E-Mail senden</a>
-        {% if state == "overdue" %}<a class="button secondary" href="/mahnwesen/">Mahnen</a>{% endif %}
+        {% if can_finalize %}<a class="button secondary" href="#senden">Per E-Mail senden</a>{% endif %}
+        {% if state == "overdue" and can_finalize %}<a class="button secondary" href="/mahnwesen/">Mahnen</a>{% endif %}
       </div>
     </div>
     <div class="panel">

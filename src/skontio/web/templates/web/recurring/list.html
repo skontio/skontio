@@ -15,7 +15,7 @@
     <tr{% if not r.active %} class="muted"{% endif %}><td>{{ r.name }}</td><td class="hide-small">{{ r.customer.name }}</td><td>{{ r.get_interval_display }}</td>
       <td>{% if row.next %}{{ row.next|date:"d.m.Y" }}{% if row.due %} <span class="badge danger">fällig</span>{% endif %}{% elif r.active %}beendet{% else %}pausiert{% endif %}</td>
       <td>{% if row.due %}<form method="post" action="/wiederkehrend/{{ r.pk }}/erzeugen/" class="inline-form">{% csrf_token %}<button type="submit" class="secondary">Entwurf</button></form>{% endif %}
-        <form method="post" action="/wiederkehrend/{{ r.pk }}/umschalten/" class="inline-form">{% csrf_token %}<button type="submit" class="link">{% if r.active %}pausieren{% else %}fortsetzen{% endif %}</button></form></td></tr>
+        {% if can_finalize %}<form method="post" action="/wiederkehrend/{{ r.pk }}/umschalten/" class="inline-form">{% csrf_token %}<button type="submit" class="link">{% if r.active %}pausieren{% else %}fortsetzen{% endif %}</button></form>{% endif %}</td></tr>
   {% endwith %}{% endfor %}</tbody>
 </table></div>
 {% else %}<p>Noch keine wiederkehrenden Rechnungen.</p>{% endif %}

@@ -8,11 +8,35 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, HttpResponseForbidden
 from django.shortcuts import redirect, render
 
+from skontio.accounts.roles import drafts_only
 from skontio.core.models import Company
 
 
 def current_company() -> Company | None:
     return Company.objects.order_by("pk").first()
+
+
+DRAFTS_ONLY_MESSAGE = (
+    "Deine Rolle darf nur Entwürfe anlegen. Festschreiben, Versenden und Buchen macht die Inhaberin/der Inhaber."
+)
+
+
+def full_access(view):
+    """Finalizing, sending, cancelling and booking money – not for the role "nur Entwürfe"."""
+
+    @wraps(view)
+    def wrapper(request, *args, **kwargs):
+        if drafts_only(request.user):
+            return HttpResponseForbidden(DRAFTS_ONLY_MESSAGE)
+        return view(request, *args, **kwargs)
+
+    return wrapper
+
+
+def roles(request) -> dict:
+    """Template context: hide actions the current role may not use."""
+    user = getattr(request, "user", None)
+    return {"can_finalize": bool(user and user.is_authenticated and not drafts_only(user))}
 
 
 def company_view(view):

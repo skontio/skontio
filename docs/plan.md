@@ -303,7 +303,7 @@ Abdeckung mindestens 80 %; 100 % der Zweige in `tax`, `numbering`, `documents.lo
 | **1a MVP** | Steuer-Engine mit Steuerstatus und Wechsel, Nummernkreise, Festschreibung, Katalog, CRM-Basis, Angebot → Rechnung, Storno, Branding-PDF, GiroCode, ZUGFeRD/XRechnung, SMTP, E-Rechnungs-Eingang, **Zahlungserfassung und Grenzwertprüfung**, OIDC/lokaler Login, SQLite/PG, Backup, **installierbare PWA**, Deployment | 13–17 |
 | **1b** | MCP über das Internet (OAuth-Autorisierungsserver, Feldfilter, Pseudonyme, Audit), stdio-Bridge, Korrektur-Assistent, Auftragsbestätigung, Abschlags- und Schlussrechnung, Vorlagen, Mehrsprachigkeit, UBL-Import, Aktivitäten, Wiedervorlagen, Dokumentenablage, 2FA, Verfahrensdokumentation, PDF teilen | 10–12 |
 | **2** | Ausgaben mit Belegen (PWA-Kamera, Share Target, Offline-Warteschlange), § 13b, EÜR, Umsatzsteuer-Voranmeldung, Belegarchiv, DATEV/CSV, Mahnwesen, wiederkehrende Rechnungen, Bank-CSV, Web Push, **Schnellerfassung**, **LLM-Schnittstelle und Assistent**, MCP-Auswertungs-Tools, mehrere Firmen | 17–21 |
-| **2b Alltagsparität** (aus §13) | Lieferanten als Kontakte, CSV-Import und -Export (Kontakte, Leistungen, Angebote, Rechnungen, Belege, Gesamtexport), Rechnungsimport aus Papierkram/sevdesk, Positionsgruppen und Gesamtrabatt, Bruttopreise, Firmenstandard für das Zahlungsziel, Lieferschein, Anhänge beim Versand, Zahlungslink (PayPal o. Ä.), Lohnkostenausweis § 35a EStG, sonstige Einnahmen ohne Rechnung, wiederkehrende Ausgaben, Beleg-Postfach (IMAP), mehrere Bankkonten mit Zuordnungsregeln und Suche, SKR03/SKR04, Nummernkreise in der Oberfläche, Postausgang, Schnellsuche, filterbare Übersichten, Umsatzsteuer-Jahresansicht, Zusammenfassende Meldung, frei wählbare Berichtszeiträume | 8–11 |
+| **2b Alltagsparität** (aus §13) | Rolle „nur Entwürfe“, Lieferanten als Kontakte, CSV-Import und -Export (Kontakte, Leistungen, Angebote, Rechnungen, Belege, Gesamtexport), Rechnungsimport aus Papierkram/sevdesk, Positionsgruppen und Gesamtrabatt, Bruttopreise, Firmenstandard für das Zahlungsziel, Lieferschein, Anhänge beim Versand, Zahlungslink (PayPal o. Ä.), Lohnkostenausweis § 35a EStG, sonstige Einnahmen ohne Rechnung, wiederkehrende Ausgaben, Beleg-Postfach (IMAP), mehrere Bankkonten mit Zuordnungsregeln und Suche, SKR03/SKR04, Nummernkreise in der Oberfläche, Postausgang, Schnellsuche, filterbare Übersichten, Umsatzsteuer-Jahresansicht, Zusammenfassende Meldung, frei wählbare Berichtszeiträume | 8–11 |
 | **3** | PSD2 (Enable Banking) und FinTS, PayPal-Abruf, Abgleich, **Rücklagen**, Anlagen und AfA, Kassenbuch, Portal, Projekte (Budget, Aufgaben, Weiterberechnung), Zeiterfassung, REST-API, Webhooks, Steuerberaterzugang, BWA und Cashflow, Belegerkennung über den LLM-Port, Briefpapier-PDF und Folgeseiten, eigene Schriften und CSS-Layouts, eigene Datenfelder, GoBD-Datenexport für die Betriebsprüfung, SEPA-Lastschrift; ERiC optional | 20–26 |
 | Später | Hosting für Dritte, TWA/APK, Peppol/B2G | – |
 
@@ -394,6 +394,7 @@ Legende: ✅ vorhanden · 🟡 teilweise · 📅 schon geplant · ➕ neu aufgen
 | Mehrere Konten | Free | ➕ | 2b: Bankkonto als eigene Entität; heute hängen Umsätze nur an der IBAN |
 | Import MT940/CAMT | S | 🟡 | CAMT.053 und CSV ✅; ➕ 2b: MT940 |
 | Umsätze mit Belegen und Rechnungen abgleichen, Dokument aus Umsatz anlegen | S | ✅ | Vorschläge und Zuordnung |
+| Zahlungseingang automatisch zuordnen | S | ➕ | 3: nur eindeutige Fälle (Nummer im Zweck, Betrag genau, ein Kandidat), standardmäßig aus, mit Hinweis und Gegenbuchung |
 | Gegenkonten und Regeln | S | ➕ | 2b: Regeln (Gegenpartei, Verwendungszweck → Kategorie) |
 | Suche in Kontobewegungen | S | ➕ | 2b |
 | Alle Daten als CSV exportieren | Free | ➕ | 2b: Gesamtexport als ZIP; ➕ 3: GoBD-Datenexport mit Beschreibungsstandard (index.xml) für die Betriebsprüfung |
@@ -424,7 +425,7 @@ Legende: ✅ vorhanden · 🟡 teilweise · 📅 schon geplant · ➕ neu aufgen
 | Kontenrahmen SKR03 und SKR04 | Free | ➕ | 2b: Zuordnung der Kategorien, Voraussetzung für DATEV |
 | Schnellsuche über alle Inhalte | Free | ➕ | 2b: eine Suche für Kunden, Dokumente, Ausgaben, Leistungen |
 | Waren und Dienstleistungen mit Preisen | Free | ✅ | Leistungskatalog |
-| Weitere Benutzer | M | 🟡 | ein Inhaber über OIDC; ➕ 3: Rollen (Inhaber, Steuerberatung) |
+| Weitere Benutzer | M | ✅ | Rollen über OIDC-Gruppen: Admin, Mitarbeit, **nur Entwürfe** (2b); ➕ 3: Steuerberatung (nur lesen) |
 | Upload-Speicherplatz | alle | ➖ | selbst gehostet, kein Limit |
 
 ### 13.7 Was Skontio darüber hinaus bietet

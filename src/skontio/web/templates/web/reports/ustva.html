@@ -19,9 +19,9 @@
 </table></div>
 <p class="big">{% if payable < 0 %}Erstattung{% else %}Zahllast{% endif %}: {{ payable_text }} €</p>
 {% for note in report.notes %}<p class="muted">{{ note }}</p>{% endfor %}
-<form method="post" action="/auswertungen/ustva/uebermittelt/" class="inline-form">
+{% if can_finalize %}<form method="post" action="/auswertungen/ustva/uebermittelt/" class="inline-form">
   {% csrf_token %}<input type="hidden" name="jahr" value="{{ period.year }}"><input type="hidden" name="zeitraum" value="{{ period.code }}">
   <button type="submit" class="secondary">{% if vat_return %}Erneut als übermittelt vermerken{% else %}Als übermittelt vermerken{% endif %}</button>
-</form>
+</form>{% endif %}
 {% endif %}
 {% endblock %}

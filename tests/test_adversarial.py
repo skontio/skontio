@@ -14,6 +14,7 @@ import time
 from decimal import Decimal
 
 import pytest
+from django.contrib.auth.models import Group
 from django.urls import URLResolver, get_resolver
 from hypothesis import HealthCheck, given
 from hypothesis import settings as hyp_settings
@@ -21,6 +22,7 @@ from hypothesis import strategies as st
 from lxml import etree
 
 from skontio.accounts import totp, twofactor
+from skontio.accounts.roles import DRAFTS_ONLY_GROUP
 from skontio.archive.services import load
 from skontio.attachments.models import Attachment
 from skontio.audit.services import verify_chain
@@ -30,6 +32,7 @@ from skontio.documents.services import add_line_from_item, create_draft, finaliz
 from skontio.einvoice.cii import Profile, build_cii
 from skontio.einvoice.mapping import invoice_from_document
 from skontio.einvoice.reader import EInvoiceParseError, parse_einvoice
+from skontio.payments.models import Payment
 from skontio.payments.services import record_payment
 from skontio.tools.registry import ToolError, call_tool
 
@@ -195,6 +198,31 @@ class TestGarbageSweep:
         assert _snapshot(world.invoice) == before
         assert verify_chain() == []
         _assert_sane_amounts()
+
+    def test_role_drafts_only_cannot_finalize_book_or_send_through_any_route(
+        self, client, world, no_network, mailoutbox, django_user_model
+    ):
+        """Every route, with garbage and with plausible input, as the restricted role."""
+        user = django_user_model.objects.create_user("mitarbeit")
+        user.groups.add(Group.objects.get_or_create(name=DRAFTS_ONLY_GROUP)[0])
+        client.force_login(user)
+        finalized = set(Document.objects.filter(status=Document.Status.FINALIZED).values_list("pk", flat=True))
+        payments = Payment.objects.count()
+        plausible = {
+            "to": "a@b.example", "subject": "x", "body": "y", "reason": "weil", "amount": "10",
+            "received_on": dt.date.today().isoformat(), "method": "transfer", "invoice": world.invoice.pk,
+            "jahr": dt.date.today().year, "zeitraum": "01", "name": "x", "interval": "1",
+            "start_date": dt.date.today().isoformat(),
+        }  # fmt: skip
+        ids = [world.invoice.pk, world.draft.pk, world.line.pk]
+        for route in _routes():
+            for url in _fill(route, ids):
+                for payload in (plausible, dict.fromkeys(FIELDS, NASTY[0]), {}):
+                    assert _handled(url, client.post(url, payload).status_code), url
+        assert set(Document.objects.filter(status=Document.Status.FINALIZED).values_list("pk", flat=True)) == finalized
+        assert Payment.objects.count() == payments
+        assert mailoutbox == []
+        assert verify_chain() == []
 
     def test_body_over_the_limit_is_rejected(self, client, world, settings):
         client.force_login(world.user)

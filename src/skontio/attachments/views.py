@@ -12,7 +12,7 @@ from skontio.attachments.models import Attachment
 from skontio.attachments.services import AttachmentError, add_attachment, delete_attachment
 from skontio.crm.models import Customer
 from skontio.documents.models import Document
-from skontio.web.support import company_view
+from skontio.web.support import company_view, full_access
 
 
 def _owner_url(customer_pk=None, document_pk=None) -> str:
@@ -66,6 +66,7 @@ def download(request, pk: int):
 
 @require_POST
 @company_view
+@full_access
 def remove(request, pk: int):
     attachment = get_object_or_404(Attachment, pk=pk, company=request.company)
     target = _owner_url(attachment.customer_id, attachment.document_id)

@@ -18,7 +18,7 @@ from skontio.documents.renditions import de_amount
 from skontio.dunning.models import DunningLevel, DunningNotice
 from skontio.dunning.services import DunningError, create_notice, levels, overdue, send_notice
 from skontio.mail.services import MailError
-from skontio.web.support import admin_required, company_view, current_company
+from skontio.web.support import admin_required, company_view, current_company, full_access
 
 
 def _row(candidate, today):
@@ -47,6 +47,7 @@ def dunning_overview(request):
 
 @require_POST
 @company_view
+@full_access
 def dunning_create(request, pk: int):
     invoice = get_object_or_404(Document, pk=pk, company=request.company)
     try:
@@ -66,6 +67,7 @@ def dunning_pdf(request, pk: int):
 
 @require_POST
 @company_view
+@full_access
 def dunning_send(request, pk: int):
     notice = get_object_or_404(DunningNotice.objects.select_related("invoice"), pk=pk, company=request.company)
     to = [a for a in request.POST.get("to", "").replace(";", ",").split(",") if a.strip()]

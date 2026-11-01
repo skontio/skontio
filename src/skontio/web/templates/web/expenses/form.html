@@ -36,14 +36,14 @@
     </section>
     {% endif %}
     {% if not expense.cancelled_at %}
-    <details class="panel quiet">
+    {% if can_finalize %}<details class="panel quiet">
       <summary><h2>Stornieren</h2></summary>
       <form method="post" action="/ausgaben/{{ expense.pk }}/stornieren/" class="form">
         {% csrf_token %}
         <label for="reason">Grund</label><input id="reason" name="reason" maxlength="300" required placeholder="z. B. doppelt erfasst">
         <button type="submit" class="danger">Stornieren</button>
       </form>
-    </details>
+    </details>{% endif %}
     {% endif %}
   </aside>
   {% endif %}

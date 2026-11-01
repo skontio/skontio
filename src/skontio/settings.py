@@ -148,6 +148,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "skontio.web.support.roles",
             ],
         },
     },
@@ -276,6 +277,8 @@ OIDC_CLIENT_ID = os.environ.get("SKONTIO_OIDC_CLIENT_ID", "")
 OIDC_CLIENT_SECRET = read_secret("SKONTIO_OIDC_CLIENT_SECRET", "")
 OIDC_REQUIRED_GROUP = os.environ.get("SKONTIO_OIDC_REQUIRED_GROUP", "skontio")
 OIDC_ADMIN_GROUP = os.environ.get("SKONTIO_OIDC_ADMIN_GROUP", "skontio-admin")
+# Members may create customers, items and drafts, but never finalize, send, cancel or book money.
+OIDC_DRAFTS_GROUP = os.environ.get("SKONTIO_OIDC_DRAFTS_GROUP", "skontio-entwurf")
 # break-glass password login (plan §10): private networks only
 LOCAL_LOGIN_NETWORKS = env_list(
     "SKONTIO_LOCAL_LOGIN_NETWORKS", "127.0.0.0/8,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,::1/128,fc00::/7"

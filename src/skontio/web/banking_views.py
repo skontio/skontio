@@ -12,10 +12,11 @@ from skontio.documents.models import Document
 from skontio.documents.renditions import de_amount
 from skontio.expenses.models import Expense
 from skontio.payments.models import PaymentError
-from skontio.web.support import company_view
+from skontio.web.support import company_view, full_access
 
 
 @company_view
+@full_access
 def bank_list(request):
     show_all = request.GET.get("alle") == "1"
     transactions = BankTransaction.objects.filter(company=request.company).select_related(
@@ -47,6 +48,7 @@ def bank_list(request):
 
 @require_POST
 @company_view
+@full_access
 def bank_import(request):
     upload = request.FILES.get("statement")
     if upload is None:
@@ -67,6 +69,7 @@ def _transaction(request, pk: int) -> BankTransaction:
 
 @require_POST
 @company_view
+@full_access
 def bank_match(request, pk: int):
     tx = _transaction(request, pk)
     try:
@@ -85,6 +88,7 @@ def bank_match(request, pk: int):
 
 @require_POST
 @company_view
+@full_access
 def bank_ignore(request, pk: int):
     ignore(_transaction(request, pk), user=request.user)
     return redirect("bank_list")

@@ -34,9 +34,19 @@ In Pocket ID einen OIDC-Client anlegen:
 - Callback-URL: `https://skontio.example.org/auth/callback`
 - Logout-Callback: `https://skontio.example.org/`
 - PKCE: aktiv
-- Erlaubte Gruppen: `skontio` (Zugriff) und `skontio-admin` (Einstellungen)
+- Erlaubte Gruppen: `skontio` (Zugriff), `skontio-admin` (Einstellungen) und optional `skontio-entwurf`
 
-Dich selbst in beide Gruppen aufnehmen. Client-ID in die Compose-Datei, Client-Secret in `oidc_client_secret`.
+Dich selbst in `skontio` und `skontio-admin` aufnehmen.
+
+| Gruppe | Rolle | Darf |
+|---|---|---|
+| `skontio` | Mitarbeit | alles außer Einstellungen |
+| `skontio-entwurf` | Nur Entwürfe | Kunden, Leistungen, Ausgaben und Entwürfe anlegen; **nicht** festschreiben, versenden, stornieren, Zahlungen buchen, Bank |
+| `skontio-admin` | Admin | zusätzlich Einstellungen, Steuerstatus, KI-Zugriff; wird nie eingeschränkt |
+
+`skontio-entwurf` schränkt auch dann ein, wenn jemand zusätzlich in `skontio` ist. Die Namen lassen sich mit
+`SKONTIO_OIDC_REQUIRED_GROUP`, `SKONTIO_OIDC_ADMIN_GROUP` und `SKONTIO_OIDC_DRAFTS_GROUP` ändern. Lokale
+Benutzer bekommen die Rolle über die Gruppe „Nur Entwürfe“ im Django-Admin. Client-ID in die Compose-Datei, Client-Secret in `oidc_client_secret`.
 
 ## 3. App installieren
 

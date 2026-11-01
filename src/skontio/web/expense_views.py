@@ -36,7 +36,7 @@ from skontio.reports import ustva
 from skontio.reports.euer import euer, journal
 from skontio.taxstatus.models import VatReturn
 from skontio.taxstatus.services import TaxStatusError, regime_for
-from skontio.web.support import company_view
+from skontio.web.support import company_view, full_access
 
 DATE = forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d")
 VAT_RATES = [("19", "19 %"), ("7", "7 %"), ("0", "0 % / keine USt ausgewiesen")]
@@ -213,6 +213,7 @@ def expense_receipt(request, pk: int):
 
 @require_POST
 @company_view
+@full_access
 def expense_cancel(request, pk: int):
     expense = get_object_or_404(Expense, pk=pk, company=request.company)
     try:
@@ -401,6 +402,7 @@ def ustva_report(request):
 
 @require_POST
 @company_view
+@full_access
 def ustva_submit(request):
     period, _ = _period(request, request.company)
     report = ustva.vat_report(request.company, period)

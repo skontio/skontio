@@ -13,7 +13,7 @@
     <tr><td><a href="/dokumente/{{ r.invoice.pk }}/">{{ r.invoice.number }}</a></td><td class="hide-small">{{ r.invoice.customer.name }}</td>
       <td class="num">{{ r.open }} €</td><td>{{ r.days }} Tage{% if r.last %}<br><span class="muted">zuletzt {{ r.last.title }} {{ r.last.issued_on|date:"d.m." }}</span>{% endif %}</td>
       <td>{{ r.next.name }}</td>
-      <td><form method="post" action="/mahnwesen/rechnung/{{ r.invoice.pk }}/">{% csrf_token %}<button type="submit" class="secondary">Erstellen</button></form></td></tr>
+      <td>{% if can_finalize %}<form method="post" action="/mahnwesen/rechnung/{{ r.invoice.pk }}/">{% csrf_token %}<button type="submit" class="secondary">Erstellen</button></form>{% endif %}</td></tr>
   {% endfor %}</tbody>
 </table></div>
 {% else %}<p class="muted">Keine Mahnung fällig.</p>{% endif %}

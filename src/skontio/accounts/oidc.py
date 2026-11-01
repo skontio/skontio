@@ -21,6 +21,7 @@ from urllib.parse import urlencode
 import httpx
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.db import transaction
 from django.utils import timezone
 from joserfc import jwt
@@ -28,6 +29,7 @@ from joserfc.errors import JoseError
 from joserfc.jwk import KeySet
 
 from skontio.accounts.models import OidcIdentity
+from skontio.accounts.roles import DRAFTS_ONLY_GROUP
 
 SCOPES = "openid profile email groups"
 ALLOWED_ALGORITHMS = {"RS256", "RS384", "RS512", "PS256", "ES256", "ES384", "EdDSA"}
@@ -171,9 +173,10 @@ def _groups(claims: dict) -> set[str]:
 def map_identity(claims: dict):
     """Find or create the local user for issuer+subject and apply group-based permissions."""
     groups = _groups(claims)
-    if settings.OIDC_REQUIRED_GROUP and settings.OIDC_REQUIRED_GROUP not in groups:
-        raise OidcForbidden(f"Mitgliedschaft in der Gruppe {settings.OIDC_REQUIRED_GROUP!r} fehlt")
     is_admin = bool(settings.OIDC_ADMIN_GROUP) and settings.OIDC_ADMIN_GROUP in groups
+    drafts_only = not is_admin and bool(settings.OIDC_DRAFTS_GROUP) and settings.OIDC_DRAFTS_GROUP in groups
+    if settings.OIDC_REQUIRED_GROUP and settings.OIDC_REQUIRED_GROUP not in groups and not drafts_only:
+        raise OidcForbidden(f"Mitgliedschaft in der Gruppe {settings.OIDC_REQUIRED_GROUP!r} fehlt")
     issuer, subject = claims["iss"], claims["sub"]
     User = get_user_model()
     with transaction.atomic():
@@ -189,6 +192,11 @@ def map_identity(claims: dict):
         user.first_name = (claims.get("name") or claims.get("given_name") or "")[:150]
         user.is_staff = user.is_superuser = is_admin
         user.save(update_fields=["email", "first_name", "is_staff", "is_superuser"])
+        restricted, _ = Group.objects.get_or_create(name=DRAFTS_ONLY_GROUP)
+        if drafts_only:
+            user.groups.add(restricted)
+        else:
+            user.groups.remove(restricted)
         identity.last_login_at = timezone.now()
         identity.save(update_fields=["last_login_at"])
     return user

@@ -12,7 +12,7 @@ from skontio.audit.services import record
 from skontio.documents.models import Document
 from skontio.recurring.models import RecurringInvoice
 from skontio.recurring.services import RecurringError, create_from_invoice, generate, generate_due, next_issue_date
-from skontio.web.support import company_view
+from skontio.web.support import company_view, full_access
 
 DATE = forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d")
 
@@ -44,6 +44,7 @@ def recurring_list(request):
 
 @require_POST
 @company_view
+@full_access
 def recurring_from_invoice(request, pk: int):
     invoice = get_object_or_404(Document, pk=pk, company=request.company)
     form = RecurringForm(request.POST)
@@ -72,6 +73,7 @@ def recurring_generate(request):
 
 @require_POST
 @company_view
+@full_access
 def recurring_toggle(request, pk: int):
     recurring = get_object_or_404(RecurringInvoice, pk=pk, company=request.company)
     recurring.active = not recurring.active

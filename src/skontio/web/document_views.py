@@ -55,7 +55,7 @@ from skontio.web.forms import (
     SendForm,
 )
 from skontio.web.recurring_views import RecurringForm
-from skontio.web.support import company_view, is_htmx
+from skontio.web.support import company_view, full_access, is_htmx
 
 Type = Document.Type
 TYPE_FILTERS = {
@@ -389,6 +389,7 @@ def line_remove(request, pk: int, line_pk: int):
 
 @require_POST
 @company_view
+@full_access
 def document_finalize(request, pk: int):
     doc = _document(request, pk)
     try:
@@ -432,6 +433,7 @@ def document_preview(request, pk: int):
 
 @require_POST
 @company_view
+@full_access
 def document_payment(request, pk: int):
     doc = _document(request, pk)
     form = PaymentForm(request.POST)
@@ -446,6 +448,7 @@ def document_payment(request, pk: int):
 
 @require_POST
 @company_view
+@full_access
 def document_cancel(request, pk: int):
     doc = _document(request, pk)
     form = CancelForm(request.POST)
@@ -487,6 +490,7 @@ def _send_form(doc: Document, data=None) -> SendForm:
 
 @require_POST
 @company_view
+@full_access
 def document_send(request, pk: int):
     doc = _document(request, pk)
     if doc.status != Document.Status.FINALIZED:
@@ -511,6 +515,7 @@ def document_send(request, pk: int):
 
 @require_POST
 @company_view
+@full_access
 def document_review(request, pk: int):
     doc = _document(request, pk)
     try:
