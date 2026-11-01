@@ -324,7 +324,7 @@ Legende: ✅ vorhanden · 🟡 teilweise · 📅 schon geplant · ➕ neu aufgen
 | Versand zusätzlicher Dokumente | M | ➕ | 2b: Anhänge aus der Dokumentenablage an die Mail hängen |
 | Versand über ein Kundenportal | M | 📅 | 3 (Portal) |
 | Abschlagsrechnungen | M | ✅ | inkl. Schlussrechnung nach § 14 Abs. 5 UStG |
-| Rabatte | S | 🟡 | Rabatt je Position vorhanden; ➕ 2b: Rabatt auf die Gesamtsumme (EN 16931 BG-20) |
+| Rabatte | S | ✅ | je Position und auf die Gesamtsumme (EN 16931 BG-20 je Steuerkategorie) |
 | Positionen gruppieren | S | ➕ | 2b: Gruppen mit Zwischensumme (nur Darstellung, Steuer weiter je Position) |
 | GiroCode | M | ✅ | |
 | PayPal-Link | M | ➕ | 2b: frei konfigurierbarer Zahlungslink (PayPal.me o. Ä.), keine Zahlungsabwicklung durch Skontio (ZAG) |
