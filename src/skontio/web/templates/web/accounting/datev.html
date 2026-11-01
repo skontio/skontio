@@ -1,0 +1,23 @@
+{% extends "web/base.html" %}
+{% block title %}DATEV-Export{% endblock %}
+{% block content %}
+<div class="heading"><h1>DATEV-Export</h1>
+  {% if user.is_staff %}<a class="button secondary" href="/einstellungen/buchhaltung/">Konten einstellen</a>{% endif %}</div>
+<p>Buchungsstapel (EXTF) für die Steuerberatung: Zahlungseingänge und bezahlte Ausgaben im Zeitraum, je Steuersatz
+   aufgeteilt. {{ settings.get_chart_display }}, Sachkontenlänge {{ settings.account_length }}. Ein Export umfasst höchstens ein Kalenderjahr.</p>
+<form method="get" class="form card grid2">
+  <div><label for="von">Von</label><input id="von" name="von" type="date" value="{{ start|date:'Y-m-d' }}"></div>
+  <div><label for="bis">Bis</label><input id="bis" name="bis" type="date" value="{{ end|date:'Y-m-d' }}"></div>
+  <button type="submit" class="secondary">Anzeigen</button>
+  <button type="submit" name="download" value="1">Als DATEV-Datei herunterladen</button>
+</form>
+{% if error %}<p role="alert" class="danger">{{ error }}</p>{% endif %}
+{% if review %}<p class="warn">{{ review }} Buchung(en) mit § 13b – ohne Steuerschlüssel exportiert und als „§13b prüfen“ markiert.</p>{% endif %}
+{% if rows %}
+<div class="table-scroll"><table class="list">
+  <thead><tr><th>Datum</th><th>Beleg</th><th>Text</th><th class="num">Betrag</th><th>S/H</th><th>Konto</th><th>Gegenkonto</th><th>BU</th></tr></thead>
+  <tbody>{% for r in rows %}<tr><td>{{ r.date|date:"d.m.Y" }}</td><td>{{ r.document_field }}</td><td>{{ r.text }}</td>
+    <td class="num">{{ r.amount|floatformat:"2g" }} €</td><td>{{ r.side }}</td><td>{{ r.account }}</td><td>{{ r.counter_account }}</td><td>{{ r.bu_key }}</td></tr>{% endfor %}</tbody>
+</table></div>
+{% elif not error %}<p class="muted">Keine Buchungen im Zeitraum.</p>{% endif %}
+{% endblock %}

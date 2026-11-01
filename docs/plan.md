@@ -385,7 +385,7 @@ Legende: ✅ vorhanden · 🟡 teilweise · 📅 schon geplant · ➕ neu aufgen
 
 | Funktion (Papierkram) | Tarif | Skontio | Phase / Anmerkung |
 |---|---|---|---|
-| DATEV-Export | S | 📅 | 2 (noch offen): EXTF Buchungsstapel, braucht SKR03/SKR04 |
+| DATEV-Export | S | ✅ | EXTF-Buchungsstapel (700/21/13): Zahlungseingänge je Steuersatz und bezahlte Ausgaben; § 13b-Ausgaben zur Prüfung markiert |
 | DATEV-Datenservices (Belege online zu DATEV) | S | ➖ | erfordert eine DATEV-Partnerschaft; DATEV-Export mit Belegen genügt |
 | ELSTER-XML (UStVA) | S | 🟡 | Kopier-Knöpfe für Mein ELSTER ✅; ERiC optional später |
 | Kontoabruf PSD2 | S | 📅 | 3 (Enable Banking, FinTS) |
@@ -422,7 +422,7 @@ Legende: ✅ vorhanden · 🟡 teilweise · 📅 schon geplant · ➕ neu aufgen
 | Dashboard | Free | ✅ | |
 | Benachrichtigungen | Free | 📅 | 2 (Web Push), Wiedervorlagen ✅ |
 | Nummernkreise definierbar | Free | ✅ | Muster, Rücksetzung, Startnummer; nur vorwärts, kein Duplikat, im Protokoll |
-| Kontenrahmen SKR03 und SKR04 | Free | ➕ | 2b: Zuordnung der Kategorien, Voraussetzung für DATEV |
+| Kontenrahmen SKR03 und SKR04 | Free | ✅ | Kontenvorschläge je Zweck, jedes Konto überschreibbar, Sachkontenlänge, Berater-/Mandantennummer |
 | Schnellsuche über alle Inhalte | Free | ➕ | 2b: eine Suche für Kunden, Dokumente, Ausgaben, Leistungen |
 | Waren und Dienstleistungen mit Preisen | Free | ✅ | Leistungskatalog |
 | Weitere Benutzer | M | ✅ | Rollen über OIDC-Gruppen: Admin, Mitarbeit, **nur Entwürfe** (2b); ➕ 3: Steuerberatung (nur lesen) |

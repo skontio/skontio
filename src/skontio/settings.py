@@ -120,6 +120,7 @@ INSTALLED_APPS = [
     "skontio.dunning",
     "skontio.recurring",
     "skontio.banking",
+    "skontio.accounting",
     "skontio.assistant",
 ]
 

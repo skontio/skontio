@@ -6,6 +6,7 @@ from skontio.accounts import views as accounts
 from skontio.attachments import views as attachment_views
 from skontio.mcp import views as mcp_views
 from skontio.mcp.auth import mcp_endpoint
+from skontio.web import accounting_views as accounting
 from skontio.web import assistant_views
 from skontio.web import numbering_views as numbering
 from skontio.web import procedure_views as procedure
@@ -41,6 +42,8 @@ urlpatterns = [
     path("einstellungen/vorlagen/<int:pk>/loeschen/", layouts.template_delete, name="template_delete"),
     path("einstellungen/textbausteine/", layouts.text_blocks, name="text_blocks"),
     path("einstellungen/nummernkreise/", numbering.numbering, name="numbering"),
+    path("einstellungen/buchhaltung/", accounting.ledger, name="ledger"),
+    path("auswertungen/datev/", accounting.datev_export, name="datev_export"),
     path("einstellungen/steuerstatus/", taxstatus.tax_status, name="tax_status"),
     path("einstellungen/steuerstatus/wechsel/", taxstatus.tax_status_change, name="tax_status_change"),
     path("einstellungen/steuerstatus/korrektur/<int:pk>/", taxstatus.invoice_correct, name="invoice_correct"),

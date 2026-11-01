@@ -1,0 +1,33 @@
+{% extends "web/base.html" %}
+{% block title %}Buchhaltung{% endblock %}
+{% block content %}
+<div class="heading"><h1>Buchhaltung</h1></div>
+{% include "web/_settings_nav.html" %}
+<p>Kontenrahmen und Konten für den DATEV-Export. Die Konten sind Vorschläge für eine EÜR mit Istversteuerung –
+   bitte mit der Steuerberatung abstimmen. Leere Felder nutzen den Vorschlag.</p>
+{% if error %}<p role="alert" class="danger">{{ error }}</p>{% endif %}
+<form method="post" class="form">
+  {% csrf_token %}
+  <section class="card grid2">
+    <div><label for="chart">Kontenrahmen</label>
+      <select id="chart" name="chart">{% for value, label in charts %}<option value="{{ value }}"{% if value == settings.chart %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    <div><label for="account_length">Sachkontenlänge</label>
+      <input id="account_length" name="account_length" type="number" min="4" max="8" value="{{ settings.account_length }}"></div>
+    <div><label for="consultant_number">Beraternummer (DATEV)</label>
+      <input id="consultant_number" name="consultant_number" inputmode="numeric" value="{{ settings.consultant_number|default_if_none:'' }}"></div>
+    <div><label for="client_number">Mandantennummer (DATEV)</label>
+      <input id="client_number" name="client_number" inputmode="numeric" value="{{ settings.client_number|default_if_none:'' }}"></div>
+  </section>
+  {% for title, rows in groups %}
+  <details class="card"{% if forloop.first %} open{% endif %}>
+    <summary><h2>{{ title }}</h2></summary>
+    <div class="table-scroll"><table class="list">
+      <thead><tr><th>Zweck</th><th class="num">Vorschlag</th><th>Eigenes Konto</th></tr></thead>
+      <tbody>{% for row in rows %}<tr><td><label for="a-{{ row.p.key }}">{{ row.p.label }}</label></td><td class="num">{{ row.suggested }}</td>
+        <td><input id="a-{{ row.p.key }}" name="account-{{ row.p.key }}" value="{{ row.own }}" inputmode="numeric" maxlength="8" size="8"></td></tr>{% endfor %}</tbody>
+    </table></div>
+  </details>
+  {% endfor %}
+  <button type="submit">Speichern</button>
+</form>
+{% endblock %}
