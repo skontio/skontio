@@ -21,6 +21,8 @@ from skontio.audit.models import AuditEvent
 from skontio.audit.services import record
 from skontio.banking.models import BankTransaction
 from skontio.banking.services import link_expense
+from skontio.crm.models import Customer
+from skontio.crm.services import SUPPLIER_ROLES
 from skontio.documents.renditions import de_amount
 from skontio.expenses.models import Expense, PendingReceipt
 from skontio.expenses.services import (
@@ -49,7 +51,11 @@ class ExpenseForm(forms.Form):
         widget=forms.ClearableFileInput(attrs={"accept": "image/*,application/pdf,.xml"}),
     )
     receipt_date = forms.DateField(label="Belegdatum", widget=DATE)
-    supplier = forms.CharField(label="Lieferant", max_length=200)
+    supplier_contact = forms.ModelChoiceField(
+        queryset=Customer.objects.none(), label="Lieferant aus den Kontakten", required=False,
+        empty_label="– kein Kontakt –",
+    )  # fmt: skip
+    supplier = forms.CharField(label="Lieferant", max_length=200, required=False, help_text="wie auf dem Beleg")
     gross_amount = forms.DecimalField(
         label="Betrag (brutto, €)", min_value=Decimal("0.01"), max_digits=12, decimal_places=2, localize=True
     )
@@ -68,6 +74,22 @@ class ExpenseForm(forms.Form):
         label="Rechnung ohne USt nach § 13b (z. B. Werbung/Software aus dem EU-Ausland)", required=False
     )
     note = forms.CharField(label="Notiz", max_length=500, required=False, widget=forms.Textarea(attrs={"rows": 2}))
+
+    def __init__(self, *args, company=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if company is not None:
+            self.fields["supplier_contact"].queryset = Customer.objects.filter(
+                company=company, role__in=SUPPLIER_ROLES, archived_at__isnull=True
+            )
+
+    def clean(self):
+        data = super().clean()
+        contact = data.get("supplier_contact")
+        if not data.get("supplier") and contact is None:
+            self.add_error("supplier", "Bitte den Lieferanten angeben oder einen Kontakt wählen.")
+        elif contact is not None and not data.get("supplier"):
+            data["supplier"] = contact.name
+        return data
 
 
 FIELDS = [name for name in ExpenseForm.base_fields if name != "receipt"]
@@ -104,7 +126,7 @@ def expense_list(request):
 
 
 def _save(request, expense: Expense | None):
-    form = ExpenseForm(request.POST, request.FILES)
+    form = ExpenseForm(request.POST, request.FILES, company=request.company)
     if form.is_valid():
         data = {k: form.cleaned_data[k] for k in FIELDS}
         upload = form.cleaned_data["receipt"]
@@ -161,7 +183,7 @@ def expense_create(request):
                 "description": tx.purpose[:300],
                 "method": Expense.Method.BANK,
             }
-        form = ExpenseForm(initial=initial)
+        form = ExpenseForm(initial=initial, company=request.company)
     context = {"form": form, "expense": None, "bank": tx, "pending": _pending(request)}
     return render(request, "web/expenses/form.html", context)
 
@@ -184,7 +206,7 @@ def expense_detail(request, pk: int):
             return response
     else:
         initial = {f: getattr(expense, f) for f in FIELDS} | {"vat_rate": f"{expense.vat_rate.normalize():f}"}
-        form = ExpenseForm(initial=initial)
+        form = ExpenseForm(initial=initial, company=request.company)
     history = AuditEvent.objects.filter(entity="expense", entity_id=str(expense.pk)).select_related("actor")
     context = {
         "form": form,

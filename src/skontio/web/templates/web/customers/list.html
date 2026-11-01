@@ -1,9 +1,13 @@
 {% extends "web/base.html" %}
 {% block title %}Kunden{% endblock %}
 {% block content %}
-<div class="heading"><h1>Kunden</h1><a class="button" href="/kunden/neu/">Neuer Kunde</a></div>
-<input type="search" name="q" value="{{ q }}" placeholder="Suchen nach Name, Nummer, Ort, E-Mail" aria-label="Kunden suchen"
-       hx-get="/kunden/" hx-trigger="input changed delay:250ms, search" hx-target="#rows" hx-push-url="true">
+<div class="heading"><h1>Kontakte</h1><a class="button" href="/kunden/neu/">Neuer Kunde</a>
+  <a class="button secondary" href="/kunden/neu/?rolle=lieferant">Neuer Lieferant</a></div>
+<nav class="filters" aria-label="Rolle"><a href="/kunden/"{% if not role %} aria-current="page"{% endif %}>Alle</a>
+  <a href="/kunden/?rolle=kunden"{% if role == "kunden" %} aria-current="page"{% endif %}>Kunden</a>
+  <a href="/kunden/?rolle=lieferanten"{% if role == "lieferanten" %} aria-current="page"{% endif %}>Lieferanten</a></nav>
+<input type="search" name="q" value="{{ q }}" placeholder="Suchen nach Name, Nummer, Ort, E-Mail" aria-label="Kontakte suchen"
+       hx-get="/kunden/{% if role %}?rolle={{ role }}{% endif %}" hx-include="this" hx-trigger="input changed delay:250ms, search" hx-target="#rows" hx-push-url="true">
 <div class="table-scroll"><table class="list">
   <thead><tr><th>Nr.</th><th>Name</th><th class="hide-small">Ort</th><th class="hide-small">E-Mail</th></tr></thead>
   <tbody id="rows">{% include "web/customers/_rows.html" %}</tbody>

@@ -36,7 +36,11 @@ class Expense(models.Model):
     number = models.CharField("Belegnummer", max_length=32)
     receipt_date = models.DateField("Belegdatum")
     paid_on = models.DateField("Bezahlt am", null=True, blank=True)  # Abfluss (EÜR)
-    supplier = models.CharField("Lieferant", max_length=200)
+    supplier = models.CharField("Lieferant", max_length=200)  # as on the receipt (kept even if the contact changes)
+    supplier_contact = models.ForeignKey(
+        "crm.Customer", null=True, blank=True, on_delete=models.PROTECT, related_name="expenses",
+        verbose_name="Lieferant (Kontakt)",
+    )  # fmt: skip
     supplier_country = models.CharField("Land des Lieferanten", max_length=2, default="DE")
     description = models.CharField("Beschreibung", max_length=300, blank=True, default="")
     category = models.CharField("Kategorie", max_length=20, choices=Category.choices, default=Category.OTHER)

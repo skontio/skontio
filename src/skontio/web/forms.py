@@ -149,6 +149,7 @@ class CustomerForm(forms.ModelForm):
         model = Customer
         fields = [
             "kind",
+            "role",
             "name",
             "street",
             "postcode",
@@ -163,6 +164,16 @@ class CustomerForm(forms.ModelForm):
         ]
         labels = {**ADDRESS_LABELS, "kind": "Art", "payment_terms_days": "Zahlungsziel (Tage)"}
         help_texts = {"payment_terms_days": "Leer lassen für den Firmenstandard"}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["role"].required = False
+
+    def clean_role(self):
+        role = self.cleaned_data.get("role")
+        if role:
+            return role
+        return self.instance.role if self.instance.pk else Customer.Role.CUSTOMER
 
     def clean_vat_id(self):
         try:
@@ -188,7 +199,9 @@ class NewDocumentForm(forms.Form):
 
     def __init__(self, *args, company, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["customer"].queryset = Customer.objects.filter(company=company, archived_at__isnull=True)
+        self.fields["customer"].queryset = Customer.objects.filter(
+            company=company, archived_at__isnull=True, role__in=("customer", "both")
+        )
 
 
 class HeaderForm(forms.Form):

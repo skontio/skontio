@@ -112,6 +112,10 @@ def create_draft(
 ) -> Document:
     if customer is not None and customer.company_id != company.pk:
         raise DocumentError("Der Kunde gehört nicht zu dieser Firma")
+    if customer is not None and customer.role == "supplier":
+        raise DocumentError(
+            f"{customer.name} ist nur als Lieferant angelegt – bitte die Rolle auf „Kunde und Lieferant“ ändern"
+        )
     if service_date and service_period:
         raise DocumentError("Entweder Leistungsdatum oder Leistungszeitraum angeben, nicht beides")
     period_start, period_end = service_period or (None, None)

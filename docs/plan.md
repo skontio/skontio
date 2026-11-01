@@ -364,7 +364,7 @@ Legende: ✅ vorhanden · 🟡 teilweise · 📅 schon geplant · ➕ neu aufgen
 | Belege an Kunden oder Projekte weiterberechnen | S | ➕ | 3, zusammen mit Projekten |
 | Anlagegüter | Free | 📅 | 3 (Anlagen und AfA) |
 | Kassenbuch | Free | ➕ | 3: Kassenbuch mit Festschreibung je Tag, Kassensturzfähigkeit; ob § 146a AO greift, wird vorher geprüft (**zu verifizieren**) |
-| Kunden und Lieferanten getrennt | Free | 🟡 | Kunden ✅, Lieferanten nur als Freitext an der Ausgabe; ➕ 2b: Lieferanten als Kontakt mit Stammdaten |
+| Kunden und Lieferanten getrennt | Free | ✅ | ein Adressbuch mit Rolle Kunde/Lieferant/beides, Lieferanten mit eigenen Nummern (L-…), Ausgaben am Lieferanten |
 | Kategorien, mehrere Personen je Kontakt | Free | ✅ | Tags, Ansprechpartner |
 | Logo oder Bild je Kontakt | Free | ➖ | kaum Nutzen für Solo-Selbstständige |
 | Bankdaten und SEPA-Mandat | Free | ➕ | 3: Mandat am Kunden, Export als pain.008 für das Onlinebanking |

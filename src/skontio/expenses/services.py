@@ -33,6 +33,7 @@ EDITABLE = {
     "paid_on",
     "supplier",
     "supplier_country",
+    "supplier_contact",
     "description",
     "category",
     "gross_amount",
@@ -108,6 +109,12 @@ def _store_receipt(data: bytes, filename: str, receipt_date: dt.date | None):
 
 
 def _validate(expense: Expense) -> None:
+    contact = expense.supplier_contact
+    if contact is not None:
+        if contact.company_id != expense.company_id or contact.role not in ("supplier", "both"):
+            raise ExpenseError("Dieser Kontakt ist kein Lieferant der Firma.")
+        expense.supplier = expense.supplier or contact.name
+        expense.supplier_country = contact.country if not expense.supplier_country else expense.supplier_country
     expense.supplier = (expense.supplier or "").strip()
     expense.supplier_country = (expense.supplier_country or "DE").strip().upper()
     if not expense.supplier:

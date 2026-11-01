@@ -12,6 +12,10 @@ from skontio.numbering.services import allocate_number
 
 CUSTOMER_SEQUENCE = "customer"
 DEFAULT_CUSTOMER_PATTERN = "K-{#####}"
+SUPPLIER_SEQUENCE = "supplier"
+DEFAULT_SUPPLIER_PATTERN = "L-{#####}"
+CUSTOMER_ROLES = (Customer.Role.CUSTOMER, Customer.Role.BOTH)
+SUPPLIER_ROLES = (Customer.Role.SUPPLIER, Customer.Role.BOTH)
 
 _VAT_ID = re.compile(r"^[A-Z]{2}[A-Z0-9+*]{2,12}$")
 _VAT_ID_DE = re.compile(r"^DE\d{9}$")
@@ -27,18 +31,25 @@ def normalise_vat_id(raw: str) -> str:
     return vat_id
 
 
-def create_customer(company, *, name: str, tags: list[str] | None = None, vat_id: str = "", **fields) -> Customer:
+def create_customer(
+    company, *, name: str, tags: list[str] | None = None, vat_id: str = "", role: str = Customer.Role.CUSTOMER, **fields
+) -> Customer:
+    """Contacts that are only suppliers get their own number range (L-…), all others K-…."""
+    if role not in Customer.Role.values:
+        raise ValueError(f"Unbekannte Rolle {role!r}")
+    supplier_only = role == Customer.Role.SUPPLIER
+    sequence = SUPPLIER_SEQUENCE if supplier_only else CUSTOMER_SEQUENCE
+    pattern = DEFAULT_SUPPLIER_PATTERN if supplier_only else DEFAULT_CUSTOMER_PATTERN
     with transaction.atomic():
         NumberSequence.objects.get_or_create(
-            company=company,
-            doc_type=CUSTOMER_SEQUENCE,
-            defaults={"pattern": DEFAULT_CUSTOMER_PATTERN, "reset": NumberSequence.Reset.NEVER},
+            company=company, doc_type=sequence, defaults={"pattern": pattern, "reset": NumberSequence.Reset.NEVER}
         )
         customer = Customer.objects.create(
             company=company,
-            number=allocate_number(company, CUSTOMER_SEQUENCE, timezone.localdate()),
+            number=allocate_number(company, sequence, timezone.localdate()),
             name=name.strip(),
             vat_id=normalise_vat_id(vat_id),
+            role=role,
             **fields,
         )
         for tag_name in tags or []:
@@ -47,8 +58,12 @@ def create_customer(company, *, name: str, tags: list[str] | None = None, vat_id
     return customer
 
 
-def search_customers(company, query: str = "", *, include_archived: bool = False) -> QuerySet[Customer]:
+def search_customers(
+    company, query: str = "", *, include_archived: bool = False, roles: tuple[str, ...] | None = None
+) -> QuerySet[Customer]:
     customers = Customer.objects.filter(company=company)
+    if roles:
+        customers = customers.filter(role__in=roles)
     if not include_archived:
         customers = customers.filter(archived_at__isnull=True)
     if query.strip():

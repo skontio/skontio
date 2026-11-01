@@ -17,7 +17,7 @@
 {% else %}
 <div class="docpage">
   <div class="main">
-    <section class="card">
+    {% if customer.role != "supplier" %}<section class="card">
       <h2>Dokumente</h2>
       {% if documents %}
       <div class="table-scroll flush"><table class="list">
@@ -32,7 +32,18 @@
         </tbody>
       </table></div>
       {% else %}<p class="muted">Noch keine Dokumente. <a href="/dokumente/neu/?typ=invoice&amp;kunde={{ customer.pk }}">Erste Rechnung schreiben</a></p>{% endif %}
-    </section>
+    </section>{% endif %}
+
+    {% if customer.role != "customer" %}<section class="card">
+      <h2>Ausgaben</h2>
+      {% if expenses %}
+      <div class="table-scroll flush"><table class="list">
+        <thead><tr><th>Beleg</th><th class="hide-small">Datum</th><th>Beschreibung</th><th class="num">Betrag</th></tr></thead>
+        <tbody>{% for e in expenses %}<tr><td><a href="/ausgaben/{{ e.pk }}/">{{ e.number }}</a></td><td class="hide-small">{{ e.receipt_date|date:"d.m.Y" }}</td>
+          <td>{{ e.description }}</td><td class="num amount">{{ e.gross_amount|floatformat:"2g" }} €</td></tr>{% endfor %}</tbody>
+      </table></div>
+      {% else %}<p class="muted">Noch keine Ausgaben. <a href="/ausgaben/neu/">Ausgabe erfassen</a></p>{% endif %}
+    </section>{% endif %}
 
     <details class="card" {% if form.errors %}open{% endif %}>
       <summary><h2>Stammdaten</h2></summary>

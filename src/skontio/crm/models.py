@@ -18,11 +18,19 @@ class Tag(models.Model):
 
 
 class Customer(models.Model):
+    """A contact: customer, supplier or both (one address book, plan §13.3)."""
+
     class Kind(models.TextChoices):
         ORGANISATION = "org", "Firma"
         PERSON = "person", "Privatperson"
 
+    class Role(models.TextChoices):
+        CUSTOMER = "customer", "Kunde"
+        SUPPLIER = "supplier", "Lieferant"
+        BOTH = "both", "Kunde und Lieferant"
+
     company = models.ForeignKey("core.Company", on_delete=models.PROTECT, related_name="customers")
+    role = models.CharField("Rolle", max_length=10, choices=Role.choices, default=Role.CUSTOMER)
     number = models.CharField(max_length=32)
     kind = models.CharField(max_length=10, choices=Kind.choices, default=Kind.ORGANISATION)
     name = models.CharField(max_length=200)

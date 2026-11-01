@@ -13,7 +13,7 @@ from skontio.catalog.models import Item
 from skontio.catalog.services import archive_item, search_items
 from skontio.crm.activities import ActivityError, complete_follow_up, create_follow_up, due_follow_ups, log_activity
 from skontio.crm.models import Customer, FollowUp
-from skontio.crm.services import create_customer, search_customers
+from skontio.crm.services import CUSTOMER_ROLES, SUPPLIER_ROLES, create_customer, search_customers
 from skontio.documents.models import INVOICE_TYPES, Document
 from skontio.documents.renditions import de_amount
 from skontio.dunning.services import candidates as dunning_candidates
@@ -105,18 +105,24 @@ def setup(request):
 # --- customers --------------------------------------------------------------------------------
 
 
+ROLE_FILTERS = {"kunden": CUSTOMER_ROLES, "lieferanten": SUPPLIER_ROLES}
+
+
 @company_view
 def customer_list(request):
     q = request.GET.get("q", "")
-    customers = search_customers(request.company, q)[:100]
+    role = request.GET.get("rolle", "")
+    customers = search_customers(request.company, q, roles=ROLE_FILTERS.get(role))[:100]
     return render_page_or_fragment(
-        request, "web/customers/list.html", "web/customers/_rows.html", {"customers": customers, "q": q}
-    )
+        request, "web/customers/list.html", "web/customers/_rows.html",
+        {"customers": customers, "q": q, "role": role if role in ROLE_FILTERS else ""},
+    )  # fmt: skip
 
 
 @company_view
 def customer_create(request):
-    form = CustomerForm(request.POST or None)
+    initial = {"role": "supplier"} if request.GET.get("rolle") == "lieferant" else None
+    form = CustomerForm(request.POST or None, initial=initial)
     if request.method == "POST" and form.is_valid():
         data = dict(form.cleaned_data)
         customer = create_customer(request.company, name=data.pop("name"), vat_id=data.pop("vat_id"), **data)
@@ -145,6 +151,7 @@ def customer_detail(request, pk: int):
         "follow_up_form": FollowUpForm(initial={"due_on": timezone.localdate() + dt.timedelta(days=7)}),
         "today": today,
         "attachments": customer.attachments.select_related("blob"),
+        "expenses": customer.expenses.filter(cancelled_at__isnull=True)[:50],
         "attach_customer": customer,
     }
     return render(request, "web/customers/form.html", context)

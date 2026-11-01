@@ -9,7 +9,12 @@ from django.shortcuts import redirect, render
 from django.utils import timezone
 
 from skontio.crm.models import Customer
-from skontio.crm.services import CUSTOMER_SEQUENCE, DEFAULT_CUSTOMER_PATTERN
+from skontio.crm.services import (
+    CUSTOMER_SEQUENCE,
+    DEFAULT_CUSTOMER_PATTERN,
+    DEFAULT_SUPPLIER_PATTERN,
+    SUPPLIER_SEQUENCE,
+)
 from skontio.documents.models import Document
 from skontio.documents.services import DEFAULT_PATTERNS, SEQUENCE_TYPE
 from skontio.dunning import services as dunning
@@ -33,7 +38,7 @@ class Kind:
     max_length: int
 
     def existing(self, company) -> list[str]:
-        if self.key == CUSTOMER_SEQUENCE:
+        if self.key in (CUSTOMER_SEQUENCE, SUPPLIER_SEQUENCE):
             qs = Customer.objects.filter(company=company)
         elif self.key == expenses.SEQUENCE:
             qs = Expense.objects.filter(company=company)
@@ -51,6 +56,7 @@ KINDS = [
     Kind(Type.QUOTE, "Angebote", DEFAULT_PATTERNS[Type.QUOTE], YEARLY, 64),
     Kind(Type.ORDER_CONFIRMATION, "Auftragsbestätigungen", DEFAULT_PATTERNS[Type.ORDER_CONFIRMATION], YEARLY, 64),
     Kind(CUSTOMER_SEQUENCE, "Kundennummern", DEFAULT_CUSTOMER_PATTERN, NEVER, 32),
+    Kind(SUPPLIER_SEQUENCE, "Lieferantennummern", DEFAULT_SUPPLIER_PATTERN, NEVER, 32),
     Kind(expenses.SEQUENCE, "Ausgaben", expenses.PATTERN, YEARLY, 32),
     Kind(dunning.SEQUENCE, "Mahnungen", dunning.PATTERN, YEARLY, 32),
 ]
