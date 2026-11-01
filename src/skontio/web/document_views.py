@@ -5,6 +5,7 @@ from __future__ import annotations
 import datetime as dt
 import io
 from decimal import Decimal
+from urllib.parse import urlencode
 
 from django.db.models import Q
 from django.http import FileResponse, Http404, HttpResponse
@@ -42,6 +43,7 @@ from skontio.mail.services import MailError, default_message, send_document
 from skontio.payments.services import PaymentError, open_amount, payment_status, record_payment
 from skontio.tax.engine import TaxTreatment
 from skontio.taxstatus.corrections import transferable_payments
+from skontio.web.csvexport import csv_response
 from skontio.web.forms import (
     CancelForm,
     ConvertForm,
@@ -235,6 +237,26 @@ def _finalized_context(doc: Document, **extra) -> dict:
     return context | extra
 
 
+STATE_FILTERS = {
+    "entwurf": {"draft"},
+    "offen": {"open", "partial", "overdue"},
+    "ueberfaellig": {"overdue"},
+    "bezahlt": {"paid"},
+    "storniert": {"cancelled"},
+}
+STATE_LABELS = {
+    "draft": "Entwurf", "final": "festgeschrieben", "open": "offen", "partial": "teilbezahlt",
+    "overdue": "überfällig", "paid": "bezahlt", "cancelled": "storniert",
+}  # fmt: skip
+
+
+def _iso_date(value: str) -> dt.date | None:
+    try:
+        return dt.date.fromisoformat(value)
+    except (TypeError, ValueError):
+        return None
+
+
 @company_view
 def document_list(request):
     documents = (
@@ -245,12 +267,50 @@ def document_list(request):
     doc_type = request.GET.get("typ", "")
     if doc_type in TYPE_FILTERS:
         documents = documents.filter(doc_type__in=TYPE_FILTERS[doc_type])
-    query = request.GET.get("q", "").strip()
+    query = request.GET.get("q", "").strip()[:100]
     if query:
         documents = documents.filter(Q(number__icontains=query) | Q(customer__name__icontains=query))
+    start, end = _iso_date(request.GET.get("von", "")), _iso_date(request.GET.get("bis", ""))
+    if start:
+        documents = documents.filter(issue_date__gte=start)
+    if end:
+        documents = documents.filter(issue_date__lte=end)
+    customer = request.GET.get("kunde", "")
+    if customer.isdigit():
+        documents = documents.filter(customer_id=int(customer))
+    state = request.GET.get("status", "")
+    wanted = STATE_FILTERS.get(state)
     today = timezone.localdate()
-    rows = [(doc, document_state(doc, today)) for doc in documents[:200]]
-    return render(request, "web/documents/list.html", {"rows": rows, "typ": doc_type, "q": query})
+    limit = 10_000 if request.GET.get("csv") else 200
+    rows = []
+    for doc in documents[: limit * 5 if wanted else limit]:
+        doc_state = document_state(doc, today)
+        if wanted is None or doc_state in wanted:
+            rows.append((doc, doc_state))
+        if len(rows) >= limit:
+            break
+    if request.GET.get("csv"):
+        return csv_response(
+            f"dokumente-{today.isoformat()}.csv",
+            ["Nummer", "Art", "Status", "Kunde", "Kundennummer", "Datum", "Leistungsdatum", "Fällig", "Netto", "USt",
+             "Brutto"],
+            ([doc.number or "", doc.get_doc_type_display(), STATE_LABELS.get(st, st),
+              doc.customer.name if doc.customer else "", doc.customer.number if doc.customer else "", doc.issue_date,
+              doc.service_date, doc.due_date, doc.net_total, doc.tax_total, doc.gross_total] for doc, st in rows),
+        )  # fmt: skip
+    params = {
+        k: v for k, v in {"typ": doc_type if doc_type in TYPE_FILTERS else "", "q": query,
+                          "von": start.isoformat() if start else "", "bis": end.isoformat() if end else "",
+                          "kunde": customer if customer.isdigit() else "", "status": state if wanted else ""}.items()
+        if v
+    }  # fmt: skip
+    return render(
+        request, "web/documents/list.html",
+        {"rows": rows, "typ": doc_type, "q": query, "status": state if wanted else "", "von": start, "bis": end,
+         "query_string": urlencode(params), "csv_query": urlencode({**params, "csv": "1"}),
+         "status_choices": [("entwurf", "Entwurf"), ("offen", "offen"), ("ueberfaellig", "überfällig"),
+                            ("bezahlt", "bezahlt"), ("storniert", "storniert")]},
+    )  # fmt: skip
 
 
 def document_state(doc: Document, today: dt.date) -> str:

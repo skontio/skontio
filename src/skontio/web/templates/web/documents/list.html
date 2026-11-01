@@ -16,6 +16,13 @@
   {% if typ %}<input type="hidden" name="typ" value="{{ typ }}">{% endif %}
   <label class="visually-hidden" for="doc-search">Dokumente durchsuchen</label>
   <input id="doc-search" type="search" name="q" value="{{ q }}" placeholder="Nummer oder Kunde suchen">
+  <label for="doc-status">Status</label>
+  <select id="doc-status" name="status"><option value="">alle</option>
+    {% for value, label in status_choices %}<option value="{{ value }}"{% if value == status %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+  <label for="doc-von">Von</label><input id="doc-von" type="date" name="von" value="{{ von|date:'Y-m-d' }}">
+  <label for="doc-bis">Bis</label><input id="doc-bis" type="date" name="bis" value="{{ bis|date:'Y-m-d' }}">
+  <button type="submit" class="secondary">Filtern</button>
+  <a class="button secondary" href="?{{ csv_query }}">Als CSV</a>
 </form>
 <div class="table-scroll"><table class="list">
   <thead><tr><th>Status</th><th>Nummer</th><th class="hide-small">Art</th><th>Kunde</th><th class="hide-small">Datum</th><th class="hide-small">Fällig</th><th class="num">Betrag</th></tr></thead>

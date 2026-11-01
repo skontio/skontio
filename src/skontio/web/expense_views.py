@@ -38,6 +38,7 @@ from skontio.reports import ustva
 from skontio.reports.euer import euer, journal
 from skontio.taxstatus.models import VatReturn
 from skontio.taxstatus.services import TaxStatusError, regime_for
+from skontio.web.csvexport import csv_safe
 from skontio.web.support import company_view, full_access
 
 DATE = forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d")
@@ -265,9 +266,7 @@ def euer_report(request):
     return render(request, "web/reports/euer.html", context)
 
 
-def _csv_safe(value: str) -> str:
-    """Spreadsheet formula injection: a leading =, +, - or @ would be executed by Excel/LibreOffice."""
-    return "'" + value if value[:1] in {"=", "+", "-", "@", "\t", "\r"} else value
+_csv_safe = csv_safe
 
 
 @company_view
