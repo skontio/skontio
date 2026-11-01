@@ -1,0 +1,27 @@
+{% extends "web/base.html" %}
+{% block title %}Nummernkreise{% endblock %}
+{% block content %}
+<div class="heading"><h1>Nummernkreise</h1></div>
+{% include "web/_settings_nav.html" %}
+<p>Platzhalter: <code>{YYYY}</code> Jahr, <code>{YY}</code> Jahr zweistellig, <code>{MM}</code> Monat und genau ein
+   Zähler <code>{####}</code> (Anzahl der # = Mindeststellen). Nummern werden erst beim Festschreiben vergeben und
+   sind lückenlos. Sind schon Nummern vergeben, kann die nächste Nummer nur steigen; jede Änderung steht im Protokoll.</p>
+{% for row in rows %}
+<form method="post" class="form card">
+  {% csrf_token %}
+  <input type="hidden" name="kind" value="{{ row.kind.key }}">
+  <h2>{{ row.kind.label }}</h2>
+  {% if row.error %}<p role="alert" class="danger">{{ row.error }}</p>{% endif %}
+  <div class="grid2">
+    <div><label for="p-{{ row.kind.key }}">Muster</label>
+      <input id="p-{{ row.kind.key }}" name="pattern" value="{{ row.seq.pattern }}" maxlength="64" required></div>
+    <div><label for="n-{{ row.kind.key }}">Nächste Nummer</label>
+      <input id="n-{{ row.kind.key }}" name="next_value" type="number" min="1" value="{{ row.next_value }}" required></div>
+    <div><label for="r-{{ row.kind.key }}">Zähler zurücksetzen</label>
+      <select id="r-{{ row.kind.key }}" name="reset">{% for value, label in resets %}<option value="{{ value }}"{% if value == row.seq.reset %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    <div><p class="muted">Nächste Nummer wird</p><p class="amount"><code>{{ row.preview }}</code></p></div>
+  </div>
+  <button type="submit" class="secondary">Speichern</button>
+</form>
+{% endfor %}
+{% endblock %}

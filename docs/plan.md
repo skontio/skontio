@@ -338,7 +338,7 @@ Legende: ✅ vorhanden · 🟡 teilweise · 📅 schon geplant · ➕ neu aufgen
 | Brutto- und Nettorechnungen | Free | 🟡 | Netto ✅; ➕ 2b: Bruttopreise eingeben (B2C), Rundung bleibt EN-16931-konform |
 | Rechnungen ins EU-Ausland und in Drittländer | Free | ✅ | ig. Lieferung, § 13b, Ausfuhr |
 | Rechtskonforme Stornierung | Free | ✅ | |
-| Zahlungsziel zentral definierbar | Free | 🟡 | je Kunde ✅; ➕ 2b: Firmenstandard |
+| Zahlungsziel zentral definierbar | Free | ✅ | Firmenstandard, je Kunde abweichend |
 | Filterbare Übersicht, CSV-Export | Free | 🟡 | Liste ✅; ➕ 2b: Filter (Status, Zeitraum, Kunde) und CSV-Export |
 
 ### 13.2 Vorlagen, Mahnwesen, Zahlungen
@@ -421,7 +421,7 @@ Legende: ✅ vorhanden · 🟡 teilweise · 📅 schon geplant · ➕ neu aufgen
 | GoBD-zertifiziert | S | ➖ | keine Zertifizierung geplant; Festschreibung, Audit-Log und Verfahrensdokumentation ✅ |
 | Dashboard | Free | ✅ | |
 | Benachrichtigungen | Free | 📅 | 2 (Web Push), Wiedervorlagen ✅ |
-| Nummernkreise definierbar | Free | 🟡 | Muster im Datenmodell ✅; ➕ 2b: in der Oberfläche einstellbar |
+| Nummernkreise definierbar | Free | ✅ | Muster, Rücksetzung, Startnummer; nur vorwärts, kein Duplikat, im Protokoll |
 | Kontenrahmen SKR03 und SKR04 | Free | ➕ | 2b: Zuordnung der Kategorien, Voraussetzung für DATEV |
 | Schnellsuche über alle Inhalte | Free | ➕ | 2b: eine Suche für Kunden, Dokumente, Ausgaben, Leistungen |
 | Waren und Dienstleistungen mit Preisen | Free | ✅ | Leistungskatalog |
