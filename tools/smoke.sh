@@ -56,7 +56,9 @@ manage() { "${compose[@]}" exec -T skontio skontio "$@"; }
 echo "==> Container bauen und starten (Port $SKONTIO_DEV_PORT, $([ "$postgres" = 1 ] && echo Postgres || echo SQLite))"
 "${compose[@]}" down -v --remove-orphans >/dev/null 2>&1 || true
 # shellcheck disable=SC2086
-"${compose[@]}" up -d $build --wait --wait-timeout 180
+"${compose[@]}" up -d $build --wait --wait-timeout 180 skontio
+# The worker has no healthcheck (no web server); newer Compose versions refuse --wait for it.
+"${compose[@]}" up -d skontio-worker
 
 echo "==> Beispieldaten"
 manage demo
