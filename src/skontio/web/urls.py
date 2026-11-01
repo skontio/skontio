@@ -19,6 +19,7 @@ urlpatterns = [
     path("dokumente/neu/", docs.document_new, name="document_new"),
     path("dokumente/<int:pk>/", docs.document_detail, name="document_detail"),
     path("dokumente/<int:pk>/positionen/", docs.line_add, name="line_add"),
+    path("dokumente/<int:pk>/positionen/<int:line_pk>/", docs.line_edit, name="line_edit"),
     path("dokumente/<int:pk>/positionen/<int:line_pk>/entfernen/", docs.line_remove, name="line_remove"),
     path("dokumente/<int:pk>/festschreiben/", docs.document_finalize, name="document_finalize"),
     path("dokumente/<int:pk>/vorschau.pdf", docs.document_preview, name="document_preview"),

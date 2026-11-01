@@ -1,9 +1,9 @@
-<h2 id="dateien">Dateien</h2>
+{% if not no_heading %}<h2 id="dateien">Dateien</h2>{% endif %}
 <ul class="plain">
   {% for a in attachments %}
-  <li><a href="/dateien/{{ a.pk }}/">{{ a.filename }}</a> <span class="muted">· {{ a.blob.size|filesizeformat }} · {{ a.uploaded_at|date:"d.m.Y" }}{% if a.blob.retention_until %} · aufbewahren bis {{ a.blob.retention_until|date:"d.m.Y" }}{% endif %}{% if a.note %} · {{ a.note }}{% endif %}</span>
-    <form method="post" action="/dateien/{{ a.pk }}/loeschen/" class="inline-form">{% csrf_token %}<button type="submit" class="link">entfernen</button></form></li>
-  {% empty %}<li class="muted">Keine Dateien.</li>{% endfor %}
+  <li><a href="/dateien/{{ a.pk }}/">{{ a.filename }}</a> <span class="muted">({{ a.blob.size|filesizeformat }}, {{ a.uploaded_at|date:"d.m.Y" }}{% if a.blob.retention_until %}, aufbewahren bis {{ a.blob.retention_until|date:"d.m.Y" }}{% endif %})</span>{% if a.note %}<br><small>{{ a.note }}</small>{% endif %}
+    <form method="post" action="/dateien/{{ a.pk }}/loeschen/" class="inline-form">{% csrf_token %}<button type="submit" class="link quiet">entfernen</button></form></li>
+  {% empty %}<li class="muted">Noch keine Dateien abgelegt.</li>{% endfor %}
 </ul>
 <form method="post" action="/dateien/hochladen/" enctype="multipart/form-data" class="form">
   {% csrf_token %}

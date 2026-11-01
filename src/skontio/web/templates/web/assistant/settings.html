@@ -1,7 +1,8 @@
 {% extends "web/base.html" %}
 {% block title %}Assistent einrichten{% endblock %}
 {% block content %}
-<div class="heading"><h1>KI-Assistent einrichten</h1><a class="button secondary" href="/assistent/">Assistent</a></div>
+<div class="heading"><h1>KI-Assistent einrichten</h1><p><a class="button secondary" href="/assistent/">Zum Assistenten</a></p></div>
+{% include "web/_settings_nav.html" %}
 <p><strong>Datenschutz:</strong> Mit Ollama bleiben alle Daten im eigenen Netz. Bei Cloud-Anbietern gehen Anfragen und
    gefilterte Daten (Privatkunden pseudonymisiert, keine Kontaktdaten oder IBAN) an den Anbieter – für die Anthropic API
    und OpenAI gibt es Auftragsverarbeitungsverträge, für Claude Pro nicht.</p>

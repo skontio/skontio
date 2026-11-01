@@ -1,7 +1,8 @@
 {% extends "web/base.html" %}
 {% block title %}Textbausteine{% endblock %}
 {% block content %}
-<div class="heading"><h1>Textbausteine</h1><a class="button secondary" href="/einstellungen/vorlagen/">Vorlagen</a></div>
+<div class="heading"><h1>Textbausteine</h1></div>
+{% include "web/_settings_nav.html" %}
 <p>Einleitung und Schlusstext, mit denen neue Entwürfe starten – je Dokumentart und Sprache. Im Entwurf lassen sie
    sich jederzeit anpassen. Leere Felder bedeuten: kein Standardtext.</p>
 <form method="post" class="form">

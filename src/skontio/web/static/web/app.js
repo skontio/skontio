@@ -53,6 +53,16 @@ document.querySelectorAll("button.share-file").forEach((button) => {
   });
 });
 
+// Links to a collapsed section (e.g. "Zahlung erfassen" → #zahlungen) open it first.
+function openTargetSection(hash) {
+  const target = hash && document.getElementById(hash.slice(1));
+  if (target instanceof HTMLDetailsElement) {
+    target.open = true;
+  }
+}
+window.addEventListener("hashchange", () => openTargetSection(window.location.hash));
+openTargetSection(window.location.hash);
+
 // Copy buttons (e.g. Kennzahlen for Mein ELSTER).
 document.addEventListener("click", async (event) => {
   const button = event.target instanceof Element ? event.target.closest("button.copy") : null;

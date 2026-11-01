@@ -2,6 +2,7 @@
 {% block title %}KI-Zugriff{% endblock %}
 {% block content %}
 <div class="heading"><h1>KI-Zugriff (MCP)</h1></div>
+{% include "web/_settings_nav.html" %}
 <p>MCP-Adresse für Claude &amp; Co.: <code>{{ mcp_url }}</code>. Assistenten können nur Entwürfe anlegen;
    Festschreiben, Versenden und Zahlungen bleiben bei dir.
    Pseudonym-Modus für Privatkunden: <strong>{% if pseudonymised %}an{% else %}aus{% endif %}</strong>.</p>

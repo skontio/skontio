@@ -1,11 +1,11 @@
 {% extends "web/base.html" %}
 {% block title %}Neues Dokument{% endblock %}
 {% block content %}
-<h1>Neues Dokument</h1>
-<form method="post" class="form">
+<div class="heading"><h1>Neues Dokument</h1></div>
+<form method="post" class="card form grid2">
   {% csrf_token %}
   {% include "web/_fields.html" %}
   <p class="muted">Kunde fehlt? <a href="/kunden/neu/">Neuen Kunden anlegen</a></p>
-  <button type="submit">Entwurf anlegen</button>
+  <div class="actions"><button type="submit">Entwurf anlegen</button> <a href="/dokumente/">Abbrechen</a></div>
 </form>
 {% endblock %}

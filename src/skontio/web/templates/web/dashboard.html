@@ -1,48 +1,92 @@
-{% extends "web/base.html" %}
+{% extends "web/base.html" %}{% load skontio_ui %}
 {% block title %}Übersicht{% endblock %}
 {% block content %}
-<h1>Übersicht</h1>
-<div class="cards">
-  {% if status %}
-  <section class="card level-{{ status.level.value }}">
-    <h2>Kleinunternehmer {{ status.year }}</h2>
-    <p class="big">{{ revenue }} € <span class="muted">von {{ limit }} €</span></p>
-    <progress max="100" value="{{ status.percent }}">{{ status.percent }} %</progress>
-    <p class="muted">Vereinnahmte Entgelte im laufenden Jahr (§ 19 UStG).</p>
-    {% if status.level.value == "warn_80" %}<p class="warn">Über 80 % der Jahresgrenze erreicht.</p>{% endif %}
-    {% if status.level.value == "warn_90" %}<p class="warn">Über 90 % der Jahresgrenze erreicht – bald prüfen, ob die Regelbesteuerung greift.</p>{% endif %}
-    {% if status.level.value == "exceeded" %}<p class="danger">Grenze am {{ status.crossed_on|date:"d.m.Y" }} überschritten. Ab diesem Umsatz gilt voraussichtlich die Regelbesteuerung – bitte <a href="/einstellungen/steuerstatus/">Steuerstatus wechseln</a> und mit der Steuerberatung abstimmen.</p>{% endif %}
-    {% if status.previous_year_exceeded %}<p class="danger">Vorjahresgrenze überschritten: Ab 1. Januar {{ status.year }} gilt die Regelbesteuerung – <a href="/einstellungen/steuerstatus/">Steuerstatus</a>.</p>{% endif %}
-  </section>
-  {% elif regime %}
-  <section class="card"><h2>Besteuerung</h2><p>Regelbesteuerung</p></section>
-  {% endif %}
+<div class="heading">
+  <h1>Übersicht</h1>
+  <p><a class="button" href="/dokumente/neu/?typ=invoice">Neue Rechnung</a>
+     <a class="button secondary" href="/dokumente/neu/?typ=quote">Neues Angebot</a>
+     <a class="button secondary" href="/ausgaben/neu/">Ausgabe erfassen</a></p>
+</div>
+
+<div class="desk">
   <section class="card">
-    <h2>Offene Posten</h2>
-    <p class="big">{{ open_total }} €</p>
-    {% if overdue %}<p class="danger">{{ overdue|length }} überfällig</p>{% endif %}
-    {% if dunning_due %}<p><a class="button secondary" href="/mahnwesen/">{{ dunning_due }} Mahnung{{ dunning_due|pluralize:"en" }} fällig</a></p>{% endif %}
-    <ul class="plain">
-      {% for doc, amount in open_items %}
-      <li><a href="/dokumente/{{ doc.pk }}/">{{ doc.number }}</a> · {{ doc.customer.name }} · {{ amount }} € {% if doc.due_date and doc.due_date < today %}<span class="badge danger">fällig {{ doc.due_date|date:"d.m." }}</span>{% endif %}</li>
-      {% empty %}<li class="muted">Keine offenen Rechnungen.</li>{% endfor %}
-    </ul>
-  </section>
-  <section class="card">
-    <h2>Wiedervorlagen</h2>
-    <ul class="plain">
+    <h2>Jetzt zu tun</h2>
+    <ul class="plain todo">
+      {% for doc, amount in overdue %}
+      <li>{% stamp "overdue" %}
+        <span class="what"><a href="/dokumente/{{ doc.pk }}/">{{ doc.number }}</a> an {{ doc.customer.name }}
+          <small>fällig seit {{ doc.due_date|date:"d.m.Y" }}</small></span>
+        <span class="sum">{{ amount }} €</span></li>
+      {% endfor %}
+      {% if dunning_due %}
+      <li>{% stamp "overdue" %}
+        <span class="what"><a href="/mahnwesen/">{{ dunning_due }} Mahnung{{ dunning_due|pluralize:"en" }} fällig</a>
+          <small>Mahnschreiben prüfen und versenden</small></span><span></span></li>
+      {% endif %}
       {% for f in follow_ups %}
-      <li>{% if f.due_on <= today %}<span class="badge danger">{{ f.due_on|date:"d.m." }}</span>{% else %}<span class="badge">{{ f.due_on|date:"d.m." }}</span>{% endif %}
-        <a href="/kunden/{{ f.customer.pk }}/">{{ f.customer.name }}</a>: {{ f.title }}
-        <form method="post" action="/wiedervorlagen/{{ f.pk }}/erledigt/" class="inline-form">{% csrf_token %}<input type="hidden" name="back" value="/"><button type="submit" class="link">erledigt</button></form></li>
-      {% empty %}<li class="muted">Nichts fällig in den nächsten 7 Tagen.</li>{% endfor %}
+      <li><span class="badge{% if f.due_on <= today %} danger{% endif %}">{{ f.due_on|date:"d.m." }}</span>
+        <span class="what"><a href="/kunden/{{ f.customer.pk }}/">{{ f.customer.name }}</a>: {{ f.title }}</span>
+        <form method="post" action="/wiedervorlagen/{{ f.pk }}/erledigt/" class="inline-form">{% csrf_token %}<input type="hidden" name="back" value="/"><button type="submit" class="secondary">Erledigt</button></form></li>
+      {% endfor %}
+      {% if recurring_due %}
+      <li>{% stamp "draft" %}
+        <span class="what"><a href="/wiederkehrend/">{{ recurring_due }} wiederkehrende Rechnung{{ recurring_due|pluralize:"en" }} fällig</a>
+          <small>als Entwurf erzeugen</small></span><span></span></li>
+      {% endif %}
+      {% for doc in draft_list %}
+      <li>{% stamp "draft" %}
+        <span class="what"><a href="/dokumente/{{ doc.pk }}/">{{ doc.get_doc_type_display }} für {{ doc.customer.name|default:"–" }}</a>
+          <small>fertigstellen und festschreiben</small></span><span></span></li>
+      {% endfor %}
+      {% if not overdue and not dunning_due and not follow_ups and not recurring_due and not draft_list %}
+      <li class="empty">Alles erledigt. Nichts fällig in den nächsten 7 Tagen.</li>
+      {% endif %}
     </ul>
+    {% if drafts > draft_list|length %}<p class="muted"><a href="/dokumente/">Alle {{ drafts }} Entwürfe</a></p>{% endif %}
   </section>
-  <section class="card">
-    <h2>Entwürfe</h2>
-    <p class="big">{{ drafts }}</p>
-    {% if recurring_due %}<p><a class="button secondary" href="/wiederkehrend/">{{ recurring_due }} wiederkehrende Rechnung{{ recurring_due|pluralize:"en" }} fällig</a></p>{% endif %}
-    <p><a class="button" href="/dokumente/neu/?typ=invoice">Neue Rechnung</a> <a class="button secondary" href="/dokumente/neu/?typ=quote">Neues Angebot</a> <a href="/wiederkehrend/">Wiederkehrende</a> · <a href="/mahnwesen/">Mahnwesen</a></p>
-  </section>
+
+  <div>
+    <section class="card">
+      <h2>Offene Posten</h2>
+      <p class="big">{{ open_total }} €</p>
+      {% if overdue %}<p class="danger">{{ overdue|length }} überfällig</p>{% endif %}
+      <ul class="plain">
+        {% for doc, amount in open_items %}
+        <li><a href="/dokumente/{{ doc.pk }}/">{{ doc.number }}</a> {{ doc.customer.name }}
+          <span class="muted">– {{ amount }} €{% if doc.due_date %}, fällig {{ doc.due_date|date:"d.m." }}{% endif %}</span></li>
+        {% empty %}<li class="muted">Keine offenen Rechnungen.</li>{% endfor %}
+      </ul>
+    </section>
+
+    {% if status %}
+    <section class="card level-{{ status.level.value }}">
+      <h2>Kleinunternehmer {{ status.year }}</h2>
+      <p class="muted">Vereinnahmte Entgelte (§ 19 UStG). Beide Grenzen müssen eingehalten sein.</p>
+      <dl class="facts">
+        <dt>{{ status.year }}</dt><dd><strong>{{ revenue }} €</strong> von {{ limit }} €</dd>
+      </dl>
+      <svg class="ruler" role="img" aria-label="{{ revenue }} Euro von {{ limit }} Euro im laufenden Jahr">
+        <rect class="track" x="0" y="0" width="100%" height="10" rx="2"/>
+        <rect class="fill" x="0" y="0" width="{{ ruler.current }}%" height="10" rx="2"/>
+        <line class="tick" x1="25%" x2="25%" y1="12" y2="16"/><line class="tick" x1="50%" x2="50%" y1="12" y2="16"/>
+        <line class="tick" x1="75%" x2="75%" y1="12" y2="16"/><line class="limit" x1="100%" x2="100%" y1="-3" y2="16"/>
+      </svg>
+      <dl class="facts">
+        <dt>Vorjahr</dt><dd><strong>{{ ruler.previous_revenue }} €</strong> von {{ ruler.previous_limit }} €</dd>
+      </dl>
+      <svg class="ruler" role="img" aria-label="{{ ruler.previous_revenue }} Euro von {{ ruler.previous_limit }} Euro im Vorjahr">
+        <rect class="track" x="0" y="0" width="100%" height="10" rx="2"/>
+        <rect class="fill" x="0" y="0" width="{{ ruler.previous }}%" height="10" rx="2"/>
+        <line class="limit prev" x1="100%" x2="100%" y1="-3" y2="16"/>
+      </svg>
+      {% if status.level.value == "warn_80" %}<p class="warn">Über 80 % der Jahresgrenze erreicht.</p>{% endif %}
+      {% if status.level.value == "warn_90" %}<p class="warn">Über 90 % der Jahresgrenze erreicht – bald prüfen, ob die Regelbesteuerung greift.</p>{% endif %}
+      {% if status.level.value == "exceeded" %}<p class="danger">Grenze am {{ status.crossed_on|date:"d.m.Y" }} überschritten. Ab diesem Umsatz gilt voraussichtlich die Regelbesteuerung – bitte <a href="/einstellungen/steuerstatus/">Steuerstatus wechseln</a> und mit der Steuerberatung abstimmen.</p>{% endif %}
+      {% if status.previous_year_exceeded %}<p class="danger">Vorjahresgrenze überschritten: Ab 1. Januar {{ status.year }} gilt die Regelbesteuerung – <a href="/einstellungen/steuerstatus/">Steuerstatus</a>.</p>{% endif %}
+    </section>
+    {% elif regime %}
+    <section class="card"><h2>Besteuerung</h2><p>Regelbesteuerung</p></section>
+    {% endif %}
+  </div>
 </div>
 {% endblock %}

@@ -69,6 +69,7 @@ __all__ = [
     "stored_totals",
     "replace_lines",
     "update_draft",
+    "update_line",
     "validation_problems",
 ]
 
@@ -186,6 +187,32 @@ def add_line(
         discount_percent=discount_percent,
         tax_treatment=TaxTreatment(tax_treatment),
     )
+
+
+def update_line(
+    line: DocumentLine,
+    *,
+    text: str,
+    quantity: Decimal,
+    unit_price: Decimal,
+    discount_percent: Decimal = Decimal("0"),
+    unit_code: str | None = None,
+) -> DocumentLine:
+    """Change a line of a draft in place (same checks as ``add_line``); the tax treatment stays."""
+    _require_draft(line.document)
+    if not text.strip():
+        raise DocumentError("Eine Position braucht eine Bezeichnung")
+    if quantity < 0 or unit_price < 0:
+        raise DocumentError("Menge und Einzelpreis dürfen nicht negativ sein")
+    if not (Decimal("0") <= discount_percent <= Decimal("100")):
+        raise DocumentError("Der Rabatt muss zwischen 0 und 100 % liegen")
+    unit_code = unit_code or line.unit_code
+    if not Unit.objects.filter(code=unit_code).exists():
+        raise DocumentError(f"Unbekannte Einheit {unit_code!r}")
+    line.text, line.quantity, line.unit_price = text.strip(), quantity, unit_price
+    line.discount_percent, line.unit_code = discount_percent, unit_code
+    line.save(update_fields=["text", "quantity", "unit_price", "discount_percent", "unit_code"])
+    return line
 
 
 def add_line_from_item(

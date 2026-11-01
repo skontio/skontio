@@ -6,6 +6,7 @@ import datetime as dt
 import io
 from decimal import Decimal
 
+from django.db.models import Q
 from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -34,6 +35,7 @@ from skontio.documents.services import (
     preview_pdf,
     preview_totals,
     remove_deduction,
+    update_line,
 )
 from skontio.dunning.services import default_mail as dunning_mail
 from skontio.mail.services import MailError, default_message, send_document
@@ -45,6 +47,7 @@ from skontio.web.forms import (
     ConvertForm,
     FollowUpForm,
     HeaderForm,
+    LineEditForm,
     LineForm,
     NewDocumentForm,
     PartialForm,
@@ -228,16 +231,44 @@ def _finalized_context(doc: Document, **extra) -> dict:
                 "due_on": timezone.localdate() + dt.timedelta(days=14),
             }
         )
+    context["state"] = document_state(doc, timezone.localdate())
     return context | extra
 
 
 @company_view
 def document_list(request):
-    documents = Document.objects.filter(company=request.company).select_related("customer")
+    documents = (
+        Document.objects.filter(company=request.company)
+        .select_related("customer")
+        .prefetch_related("payments", "children", "deductions")
+    )
     doc_type = request.GET.get("typ", "")
     if doc_type in TYPE_FILTERS:
         documents = documents.filter(doc_type__in=TYPE_FILTERS[doc_type])
-    return render(request, "web/documents/list.html", {"documents": documents[:200], "typ": doc_type})
+    query = request.GET.get("q", "").strip()
+    if query:
+        documents = documents.filter(Q(number__icontains=query) | Q(customer__name__icontains=query))
+    today = timezone.localdate()
+    rows = [(doc, document_state(doc, today)) for doc in documents[:200]]
+    return render(request, "web/documents/list.html", {"rows": rows, "typ": doc_type, "q": query})
+
+
+def document_state(doc: Document, today: dt.date) -> str:
+    """One word for the status stamp; uses prefetched payments, children and deductions."""
+    if doc.status == Document.Status.DRAFT:
+        return "draft"
+    if doc.doc_type not in INVOICE_TYPES:
+        return "final"
+    if any(child.doc_type == Type.CANCELLATION for child in doc.children.all()):
+        return "cancelled"
+    prepaid = sum((d.net_amount + d.tax_amount for d in doc.deductions.all()), start=Decimal("0"))
+    due = (doc.gross_total or Decimal("0")) - prepaid
+    paid = sum((p.amount for p in doc.payments.all()), start=Decimal("0"))
+    if paid >= due:
+        return "paid"
+    if doc.due_date and doc.due_date < today:
+        return "overdue"
+    return "partial" if paid > 0 else "open"
 
 
 @company_view
@@ -310,6 +341,38 @@ def line_add(request, pk: int):
     if form is None and not is_htmx(request):
         return redirect(f"/dokumente/{doc.pk}/")
     return render(request, "web/documents/_lines.html", _lines_context(request, doc, form, error))
+
+
+@company_view
+def line_edit(request, pk: int, line_pk: int):
+    """Edit one position in place: GET returns the edit row, POST saves and returns the whole table."""
+    doc = _document(request, pk)
+    if doc.status != Document.Status.DRAFT:
+        return _locked()
+    line = get_object_or_404(DocumentLine, pk=line_pk, document=doc)
+    if request.method == "GET":
+        if request.GET.get("abbrechen"):
+            return render(request, "web/documents/_lines.html", _lines_context(request, doc))
+        return render(request, "web/documents/_line_edit.html", {"doc": doc, "line": line})
+    form = LineEditForm(request.POST)
+    error = ""
+    if form.is_valid():
+        data = form.cleaned_data
+        try:
+            update_line(
+                line,
+                text=data["text"],
+                quantity=data["quantity"],
+                unit_price=data["unit_price"],
+                discount_percent=data["discount_percent"] or Decimal("0"),
+            )
+        except DocumentError as exc:
+            error = str(exc)
+    else:
+        error = "; ".join(e for errors in form.errors.values() for e in errors)
+    if not is_htmx(request) and not error:
+        return redirect(f"/dokumente/{doc.pk}/")
+    return render(request, "web/documents/_lines.html", _lines_context(request, doc, error=error))
 
 
 @require_POST

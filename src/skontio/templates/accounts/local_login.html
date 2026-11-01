@@ -1,19 +1,25 @@
-<!doctype html>
+{% load static skontio_ui %}<!doctype html>
 <html lang="de">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
 <title>Skontio – Notfall-Login</title>
+<link rel="stylesheet" href="{% asset 'web/app.css' %}">
 </head>
 <body>
-<main>
-  <h1>Notfall-Login</h1>
-  <p>Nur aus dem lokalen Netz. Für die normale Anmeldung bitte <a href="/auth/login">über Pocket ID anmelden</a>.</p>
-  <form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Anmelden</button>
-  </form>
+<main class="auth">
+  <div class="sheet">
+    <span class="brand">Skontio</span>
+    <h1>Notfall-Login</h1>
+    <p class="muted">Nur aus dem lokalen Netz.</p>
+    <form method="post">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <button type="submit">Anmelden</button>
+    </form>
+    <p class="alt">Für die normale Anmeldung bitte <a href="/auth/login">über Pocket ID anmelden</a>.</p>
+  </div>
 </main>
 </body>
 </html>

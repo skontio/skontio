@@ -38,6 +38,18 @@ def normalise_iban(raw: str) -> str:
     return iban
 
 
+# German labels for model fields that have no verbose_name (form-only, no migration)
+ADDRESS_LABELS = {
+    "name": "Name",
+    "street": "Straße und Hausnummer",
+    "postcode": "PLZ",
+    "city": "Ort",
+    "country": "Land (ISO-Code, z. B. DE)",
+    "email": "E-Mail",
+    "phone": "Telefon",
+}
+
+
 class CompanyForm(forms.ModelForm):
     class Meta:
         model = Company
@@ -62,6 +74,33 @@ class CompanyForm(forms.ModelForm):
             "vat_basis",
             "vat_extension",
         ]
+        labels = {
+            **ADDRESS_LABELS,
+            "name": "Firmen- oder Geschäftsname",
+            "activity": "Tätigkeit",
+            "contact_name": "Ansprechperson",
+            "account_holder": "Kontoinhaber",
+        }
+
+    FIELDSETS = (
+        ("Firma", ("name", "street", "postcode", "city", "country", "activity", "side_business")),
+        ("Kontakt", ("contact_name", "email", "phone")),
+        ("Steuer", ("tax_number", "vat_id", "seller_identifier", "regime", "regime_since")),
+        ("Bankverbindung", ("account_holder", "iban", "bic")),
+        ("Umsatzsteuer-Voranmeldung", ("vat_period", "vat_basis", "vat_extension")),
+    )
+
+    def fieldsets(self):
+        """(title, bound fields) per section; fields missing from FIELDSETS land in a last section."""
+        seen = set()
+        for title, names in self.FIELDSETS:
+            fields = [self[n] for n in names if n in self.fields]
+            seen.update(names)
+            if fields:
+                yield title, fields
+        rest = [self[n] for n in self.fields if n not in seen]
+        if rest:
+            yield "Weitere Angaben", rest
 
     def clean_iban(self):
         return normalise_iban(self.cleaned_data["iban"])
@@ -111,6 +150,7 @@ class CustomerForm(forms.ModelForm):
             "language",
             "payment_terms_days",
         ]
+        labels = {**ADDRESS_LABELS, "kind": "Art", "payment_terms_days": "Zahlungsziel (Tage)"}
 
     def clean_vat_id(self):
         try:
@@ -211,6 +251,17 @@ class LineForm(forms.Form):
         return data
 
 
+class LineEditForm(forms.Form):
+    """Inline edit of one draft line (the row in the position table)."""
+
+    text = forms.CharField(label="Bezeichnung")
+    quantity = forms.DecimalField(label="Menge", min_value=0, decimal_places=4, localize=True)
+    unit_price = forms.DecimalField(label="Einzelpreis (€)", min_value=0, decimal_places=4, localize=True)
+    discount_percent = forms.DecimalField(
+        label="Rabatt (%)", min_value=0, max_value=100, decimal_places=2, localize=True, required=False
+    )
+
+
 class PaymentForm(forms.Form):
     amount = forms.DecimalField(label="Betrag (€)", min_value=Decimal("0.01"), decimal_places=2, localize=True)
     received_on = forms.DateField(label="Eingegangen am", initial=dt.date.today)
@@ -263,6 +314,7 @@ class ItemForm(forms.ModelForm):
     class Meta:
         model = Item
         fields = ["kind", "name", "sku", "description", "unit", "net_price", "tax_treatment"]
+        labels = {"kind": "Art", "name": "Bezeichnung", "description": "Beschreibung"}
 
 
 class ActivityForm(forms.Form):

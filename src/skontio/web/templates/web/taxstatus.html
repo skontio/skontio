@@ -1,7 +1,8 @@
 {% extends "web/base.html" %}
 {% block title %}Steuerstatus{% endblock %}
 {% block content %}
-<h1>Steuerstatus</h1>
+<div class="heading"><h1>Steuerstatus</h1></div>
+{% include "web/_settings_nav.html" %}
 <p>Aktuell: <strong>{{ current_label }}</strong>. Skontio wechselt nie von selbst – jeder Wechsel braucht deine Bestätigung.
    Keine Steuerberatung: bitte im Zweifel mit der Steuerberatung abstimmen.</p>
 

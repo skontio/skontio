@@ -1,7 +1,8 @@
 {% extends "web/base.html" %}
 {% block title %}Sicherheit{% endblock %}
 {% block content %}
-<h1>Sicherheit</h1>
+<div class="heading"><h1>Sicherheit</h1></div>
+{% include "web/_settings_nav.html" %}
 <p>Die normale Anmeldung läuft über Pocket ID. Der <strong>Notfall-Login</strong> mit Passwort (nur aus dem Heimnetz)
    braucht zusätzlich einen Code aus einer Authenticator-App.</p>
 

@@ -1,51 +1,92 @@
-{% extends "web/base.html" %}
+{% extends "web/base.html" %}{% load skontio_ui %}
 {% block title %}{% if customer %}{{ customer.name }}{% else %}Neuer Kunde{% endif %}{% endblock %}
 {% block content %}
 <div class="heading">
-  <h1>{% if customer %}{{ customer.number }} · {{ customer.name }}{% else %}Neuer Kunde{% endif %}</h1>
-  {% if customer %}<a class="button" href="/dokumente/neu/?typ=invoice&kunde={{ customer.pk }}">Rechnung schreiben</a>{% endif %}
+  <h1>{% if customer %}{{ customer.name }}{% else %}Neuer Kunde{% endif %}</h1>
+  {% if customer %}<p><a class="button" href="/dokumente/neu/?typ=invoice&amp;kunde={{ customer.pk }}">Rechnung schreiben</a>
+    <a class="button secondary" href="/dokumente/neu/?typ=quote&amp;kunde={{ customer.pk }}">Angebot schreiben</a></p>
+  <p class="sub">Kundennummer {{ customer.number }}{% if customer.city %} · {{ customer.city }}{% endif %}{% if customer.email %} · <a href="mailto:{{ customer.email }}">{{ customer.email }}</a>{% endif %}</p>{% endif %}
 </div>
-<form method="post" class="form">
+
+{% if not customer %}
+<form method="post" class="card form grid2">
   {% csrf_token %}
   {% include "web/_fields.html" %}
-  <button type="submit">Speichern</button>
+  <div class="full actions"><button type="submit">Kunde anlegen</button> <a href="/kunden/">Abbrechen</a></div>
 </form>
-{% if customer %}
-<h2>Dokumente</h2>
-<ul class="plain">
-  {% for doc in documents %}<li><a href="/dokumente/{{ doc.pk }}/">{{ doc.get_doc_type_display }} {{ doc }}</a> · {{ doc.issue_date|date:"d.m.Y" }}{% if doc.gross_total is not None %} · {{ doc.gross_total }} €{% endif %}</li>
-  {% empty %}<li class="muted">Noch keine Dokumente.</li>{% endfor %}
-</ul>
+{% else %}
+<div class="docpage">
+  <div class="main">
+    <section class="card">
+      <h2>Dokumente</h2>
+      {% if documents %}
+      <div class="table-scroll flush"><table class="list">
+        <thead><tr><th>Status</th><th>Dokument</th><th class="hide-small">Datum</th><th class="num">Betrag</th></tr></thead>
+        <tbody>
+        {% for doc, state in documents %}
+          <tr><td>{% stamp state %}</td>
+            <td><a href="/dokumente/{{ doc.pk }}/">{{ doc.get_doc_type_display }} {% if doc.number %}{{ doc.number }}{% else %}(Entwurf){% endif %}</a></td>
+            <td class="hide-small">{{ doc.issue_date|date:"d.m.Y" }}</td>
+            <td class="num amount">{% if doc.gross_total is not None %}{{ doc.gross_total|floatformat:"2g" }} €{% endif %}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table></div>
+      {% else %}<p class="muted">Noch keine Dokumente. <a href="/dokumente/neu/?typ=invoice&amp;kunde={{ customer.pk }}">Erste Rechnung schreiben</a></p>{% endif %}
+    </section>
 
-<h2>Wiedervorlagen</h2>
-<ul class="plain">
-  {% for f in follow_ups %}
-  <li>{% if f.due_on <= today %}<span class="badge danger">{{ f.due_on|date:"d.m." }}</span>{% else %}<span class="badge">{{ f.due_on|date:"d.m." }}</span>{% endif %}
-    {{ f.title }}{% if f.document %} · <a href="/dokumente/{{ f.document.pk }}/">{{ f.document }}</a>{% endif %}
-    <form method="post" action="/wiedervorlagen/{{ f.pk }}/erledigt/" class="inline-form">{% csrf_token %}<input type="hidden" name="back" value="/kunden/{{ customer.pk }}/"><button type="submit" class="link">erledigt</button></form></li>
-  {% empty %}<li class="muted">Keine offenen Wiedervorlagen.</li>{% endfor %}
-</ul>
-<details class="card">
-  <summary><h3>Neue Wiedervorlage</h3></summary>
-  <form method="post" action="/kunden/{{ customer.pk }}/wiedervorlagen/" class="form">
-    {% csrf_token %}
-    {% with form=follow_up_form %}{% include "web/_fields.html" %}{% endwith %}
-    <button type="submit" class="secondary">Anlegen</button>
-  </form>
-</details>
+    <details class="card" {% if form.errors %}open{% endif %}>
+      <summary><h2>Stammdaten</h2></summary>
+      <form method="post" class="form grid2">
+        {% csrf_token %}
+        {% include "web/_fields.html" %}
+        <div class="full actions"><button type="submit">Speichern</button></div>
+      </form>
+    </details>
 
-{% include "web/_attachments.html" %}
+    <section class="card" id="aktivitaeten">
+      <h2>Aktivitäten</h2>
+      <ul class="plain timeline">
+        {% for a in activities %}
+        <li><small class="muted">{{ a.occurred_at|date:"d.m.Y H:i" }} · {{ a.get_kind_display }}{% if a.document %} · <a href="/dokumente/{{ a.document.pk }}/">{{ a.document }}</a>{% endif %}</small>
+          <div>{{ a.text|linebreaksbr }}</div></li>
+        {% empty %}<li class="muted">Noch keine Aktivitäten.</li>{% endfor %}
+      </ul>
+      <details class="inline">
+        <summary>Aktivität eintragen</summary>
+        <form method="post" action="/kunden/{{ customer.pk }}/aktivitaeten/" class="form">
+          {% csrf_token %}
+          {% with form=activity_form %}{% include "web/_fields.html" %}{% endwith %}
+          <div><button type="submit" class="secondary">Eintragen</button></div>
+        </form>
+      </details>
+    </section>
+  </div>
 
-<h2 id="aktivitaeten">Aktivitäten</h2>
-<form method="post" action="/kunden/{{ customer.pk }}/aktivitaeten/" class="form">
-  {% csrf_token %}
-  {% with form=activity_form %}{% include "web/_fields.html" %}{% endwith %}
-  <button type="submit" class="secondary">Eintragen</button>
-</form>
-<ul class="plain timeline">
-  {% for a in activities %}
-  <li><span class="muted">{{ a.occurred_at|date:"d.m.Y H:i" }} · {{ a.get_kind_display }}{% if a.document %} · <a href="/dokumente/{{ a.document.pk }}/">{{ a.document }}</a>{% endif %}</span><br>{{ a.text|linebreaksbr }}</li>
-  {% empty %}<li class="muted">Noch keine Aktivitäten.</li>{% endfor %}
-</ul>
+  <aside class="aside">
+    <section class="panel">
+      <h2>Wiedervorlagen</h2>
+      <ul class="plain">
+        {% for f in follow_ups %}
+        <li><span class="badge{% if f.due_on <= today %} danger{% endif %}">{{ f.due_on|date:"d.m." }}</span>
+          {{ f.title }}{% if f.document %} · <a href="/dokumente/{{ f.document.pk }}/">{{ f.document }}</a>{% endif %}
+          <form method="post" action="/wiedervorlagen/{{ f.pk }}/erledigt/" class="inline-form">{% csrf_token %}<input type="hidden" name="back" value="/kunden/{{ customer.pk }}/"><button type="submit" class="link">erledigt</button></form></li>
+        {% empty %}<li class="muted">Keine offenen Wiedervorlagen.</li>{% endfor %}
+      </ul>
+      <details class="inline">
+        <summary>Neue Wiedervorlage</summary>
+        <form method="post" action="/kunden/{{ customer.pk }}/wiedervorlagen/" class="form">
+          {% csrf_token %}
+          {% with form=follow_up_form %}{% include "web/_fields.html" %}{% endwith %}
+          <button type="submit" class="secondary">Anlegen</button>
+        </form>
+      </details>
+    </section>
+
+    <section class="panel" id="dateien">
+      <h2>Dateien</h2>
+      {% include "web/_attachments.html" with no_heading=True %}
+    </section>
+  </aside>
+</div>
 {% endif %}
 {% endblock %}

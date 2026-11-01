@@ -1,40 +1,54 @@
-{% load static %}<!doctype html>
+{% load static skontio_ui %}<!doctype html>
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <meta name="htmx-config" content='{"includeIndicatorStyles": false}'>
 <title>{% block title %}Skontio{% endblock %} · Skontio</title>
-<meta name="theme-color" content="#1f5f8b">
+<meta name="theme-color" content="#2f4fb5">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" type="image/png" href="{% static 'web/icons/favicon-32.png' %}">
 <link rel="apple-touch-icon" href="{% static 'web/icons/apple-touch-icon.png' %}">
-<link rel="stylesheet" href="{% static 'web/app.css' %}">
+<link rel="preload" href="{% static 'web/fonts/atkinson-hyperlegible-next-400.woff2' %}" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="{% static 'web/fonts/barlow-semi-condensed-600.woff2' %}" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="{% asset 'web/app.css' %}">
 <script src="{% static 'web/vendor/htmx.min.js' %}" defer></script>
-<script src="{% static 'web/app.js' %}" defer></script>
+<script src="{% asset 'web/app.js' %}" defer></script>
 </head>
 <body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
-<header class="topbar">
-  <a class="brand" href="/">Skontio</a>
-  <nav>
-    <a href="/" {% if request.path == "/" %}aria-current="page"{% endif %}>Übersicht</a>
-    <a href="/dokumente/" {% if request.path|slice:":11" == "/dokumente/" %}aria-current="page"{% endif %}>Dokumente</a>
-    <a href="/kunden/" {% if request.path|slice:":8" == "/kunden/" %}aria-current="page"{% endif %}>Kunden</a>
-    <a href="/leistungen/" {% if request.path|slice:":12" == "/leistungen/" %}aria-current="page"{% endif %}>Leistungen</a>
-    <a href="/ausgaben/" {% if request.path|slice:":10" == "/ausgaben/" %}aria-current="page"{% endif %}>Ausgaben</a>
-    <a href="/bank/" {% if request.path|slice:":6" == "/bank/" %}aria-current="page"{% endif %}>Bank</a>
-    <a href="/eingang/" {% if request.path|slice:":9" == "/eingang/" %}aria-current="page"{% endif %}>Eingang</a>
-    <a href="/auswertungen/euer/" {% if request.path|slice:":14" == "/auswertungen/" %}aria-current="page"{% endif %}>EÜR</a>
-    <a href="/assistent/" {% if request.path|slice:":11" == "/assistent/" %}aria-current="page"{% endif %}>Assistent</a>
-    {% if user.is_staff %}<a href="/einrichtung/" {% if request.path == "/einrichtung/" %}aria-current="page"{% endif %}>Einstellungen</a>{% endif %}
-  </nav>
-  <form method="post" action="/auth/logout" class="logout">{% csrf_token %}<button type="submit" class="link">Abmelden</button></form>
-</header>
-<main class="page">
-  {% if messages %}<div class="messages" role="status">{% for message in messages %}<p class="{% if message.level_tag == 'error' %}danger{% elif message.level_tag == 'success' %}note{% else %}warn{% endif %}">{{ message }}</p>{% endfor %}</div>{% endif %}
-  {% block content %}{% endblock %}
-</main>
-<footer class="disclaimer">Skontio unterstützt bei Rechnungen und Fristen, ersetzt aber <strong>keine Steuerberatung</strong>.</footer>
+<div class="shell">
+  <aside class="sidebar" aria-label="Hauptmenü">
+    <a class="brand" href="/">Skontio</a>
+    <a class="button new" href="/dokumente/neu/?typ=invoice">Neue Rechnung</a>
+    <nav aria-label="Bereiche">{% include "web/_nav.html" %}</nav>
+  </aside>
+
+  <div class="content">
+    <header class="mobilebar">
+      <a class="brand" href="/">Skontio</a>
+      <a class="button secondary" href="/dokumente/neu/?typ=quote">Neues Angebot</a>
+    </header>
+    <main class="page">
+      {% if messages %}<div class="messages" role="status">{% for message in messages %}<p class="{% if message.level_tag == 'error' %}danger{% elif message.level_tag == 'success' %}note{% else %}warn{% endif %}">{{ message }}</p>{% endfor %}</div>{% endif %}
+      {% block content %}{% endblock %}
+    </main>
+    <footer class="disclaimer">Skontio unterstützt bei Rechnungen und Fristen, ersetzt aber <strong>keine Steuerberatung</strong>.</footer>
+  </div>
+</div>
+
+<nav class="tabbar" aria-label="Schnellzugriff">
+  <a class="tab" href="/" {% nav_current "/" %}>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9.5h13V10"/></svg>Übersicht</a>
+  <a class="tab" href="/dokumente/" {% nav_current "/dokumente/" "/dokumente/neu/" %}>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5h8l4 4v13H6z"/><path d="M14 3.5v4h4M9 12h6M9 15.5h6"/></svg>Dokumente</a>
+  <a class="tab plus" href="/dokumente/neu/?typ=invoice" aria-label="Neue Rechnung"><span aria-hidden="true">+</span></a>
+  <a class="tab" href="/ausgaben/" {% nav_current "/ausgaben/" %}>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5h12v17l-3-2-3 2-3-2-3 2z"/><path d="M9 8.5h6M9 12h6"/></svg>Ausgaben</a>
+  <details class="more">
+    <summary class="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>Mehr</summary>
+    <nav class="sheet-menu" aria-label="Alle Bereiche">{% include "web/_nav.html" %}</nav>
+  </details>
+</nav>
 </body>
 </html>

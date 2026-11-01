@@ -1,62 +1,104 @@
-{% extends "web/base.html" %}
+{% extends "web/base.html" %}{% load skontio_ui %}
 {% block title %}{{ doc.get_doc_type_display }} (Entwurf){% endblock %}
 {% block content %}
 <div class="heading">
-  <h1>{{ doc.get_doc_type_display }} · Entwurf</h1>
-  <p class="muted">{{ doc.customer.number }} {{ doc.customer.name }}</p>
+  <h1>{{ doc.get_doc_type_display }}-Entwurf</h1>
+  <p><a class="button secondary" href="/dokumente/">Zur Liste</a></p>
 </div>
 
 {% if doc.ai_review_required and not doc.ai_reviewed_at %}
-<div class="warn" role="status">
-  <strong>KI-Entwurf</strong> – angelegt über {{ doc.get_origin_display }}. Bitte Positionen, Beträge und Daten prüfen.
+<div class="warn actions" role="status">
+  <span><strong>KI-Entwurf</strong> – angelegt über {{ doc.get_origin_display }}. Bitte Positionen, Beträge und Daten prüfen.</span>
   <form method="post" action="/dokumente/{{ doc.pk }}/pruefen/">{% csrf_token %}<button type="submit" class="secondary">Geprüft</button></form>
 </div>
 {% endif %}
 {% if finalize_error %}<p class="danger" role="alert">Festschreiben nicht möglich: {{ finalize_error }}</p>{% endif %}
 
-<details {% if not rows or finalize_error %}open{% endif %}>
-  <summary><h2>Kopfdaten</h2></summary>
-  <form method="post" class="form">
-    {% csrf_token %}
-    {% with form=header %}{% include "web/_fields.html" %}{% endwith %}
-    <button type="submit" class="secondary">Kopfdaten speichern</button>
-  </form>
-</details>
+<div class="docpage">
+  <div class="main">
+    <article class="sheet" aria-label="{{ doc.get_doc_type_display }} als Entwurf">
+      {% stamp "draft" "big" %}
+      <p class="doc-title">{{ doc.get_doc_type_display }}</p>
+      <div class="parties">
+        <div class="recipient">
+          <span class="label">An</span>
+          {% if doc.customer %}<strong>{{ doc.customer.name }}</strong><br>
+          {% if doc.customer.street %}{{ doc.customer.street }}<br>{% endif %}
+          {{ doc.customer.postcode }} {{ doc.customer.city }}{% else %}<span class="muted">kein Kunde gewählt</span>{% endif %}
+        </div>
+        <dl class="meta">
+          <dt>Datum</dt><dd>{{ doc.issue_date|date:"d.m.Y" }}</dd>
+          {% if doc.service_date %}<dt>Leistung</dt><dd>{{ doc.service_date|date:"d.m.Y" }}</dd>{% endif %}
+          {% if doc.service_period_start %}<dt>Leistung</dt><dd>{{ doc.service_period_start|date:"d.m.Y" }}–{{ doc.service_period_end|date:"d.m.Y" }}</dd>{% endif %}
+          {% if doc.due_date %}<dt>Fällig</dt><dd>{{ doc.due_date|date:"d.m.Y" }}</dd>{% endif %}
+          {% if doc.valid_until %}<dt>Gültig bis</dt><dd>{{ doc.valid_until|date:"d.m.Y" }}</dd>{% endif %}
+          {% if doc.customer %}<dt>Kunde</dt><dd>{{ doc.customer.number }}</dd>{% endif %}
+          <dt>Nummer</dt><dd class="muted">beim Festschreiben</dd>
+        </dl>
+      </div>
+      {% if doc.intro_text %}<p>{{ doc.intro_text|linebreaksbr }}</p>{% endif %}
+      {% include "web/documents/_lines.html" with in_page=True %}
+      {% if doc.closing_text %}<p>{{ doc.closing_text|linebreaksbr }}</p>{% endif %}
+    </article>
 
-<h2>Positionen</h2>
-{% include "web/documents/_lines.html" %}
+    {% if doc.doc_type == "final_invoice" %}
+    <section class="card">
+      <h2>Abgezogene Abschlagsrechnungen</h2>
+      {% if deductions %}
+      <div class="table-scroll"><table class="list">
+        <thead><tr><th>Abschlag</th><th class="num hide-small">Netto</th><th class="num hide-small">USt</th><th class="num">Brutto</th><th></th></tr></thead>
+        <tbody>{% for d in deductions %}
+          <tr><td>{{ d.source.number }} vom {{ d.source.issue_date|date:"d.m.Y" }}</td><td class="num hide-small">{{ d.net }}</td><td class="num hide-small">{{ d.tax }}</td><td class="num">{{ d.gross }}</td>
+            <td class="row-actions"><form method="post" action="/dokumente/{{ doc.pk }}/abzuege/{{ d.source.pk }}/entfernen/">{% csrf_token %}<button type="submit" class="link">entfernen</button></form></td></tr>
+        {% endfor %}</tbody>
+      </table></div>
+      <p>Bereits abgerechnet: {{ prepaid }} €. <strong>Noch zu zahlen: {{ due }} €</strong></p>
+      {% else %}<p class="muted">Noch keine Abschlagsrechnung abgezogen.</p>{% endif %}
+      {% if eligible_partials %}
+      <form method="post" action="/dokumente/{{ doc.pk }}/abzuege/" class="form">
+        {% csrf_token %}
+        <label for="partial">Abschlagsrechnung</label>
+        <select id="partial" name="partial">{% for p in eligible_partials %}<option value="{{ p.pk }}">{{ p.number }} vom {{ p.issue_date|date:"d.m.Y" }}, {{ p.gross_total|floatformat:"2g" }} €</option>{% endfor %}</select>
+        <button type="submit" class="secondary">Abziehen</button>
+      </form>
+      {% endif %}
+    </section>
+    {% endif %}
 
-{% if doc.doc_type == "final_invoice" %}
-<section class="card">
-  <h2>Abgezogene Abschlagsrechnungen</h2>
-  {% if deductions %}
-  <div class="table-scroll"><table class="list">
-    <thead><tr><th>Abschlag</th><th class="num hide-small">Netto</th><th class="num hide-small">USt</th><th class="num">Brutto</th><th></th></tr></thead>
-    <tbody>{% for d in deductions %}
-      <tr><td>{{ d.source.number }} vom {{ d.source.issue_date|date:"d.m.Y" }}</td><td class="num hide-small">{{ d.net }}</td><td class="num hide-small">{{ d.tax }}</td><td class="num">{{ d.gross }}</td>
-        <td><form method="post" action="/dokumente/{{ doc.pk }}/abzuege/{{ d.source.pk }}/entfernen/">{% csrf_token %}<button type="submit" class="link">entfernen</button></form></td></tr>
-    {% endfor %}</tbody>
-  </table></div>
-  <p>Bereits abgerechnet: {{ prepaid }} € · <strong>Noch zu zahlen: {{ due }} €</strong></p>
-  {% else %}<p class="muted">Noch keine Abschlagsrechnung abgezogen.</p>{% endif %}
-  {% if eligible_partials %}
-  <form method="post" action="/dokumente/{{ doc.pk }}/abzuege/" class="inline-form">
-    {% csrf_token %}
-    <label>Abschlagsrechnung <select name="partial">{% for p in eligible_partials %}<option value="{{ p.pk }}">{{ p.number }} vom {{ p.issue_date|date:"d.m.Y" }} · {{ p.gross_total|floatformat:"2g" }} €</option>{% endfor %}</select></label>
-    <button type="submit" class="secondary">Abziehen</button>
-  </form>
-  {% endif %}
-</section>
-{% endif %}
+    <details class="card" {% if not rows or finalize_error or header.errors %}open{% endif %}>
+      <summary><h2>Kopfdaten, Texte und Vorlage</h2></summary>
+      <form method="post" class="form grid2">
+        {% csrf_token %}
+        {% with form=header %}{% include "web/_fields.html" %}{% endwith %}
+        <button type="submit" class="secondary">Kopfdaten speichern</button>
+      </form>
+    </details>
 
-<div class="actions">
-  <p><a class="button secondary" href="/dokumente/{{ doc.pk }}/vorschau.pdf" target="_blank" rel="noopener">Vorschau (PDF)</a></p>
-  <form method="post" action="/dokumente/{{ doc.pk }}/festschreiben/">
-    {% csrf_token %}
-    <p class="muted">Nach dem Festschreiben erhält das Dokument seine Nummer und kann nicht mehr geändert werden. Korrekturen sind dann nur noch per Storno möglich.</p>
-    <button type="submit">Festschreiben</button>
-  </form>
-  <form method="post" action="/dokumente/{{ doc.pk }}/loeschen/">{% csrf_token %}<button type="submit" class="danger">Entwurf löschen</button></form>
+    <details class="card" {% if attachments %}open{% endif %}>
+      <summary><h2>Dateien</h2></summary>
+      {% include "web/_attachments.html" with no_heading=True %}
+    </details>
+  </div>
+
+  <aside class="aside" aria-label="Aktionen">
+    <div class="panel next">
+      <h2>Gesamt</h2>
+      <p class="amount" id="draft-total">{% if totals %}{{ fmt.grand_total }} €{% else %}0,00 €{% endif %}</p>
+      <div class="stack">
+        <form method="post" action="/dokumente/{{ doc.pk }}/festschreiben/">
+          {% csrf_token %}
+          <button type="submit">Festschreiben</button>
+        </form>
+        <a class="button secondary" href="/dokumente/{{ doc.pk }}/vorschau.pdf" target="_blank" rel="noopener">Vorschau (PDF)</a>
+      </div>
+      <p class="hint">Nach dem Festschreiben erhält das Dokument seine Nummer und kann nicht mehr geändert werden. Korrekturen sind dann nur noch per Storno möglich.</p>
+    </div>
+    <div class="panel">
+      <div class="danger-zone">
+        <form method="post" action="/dokumente/{{ doc.pk }}/loeschen/">{% csrf_token %}<button type="submit" class="danger">Entwurf löschen</button></form>
+        <p class="hint">Entwürfe haben noch keine Nummer und lassen sich noch löschen.</p>
+      </div>
+    </div>
+  </aside>
 </div>
-{% include "web/_attachments.html" %}
 {% endblock %}

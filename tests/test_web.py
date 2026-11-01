@@ -183,3 +183,28 @@ class TestCatalog:
         item = Item.objects.get()
         assert app.post(f"/leistungen/{item.pk}/archivieren/").status_code == 302
         assert "Alt" not in app.get("/leistungen/").content.decode()
+
+
+@pytest.mark.django_db
+class TestUiPolish:
+    def test_stylesheet_url_carries_content_hash(self, app):
+        html = app.get("/").content.decode()
+        assert "/static/web/app.css?v=" in html
+        assert "/static/web/app.js?v=" in html
+
+    def test_customer_page_has_german_labels_and_status_stamps(self, app, company):
+        from skontio.documents.models import Document
+        from skontio.documents.services import create_draft
+
+        customer = Customer.objects.create(company=company, number="K-1", name="Kundin")
+        create_draft(company, Document.Type.QUOTE, customer, issue_date=dt.date(2026, 1, 5))
+        html = app.get(f"/kunden/{customer.pk}/").content.decode()
+        assert ">PLZ<" in html and ">Postcode<" not in html
+        assert "Zahlungsziel (Tage)" in html
+        assert 'class="stamp draft' in html
+
+    def test_settings_pages_share_tab_navigation(self, app):
+        for url in ("/einrichtung/", "/einstellungen/steuerstatus/", "/einstellungen/vorlagen/"):
+            html = app.get(url).content.decode()
+            assert 'aria-label="Einstellungen"' in html, url
+            assert html.count('aria-current="page"') >= 2, url  # sidebar + tab

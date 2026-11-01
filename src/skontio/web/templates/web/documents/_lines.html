@@ -1,23 +1,27 @@
 <div id="lines">
 <div class="table-scroll"><table class="list">
-  <thead><tr><th>Pos.</th><th>Bezeichnung</th><th class="num">Menge</th><th class="num hide-small">Einzelpreis</th><th class="num hide-small">Rabatt</th><th class="num">Betrag</th><th></th></tr></thead>
+  <thead><tr><th>Pos.</th><th>Bezeichnung</th><th class="num">Menge</th><th class="num">Einzelpreis</th><th class="num hide-small">Rabatt</th><th class="num">Betrag</th><th><span class="visually-hidden">Aktionen</span></th></tr></thead>
   <tbody>
   {% for row in rows %}
     <tr>
       <td>{{ row.line.position }}</td>
       <td>{{ row.line.text }}{% if row.line.description %}<br><small class="muted">{{ row.line.description }}</small>{% endif %}</td>
       <td class="num">{{ row.quantity }} {{ row.unit }}</td>
-      <td class="num hide-small">{{ row.unit_price }}</td>
+      <td class="num">{{ row.unit_price }}</td>
       <td class="num hide-small">{{ row.discount }}</td>
       <td class="num">{{ row.net }}</td>
-      <td><button type="button" class="link" hx-post="/dokumente/{{ doc.pk }}/positionen/{{ row.line.pk }}/entfernen/" hx-target="#lines" hx-swap="outerHTML" aria-label="Position {{ row.line.position }} entfernen">Entfernen</button></td>
+      <td class="row-actions">
+        <button type="button" class="link" hx-get="/dokumente/{{ doc.pk }}/positionen/{{ row.line.pk }}/" hx-target="closest tr" hx-swap="outerHTML" aria-label="Position {{ row.line.position }} bearbeiten">Bearbeiten</button>
+        <button type="button" class="link quiet" hx-post="/dokumente/{{ doc.pk }}/positionen/{{ row.line.pk }}/entfernen/" hx-target="#lines" hx-swap="outerHTML" aria-label="Position {{ row.line.position }} entfernen">Entfernen</button>
+      </td>
     </tr>
   {% empty %}
-    <tr><td colspan="7" class="muted">Noch keine Positionen.</td></tr>
+    <tr><td colspan="7" class="muted">Noch keine Positionen. Füge unten die erste hinzu, aus dem Katalog oder frei.</td></tr>
   {% endfor %}
   </tbody>
 </table></div>
 
+{% if line_error %}<p class="danger" role="alert">{{ line_error }}</p>{% endif %}
 {% if totals_error %}<p class="danger">{{ totals_error }}</p>{% endif %}
 {% if totals %}
 <table class="totals-preview">
@@ -29,11 +33,13 @@
 {% for note in notes %}<p class="note">{{ note }}</p>{% endfor %}
 {% endif %}
 
-<form class="line-form" hx-post="/dokumente/{{ doc.pk }}/positionen/" hx-target="#lines" hx-swap="outerHTML" method="post" action="/dokumente/{{ doc.pk }}/positionen/">
-  {% csrf_token %}
-  <h2>Position hinzufügen</h2>
-  {% if line_error %}<p class="error" role="alert">{{ line_error }}</p>{% endif %}
-  {% with form=line_form %}{% include "web/_fields.html" %}{% endwith %}
-  <button type="submit">Hinzufügen</button>
-</form>
+<details class="card add-line" {% if not rows or line_form.errors %}open{% endif %}>
+  <summary><h2>Position hinzufügen</h2></summary>
+  <form class="form grid2" hx-post="/dokumente/{{ doc.pk }}/positionen/" hx-target="#lines" hx-swap="outerHTML" method="post" action="/dokumente/{{ doc.pk }}/positionen/">
+    {% csrf_token %}
+    {% with form=line_form %}{% include "web/_fields.html" %}{% endwith %}
+    <button type="submit">Hinzufügen</button>
+  </form>
+</details>
+{% if not in_page %}<p class="amount" id="draft-total" hx-swap-oob="true">{% if totals %}{{ fmt.grand_total }} €{% else %}0,00 €{% endif %}</p>{% endif %}
 </div>

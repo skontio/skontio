@@ -1,7 +1,8 @@
 {% extends "web/base.html" %}
 {% block title %}Verfahrensdokumentation{% endblock %}
 {% block content %}
-<h1>Verfahrensdokumentation</h1>
+<div class="heading"><h1>Verfahrensdokumentation</h1></div>
+{% include "web/_settings_nav.html" %}
 <p>Die GoBD verlangen eine Beschreibung, wie Belege entstehen, geprüft, gespeichert und geschützt werden. Skontio
    erzeugt sie aus der laufenden Konfiguration – Nummernkreise, Steuerstatus, Zugänge, Archiv, Sicherung, KI-Zugriff
    und die Prüfung des Änderungsprotokolls. Jede Version wird als PDF/A 10 Jahre unveränderbar archiviert.

@@ -206,3 +206,58 @@ def test_ai_draft_review(app, company, customer, item):
     app.post(f"/dokumente/{doc.pk}/pruefen/")
     doc.refresh_from_db()
     assert doc.ai_reviewed_at is not None
+
+
+@pytest.mark.django_db
+class TestInlineLineEdit:
+    def test_edit_row_and_save(self, app, draft):
+        line = draft.lines.get()
+        row = app.get(f"/dokumente/{draft.pk}/positionen/{line.pk}/", HTTP_HX_REQUEST="true").content.decode()
+        assert 'class="editing"' in row and 'value="3"' in row and 'value="80"' in row
+        response = app.post(
+            f"/dokumente/{draft.pk}/positionen/{line.pk}/",
+            {"text": "Beratung vor Ort", "quantity": "2,5", "unit_price": "90", "discount_percent": ""},
+            HTTP_HX_REQUEST="true",
+        )
+        line.refresh_from_db()
+        assert (line.text, line.quantity, line.unit_price) == ("Beratung vor Ort", D("2.5"), D("90"))
+        body = response.content.decode()
+        assert "225,00" in body and 'id="draft-total" hx-swap-oob="true"' in body
+
+    def test_invalid_input_keeps_line(self, app, draft):
+        line = draft.lines.get()
+        body = app.post(
+            f"/dokumente/{draft.pk}/positionen/{line.pk}/",
+            {"text": "", "quantity": "1", "unit_price": "1"},
+            HTTP_HX_REQUEST="true",
+        ).content.decode()
+        line.refresh_from_db()
+        assert line.text == "Beratung" and 'role="alert"' in body
+
+    def test_cancel_returns_table(self, app, draft):
+        line = draft.lines.get()
+        body = app.get(f"/dokumente/{draft.pk}/positionen/{line.pk}/?abbrechen=1").content.decode()
+        assert 'id="lines"' in body and "editing" not in body
+
+    def test_finalized_lines_are_locked(self, app, draft):
+        line = draft.lines.get()
+        doc = finalize(draft)
+        assert app.get(f"/dokumente/{doc.pk}/positionen/{line.pk}/").status_code == 409
+
+
+@pytest.mark.django_db
+class TestDocumentStatus:
+    def test_list_shows_stamps_and_due_date(self, app, draft):
+        draft_body = app.get("/dokumente/").content.decode()
+        assert "stamp draft" in draft_body
+        doc = finalize(draft)
+        assert "stamp overdue" in app.get("/dokumente/").content.decode()  # due 25.10.2026, today is later
+        Payment.objects.create(company=doc.company, document=doc, amount=doc.gross_total, received_on=doc.issue_date)
+        body = app.get("/dokumente/").content.decode()
+        assert "stamp paid" in body and doc.due_date.strftime("%d.%m.%Y") not in body.split("<tbody")[1]
+
+    def test_search_by_customer_or_number(self, app, draft, company):
+        other = create_customer(company, name="Andere AG")
+        create_draft(company, Document.Type.QUOTE, other, issue_date=dt.date(2026, 10, 1))
+        rows = app.get("/dokumente/", {"q": "andere"}).content.decode().split("<tbody")[1]
+        assert "Andere AG" in rows and "Kunde GmbH" not in rows

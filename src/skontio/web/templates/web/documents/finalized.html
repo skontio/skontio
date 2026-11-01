@@ -1,166 +1,225 @@
-{% extends "web/base.html" %}
+{% extends "web/base.html" %}{% load skontio_ui %}
 {% block title %}{{ doc.get_doc_type_display }} {{ doc.number }}{% endblock %}
 {% block content %}
 <div class="heading">
   <h1>{{ doc.get_doc_type_display }} {{ doc.number }}</h1>
-  <p>{% for r in renditions %}<a class="button secondary" href="/dokumente/{{ doc.pk }}/datei/{{ r.kind }}/">{{ r.get_kind_display }}</a> {% endfor %}
-    {% for r in renditions %}{% if r.kind != "xrechnung_xml" %}<button type="button" class="secondary share-file" hidden
-      data-url="/dokumente/{{ doc.pk }}/datei/{{ r.kind }}/" data-filename="{{ doc.number }}.pdf"
-      data-title="{{ doc.get_doc_type_display }} {{ doc.number }}">Teilen</button>{% endif %}{% endfor %}</p>
+  <p><a class="button secondary" href="/dokumente/">Zur Liste</a></p>
 </div>
-<p class="muted">
-  {{ doc.customer.number }} {{ doc.customer.name }} · Datum {{ doc.issue_date|date:"d.m.Y" }}
-  {% if doc.service_date %} · Leistung {{ doc.service_date|date:"d.m.Y" }}{% endif %}
-  {% if doc.service_period_start %} · Leistung {{ doc.service_period_start|date:"d.m.Y" }}–{{ doc.service_period_end|date:"d.m.Y" }}{% endif %}
-  · festgeschrieben am {{ doc.locked_at|date:"d.m.Y H:i" }}
-</p>
-{% if doc.parent %}<p>Bezug: <a href="/dokumente/{{ doc.parent.pk }}/">{{ doc.parent.get_doc_type_display }} {{ doc.parent.number }}</a>{% if doc.cancellation_reason %} – {{ doc.cancellation_reason }}{% endif %}</p>{% endif %}
 {% if cancelled %}<p class="danger">Diese Rechnung wurde storniert.</p>{% endif %}
-{% if replacement %}<p>Ersetzt durch <a href="/dokumente/{{ replacement.pk }}/">{{ replacement.number|default:"Entwurf" }}</a> (Rechnungskorrektur).</p>{% endif %}
-{% if doc.replaces %}<p>Ersetzt <a href="/dokumente/{{ doc.replaces.pk }}/">{{ doc.replaces.number }}</a> (Rechnungskorrektur).</p>
-{% if transferable %}<form method="post" action="/dokumente/{{ doc.pk }}/zahlungen-uebernehmen/" class="card warn">{% csrf_token %}
+{% if replacement %}<p class="note">Ersetzt durch <a href="/dokumente/{{ replacement.pk }}/">{{ replacement.number|default:"Entwurf" }}</a> (Rechnungskorrektur).</p>{% endif %}
+{% if doc.replaces %}<p class="note">Ersetzt <a href="/dokumente/{{ doc.replaces.pk }}/">{{ doc.replaces.number }}</a> (Rechnungskorrektur).</p>
+{% if transferable %}<form method="post" action="/dokumente/{{ doc.pk }}/zahlungen-uebernehmen/" class="warn">{% csrf_token %}
   <p>Auf {{ doc.replaces.number }} sind {{ transferable }} € eingegangen. Per Gegenbuchung auf diese Rechnung übernehmen?</p>
   <button type="submit">Zahlungen übernehmen</button></form>{% endif %}{% endif %}
 
-<div class="table-scroll"><table class="list">
-  <thead><tr><th>Pos.</th><th>Bezeichnung</th><th class="num">Menge</th><th class="num hide-small">Einzelpreis</th><th class="num">Betrag</th></tr></thead>
-  <tbody>
-  {% for row in lines %}
-    <tr><td>{{ row.line.position }}</td><td>{{ row.line.text }}</td><td class="num">{{ row.quantity }} {{ row.unit }}</td><td class="num hide-small">{{ row.unit_price }}</td><td class="num">{{ row.net }}</td></tr>
-  {% endfor %}
-  </tbody>
-</table></div>
-<table class="totals-preview">
-  <tr><td>Netto</td><td class="num">{{ net }} €</td></tr>
-  <tr><td>Umsatzsteuer</td><td class="num">{{ tax }} €</td></tr>
-  <tr class="grand"><td>Gesamt</td><td class="num">{{ gross }} €</td></tr>
-  {% for d in deductions %}<tr><td>abzüglich <a href="/dokumente/{{ d.source.pk }}/">{{ d.source.number }}</a></td><td class="num">−{{ d.gross }} €</td></tr>{% endfor %}
-  {% if deductions %}<tr class="grand"><td>{% if doc.doc_type == "cancellation" %}Gutschrift{% else %}Noch zu zahlen{% endif %}</td><td class="num">{{ due }} €</td></tr>{% endif %}
-</table>
-{% if doc.tax_note %}<p class="note">{{ doc.tax_note|linebreaksbr }}</p>{% endif %}
+<div class="docpage">
+  <div class="main">
+    <article class="sheet" aria-label="{{ doc.get_doc_type_display }} {{ doc.number }}">
+      {% stamp state "big" %}
+      <p class="doc-title">{{ doc.get_doc_type_display }} {{ doc.number }}</p>
+      <div class="parties">
+        <div class="recipient">
+          <span class="label">An</span>
+          <strong>{{ doc.customer.name }}</strong><br>
+          {% if doc.customer.street %}{{ doc.customer.street }}<br>{% endif %}
+          {{ doc.customer.postcode }} {{ doc.customer.city }}
+        </div>
+        <dl class="meta">
+          <dt>Datum</dt><dd>{{ doc.issue_date|date:"d.m.Y" }}</dd>
+          {% if doc.service_date %}<dt>Leistung</dt><dd>{{ doc.service_date|date:"d.m.Y" }}</dd>{% endif %}
+          {% if doc.service_period_start %}<dt>Leistung</dt><dd>{{ doc.service_period_start|date:"d.m.Y" }}–{{ doc.service_period_end|date:"d.m.Y" }}</dd>{% endif %}
+          {% if doc.due_date and is_invoice %}<dt>Fällig</dt><dd>{{ doc.due_date|date:"d.m.Y" }}</dd>{% endif %}
+          {% if doc.valid_until and not is_invoice %}<dt>Gültig bis</dt><dd>{{ doc.valid_until|date:"d.m.Y" }}</dd>{% endif %}
+          <dt>Kunde</dt><dd>{{ doc.customer.number }}</dd>
+          <dt>Festgeschrieben</dt><dd>{{ doc.locked_at|date:"d.m.Y H:i" }}</dd>
+        </dl>
+      </div>
+      {% if doc.parent %}<p>Bezug: <a href="/dokumente/{{ doc.parent.pk }}/">{{ doc.parent.get_doc_type_display }} {{ doc.parent.number }}</a>{% if doc.cancellation_reason %} – {{ doc.cancellation_reason }}{% endif %}</p>{% endif %}
 
-<details class="card" {% if send_form.errors %}open{% endif %}>
-  <summary><h2>Per E-Mail senden</h2></summary>
-  <form method="post" action="/dokumente/{{ doc.pk }}/senden/" class="form">
-    {% csrf_token %}
-    {% with form=send_form %}{% include "web/_fields.html" %}{% endwith %}
-    <button type="submit">Senden</button>
-  </form>
-</details>
-{% if mail_logs %}
-<section class="card">
-  <h2>Versandprotokoll</h2>
-  <ul class="plain">{% for log in mail_logs %}<li>{{ log.sent_at|date:"d.m.Y H:i" }} · {{ log.get_status_display }} an {{ log.to|join:", " }}{% if log.error %} · <span class="danger">{{ log.error }}</span>{% endif %}</li>{% endfor %}</ul>
-</section>
-{% endif %}
+      <div class="table-scroll"><table class="list">
+        <thead><tr><th>Pos.</th><th>Bezeichnung</th><th class="num">Menge</th><th class="num hide-small">Einzelpreis</th><th class="num">Betrag</th></tr></thead>
+        <tbody>
+        {% for row in lines %}
+          <tr><td>{{ row.line.position }}</td><td>{{ row.line.text }}</td><td class="num">{{ row.quantity }} {{ row.unit }}</td><td class="num hide-small">{{ row.unit_price }}</td><td class="num">{{ row.net }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table></div>
+      <table class="totals-preview">
+        {% if tax != "0,00" %}
+        <tr><td>Netto</td><td class="num">{{ net }} €</td></tr>
+        <tr><td>Umsatzsteuer</td><td class="num">{{ tax }} €</td></tr>
+        {% endif %}
+        <tr class="grand"><td>Gesamt</td><td class="num">{{ gross }} €</td></tr>
+        {% for d in deductions %}<tr><td>abzüglich <a href="/dokumente/{{ d.source.pk }}/">{{ d.source.number }}</a></td><td class="num">−{{ d.gross }} €</td></tr>{% endfor %}
+        {% if deductions %}<tr class="grand"><td>{% if doc.doc_type == "cancellation" %}Gutschrift{% else %}Noch zu zahlen{% endif %}</td><td class="num">{{ due }} €</td></tr>{% endif %}
+      </table>
+      {% if doc.tax_note %}<p class="note">{{ doc.tax_note|linebreaksbr }}</p>{% endif %}
+    </article>
 
-{% if payment_form and not cancelled %}
-<section class="card">
-  <h2>Zahlungen · {{ payment_status }}</h2>
-  <p>Offen: <strong>{{ open_amount }} €</strong></p>
-  <ul class="plain">{% for p in payments %}<li>{{ p.received_on|date:"d.m.Y" }} · {{ p.amount|floatformat:"2g" }} € · {{ p.get_method_display }}{% if p.note %} · {{ p.note }}{% endif %}</li>{% endfor %}</ul>
-  {% if open_amount != "0,00" %}
-  <form method="post" action="/dokumente/{{ doc.pk }}/zahlung/" class="form">
-    {% csrf_token %}
-    {% with form=payment_form %}{% include "web/_fields.html" %}{% endwith %}
-    <button type="submit">Zahlung erfassen</button>
-  </form>
-  {% endif %}
-</section>
-<details class="card">
-  <summary><h2>Stornieren</h2></summary>
-  <p class="muted">Erzeugt eine Stornorechnung mit denselben Beträgen. Die Rechnung selbst bleibt unverändert erhalten.</p>
-  <form method="post" action="/dokumente/{{ doc.pk }}/stornieren/" class="form">
-    {% csrf_token %}
-    {% with form=cancel_form %}{% include "web/_fields.html" %}{% endwith %}
-    <button type="submit" class="danger">Stornorechnung erstellen</button>
-  </form>
-</details>
-{% endif %}
+    {% if payment_form and not cancelled %}
+    <details class="card" id="zahlungen" {% if payments or state == "overdue" %}open{% endif %}>
+      <summary><h2>Zahlungen</h2></summary>
+      {% if payments %}
+      <div class="table-scroll"><table class="list">
+        <thead><tr><th>Eingang</th><th>Art</th><th class="hide-small">Notiz</th><th class="num">Betrag</th></tr></thead>
+        <tbody>{% for p in payments %}<tr><td>{{ p.received_on|date:"d.m.Y" }}</td><td>{{ p.get_method_display }}</td><td class="hide-small">{{ p.note }}</td><td class="num">{{ p.amount|floatformat:"2g" }} €</td></tr>{% endfor %}</tbody>
+      </table></div>
+      {% endif %}
+      {% if open_amount != "0,00" %}
+      <form method="post" action="/dokumente/{{ doc.pk }}/zahlung/" class="form grid2">
+        {% csrf_token %}
+        {% with form=payment_form %}{% include "web/_fields.html" %}{% endwith %}
+        <button type="submit">Zahlung erfassen</button>
+      </form>
+      {% else %}<p class="muted">Vollständig bezahlt.</p>{% endif %}
+    </details>
+    {% endif %}
 
-{% if doc.doc_type == "quote" %}
-<details class="card">
-  <summary><h2>Nachfassen</h2></summary>
-  <form method="post" action="/kunden/{{ doc.customer.pk }}/wiedervorlagen/" class="form">
-    {% csrf_token %}
-    <input type="hidden" name="document" value="{{ doc.pk }}"><input type="hidden" name="back" value="/dokumente/{{ doc.pk }}/">
-    {% with form=follow_up_form %}{% include "web/_fields.html" %}{% endwith %}
-    <button type="submit" class="secondary">Wiedervorlage anlegen</button>
-  </form>
-</details>
-{% endif %}
+    <details class="card" id="senden" {% if send_form.errors %}open{% endif %}>
+      <summary><h2>Per E-Mail senden</h2></summary>
+      <form method="post" action="/dokumente/{{ doc.pk }}/senden/" class="form">
+        {% csrf_token %}
+        {% with form=send_form %}{% include "web/_fields.html" %}{% endwith %}
+        <button type="submit">Senden</button>
+      </form>
+      {% if mail_logs %}
+      <h3>Versandprotokoll</h3>
+      <ul class="plain">{% for log in mail_logs %}<li>{{ log.sent_at|date:"d.m.Y H:i" }}: {{ log.get_status_display }} an {{ log.to|join:", " }}{% if log.error %} <span class="danger">({{ log.error }})</span>{% endif %}</li>{% endfor %}</ul>
+      {% endif %}
+    </details>
 
-{% if can_confirm_order %}
-<section class="card">
-  <h2>Auftrag bestätigen</h2>
-  <p class="muted">Übernimmt das Angebot in eine Auftragsbestätigung (Entwurf).</p>
-  <form method="post" action="/dokumente/{{ doc.pk }}/auftragsbestaetigung/">{% csrf_token %}<button type="submit" class="secondary">Auftragsbestätigung erstellen</button></form>
-</section>
-{% endif %}
+    {% if dunning_notices %}
+    <section class="card" id="mahnungen">
+      <h2>Mahnungen</h2>
+      <ul class="plain">{% for n in dunning_notices %}
+        <li><a href="/mahnwesen/{{ n.pk }}/pdf/" target="_blank" rel="noopener">{{ n.title }} {{ n.number }}</a> vom {{ n.issued_on|date:"d.m.Y" }}: {{ n.total|floatformat:"2g" }} € bis {{ n.pay_by|date:"d.m.Y" }}{% if n.sent_at %}, versendet {{ n.sent_at|date:"d.m.Y" }}{% else %} <span class="badge">nicht versendet</span>{% endif %}</li>
+      {% endfor %}</ul>
+      {% if dunning_mail and not dunning_mail.notice.sent_at %}
+      <details open><summary>{{ dunning_mail.notice.title }} per E-Mail senden</summary>
+        <form method="post" action="/mahnwesen/{{ dunning_mail.notice.pk }}/senden/" class="form">
+          {% csrf_token %}
+          <label for="dunning-to">An</label><input id="dunning-to" name="to" value="{{ doc.customer.email }}" required>
+          <label for="dunning-subject">Betreff</label><input id="dunning-subject" name="subject" value="{{ dunning_mail.subject }}" required>
+          <label for="dunning-body">Text</label><textarea id="dunning-body" name="body" rows="8">{{ dunning_mail.body }}</textarea>
+          <button type="submit">Senden</button>
+        </form>
+      </details>{% endif %}
+    </section>
+    {% endif %}
 
-{% if partial_form %}
-<section class="card">
-  <h2>Abschlagsrechnung</h2>
-  <p class="muted">Rechnet einen Teil des Auftrags vorab ab – aufgeteilt nach Steuersätzen. Die Schlussrechnung zieht alle Abschläge später ab (§ 14 Abs. 5 UStG).</p>
-  <form method="post" action="/dokumente/{{ doc.pk }}/abschlag/" class="form">
-    {% csrf_token %}
-    {% with form=partial_form %}{% include "web/_fields.html" %}{% endwith %}
-    <button type="submit" class="secondary">Abschlagsrechnung erstellen</button>
-  </form>
-  {% if open_partials %}
-  <h3>Schlussrechnung</h3>
-  <p class="muted">Offene Abschläge: {% for p in open_partials %}{{ p.number }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
-  <form method="post" action="/dokumente/{{ doc.pk }}/schlussrechnung/" class="form">
-    {% csrf_token %}
-    {% with form=convert_form %}{% include "web/_fields.html" %}{% endwith %}
-    <button type="submit">Schlussrechnung erstellen</button>
-  </form>
-  {% endif %}
-</section>
-{% endif %}
+    {% if convert_form %}
+    <section class="card" id="weiter">
+      <h2>In Rechnung übernehmen</h2>
+      <form method="post" action="/dokumente/{{ doc.pk }}/in-rechnung/" class="form">
+        {% csrf_token %}
+        {% with form=convert_form %}{% include "web/_fields.html" %}{% endwith %}
+        <button type="submit">Rechnungsentwurf erstellen</button>
+      </form>
+    </section>
+    {% endif %}
 
-{% if convert_form %}
-<section class="card">
-  <h2>In Rechnung übernehmen</h2>
-  <form method="post" action="/dokumente/{{ doc.pk }}/in-rechnung/" class="form">
-    {% csrf_token %}
-    {% with form=convert_form %}{% include "web/_fields.html" %}{% endwith %}
-    <button type="submit">Rechnungsentwurf erstellen</button>
-  </form>
-</section>
-{% endif %}
+    {% if can_confirm_order %}
+    <section class="card">
+      <h2>Auftrag bestätigen</h2>
+      <p class="muted">Übernimmt das Angebot in eine Auftragsbestätigung (Entwurf).</p>
+      <form method="post" action="/dokumente/{{ doc.pk }}/auftragsbestaetigung/">{% csrf_token %}<button type="submit" class="secondary">Auftragsbestätigung erstellen</button></form>
+    </section>
+    {% endif %}
 
-{% if children %}
-<h2>Folgedokumente</h2>
-<ul class="plain">{% for child in children %}<li><a href="/dokumente/{{ child.pk }}/">{{ child.get_doc_type_display }} {{ child }}</a></li>{% endfor %}</ul>
-{% endif %}
-{% if is_invoice and not cancelled %}
-<details class="card">
-  <summary><h2>Als wiederkehrend anlegen</h2></summary>
-  <form method="post" action="/wiederkehrend/aus-rechnung/{{ doc.pk }}/" class="form">
-    {% csrf_token %}
-    {% with form=recurring_form %}{% include "web/_fields.html" %}{% endwith %}
-    <button type="submit" class="secondary">Anlegen</button>
-  </form>
-</details>
-{% endif %}
-{% if dunning_notices %}
-<section class="card" id="mahnungen">
-  <h2>Mahnungen</h2>
-  <ul class="plain">{% for n in dunning_notices %}
-    <li><a href="/mahnwesen/{{ n.pk }}/pdf/" target="_blank" rel="noopener">{{ n.title }} {{ n.number }}</a> vom {{ n.issued_on|date:"d.m.Y" }} · {{ n.total|floatformat:"2g" }} € bis {{ n.pay_by|date:"d.m.Y" }}{% if n.sent_at %} · versendet {{ n.sent_at|date:"d.m.Y" }}{% else %} · <span class="badge">nicht versendet</span>{% endif %}</li>
-  {% endfor %}</ul>
-  {% if dunning_mail and not dunning_mail.notice.sent_at %}
-  <details open><summary>{{ dunning_mail.notice.title }} per E-Mail senden</summary>
-    <form method="post" action="/mahnwesen/{{ dunning_mail.notice.pk }}/senden/" class="form">
-      {% csrf_token %}
-      <label for="dunning-to">An</label><input id="dunning-to" name="to" value="{{ doc.customer.email }}" required>
-      <label for="dunning-subject">Betreff</label><input id="dunning-subject" name="subject" value="{{ dunning_mail.subject }}" required>
-      <label for="dunning-body">Text</label><textarea id="dunning-body" name="body" rows="8">{{ dunning_mail.body }}</textarea>
-      <button type="submit">Senden</button>
-    </form>
-  </details>{% endif %}
-</section>
-{% endif %}
-{% include "web/_attachments.html" %}
+    {% if partial_form %}
+    <details class="card">
+      <summary><h2>Abschlagsrechnung</h2></summary>
+      <p class="muted">Rechnet einen Teil des Auftrags vorab ab – aufgeteilt nach Steuersätzen. Die Schlussrechnung zieht alle Abschläge später ab (§ 14 Abs. 5 UStG).</p>
+      <form method="post" action="/dokumente/{{ doc.pk }}/abschlag/" class="form">
+        {% csrf_token %}
+        {% with form=partial_form %}{% include "web/_fields.html" %}{% endwith %}
+        <button type="submit" class="secondary">Abschlagsrechnung erstellen</button>
+      </form>
+      {% if open_partials %}
+      <h3>Schlussrechnung</h3>
+      <p class="muted">Offene Abschläge: {% for p in open_partials %}{{ p.number }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+      <form method="post" action="/dokumente/{{ doc.pk }}/schlussrechnung/" class="form">
+        {% csrf_token %}
+        {% with form=convert_form %}{% include "web/_fields.html" %}{% endwith %}
+        <button type="submit">Schlussrechnung erstellen</button>
+      </form>
+      {% endif %}
+    </details>
+    {% endif %}
+
+    {% if doc.doc_type == "quote" %}
+    <details class="card">
+      <summary><h2>Nachfassen</h2></summary>
+      <form method="post" action="/kunden/{{ doc.customer.pk }}/wiedervorlagen/" class="form">
+        {% csrf_token %}
+        <input type="hidden" name="document" value="{{ doc.pk }}"><input type="hidden" name="back" value="/dokumente/{{ doc.pk }}/">
+        {% with form=follow_up_form %}{% include "web/_fields.html" %}{% endwith %}
+        <button type="submit" class="secondary">Wiedervorlage anlegen</button>
+      </form>
+    </details>
+    {% endif %}
+
+    {% if children %}
+    <section class="card">
+      <h2>Folgedokumente</h2>
+      <ul class="plain">{% for child in children %}<li><a href="/dokumente/{{ child.pk }}/">{{ child.get_doc_type_display }} {{ child }}</a></li>{% endfor %}</ul>
+    </section>
+    {% endif %}
+
+    {% if is_invoice and not cancelled %}
+    <details class="card">
+      <summary><h2>Als wiederkehrend anlegen</h2></summary>
+      <form method="post" action="/wiederkehrend/aus-rechnung/{{ doc.pk }}/" class="form">
+        {% csrf_token %}
+        {% with form=recurring_form %}{% include "web/_fields.html" %}{% endwith %}
+        <button type="submit" class="secondary">Anlegen</button>
+      </form>
+    </details>
+    {% endif %}
+
+    <details class="card" {% if attachments %}open{% endif %}>
+      <summary><h2>Dateien</h2></summary>
+      {% include "web/_attachments.html" with no_heading=True %}
+    </details>
+
+    {% if payment_form and not cancelled %}
+    <details class="card">
+      <summary><h2>Stornieren</h2></summary>
+      <p class="muted">Erzeugt eine Stornorechnung mit denselben Beträgen. Die Rechnung selbst bleibt unverändert erhalten.</p>
+      <form method="post" action="/dokumente/{{ doc.pk }}/stornieren/" class="form">
+        {% csrf_token %}
+        {% with form=cancel_form %}{% include "web/_fields.html" %}{% endwith %}
+        <button type="submit" class="danger">Stornorechnung erstellen</button>
+      </form>
+    </details>
+    {% endif %}
+  </div>
+
+  <aside class="aside" aria-label="Aktionen">
+    <div class="panel next">
+      {% if payment_form and not cancelled %}
+      <h2>{% if open_amount == "0,00" %}Bezahlt{% else %}Noch offen{% endif %}</h2>
+      <p class="amount">{{ open_amount }} € <small>von {{ gross }} €</small></p>
+      {% else %}
+      <h2>Gesamt</h2>
+      <p class="amount">{{ gross }} €</p>
+      {% endif %}
+      <div class="stack">
+        {% if payment_form and not cancelled and open_amount != "0,00" %}<a class="button" href="#zahlungen">Zahlung erfassen</a>{% endif %}
+        {% if convert_form %}<a class="button" href="#weiter">In Rechnung übernehmen</a>{% endif %}
+        <a class="button secondary" href="#senden">Per E-Mail senden</a>
+        {% if state == "overdue" %}<a class="button secondary" href="/mahnwesen/">Mahnen</a>{% endif %}
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Dateien zum Dokument</h2>
+      <div class="stack">
+        {% for r in renditions %}<a class="button secondary" href="/dokumente/{{ doc.pk }}/datei/{{ r.kind }}/">{{ r.get_kind_display }}</a>{% endfor %}
+        {% for r in renditions %}{% if r.kind != "xrechnung_xml" %}<button type="button" class="secondary share-file" hidden
+          data-url="/dokumente/{{ doc.pk }}/datei/{{ r.kind }}/" data-filename="{{ doc.number }}.pdf"
+          data-title="{{ doc.get_doc_type_display }} {{ doc.number }}">Teilen</button>{% endif %}{% endfor %}
+      </div>
+    </div>
+  </aside>
+</div>
 {% endblock %}

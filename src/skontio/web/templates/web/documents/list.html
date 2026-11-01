@@ -1,4 +1,4 @@
-{% extends "web/base.html" %}
+{% extends "web/base.html" %}{% load skontio_ui %}
 {% block title %}Dokumente{% endblock %}
 {% block content %}
 <div class="heading">
@@ -6,25 +6,32 @@
   <p><a class="button" href="/dokumente/neu/?typ=invoice">Neue Rechnung</a> <a class="button secondary" href="/dokumente/neu/?typ=quote">Neues Angebot</a></p>
 </div>
 <nav class="filters" aria-label="Filter">
-  <a href="/dokumente/" {% if not typ %}aria-current="page"{% endif %}>Alle</a>
-  <a href="?typ=invoice" {% if typ == "invoice" %}aria-current="page"{% endif %}>Rechnungen</a>
-  <a href="?typ=quote" {% if typ == "quote" %}aria-current="page"{% endif %}>Angebote</a>
-  <a href="?typ=order_confirmation" {% if typ == "order_confirmation" %}aria-current="page"{% endif %}>Auftragsbestätigungen</a>
-  <a href="?typ=cancellation" {% if typ == "cancellation" %}aria-current="page"{% endif %}>Stornos</a>
+  <a href="/dokumente/{% if q %}?q={{ q|urlencode }}{% endif %}" {% if not typ %}aria-current="page"{% endif %}>Alle</a>
+  <a href="?typ=invoice{% if q %}&amp;q={{ q|urlencode }}{% endif %}" {% if typ == "invoice" %}aria-current="page"{% endif %}>Rechnungen</a>
+  <a href="?typ=quote{% if q %}&amp;q={{ q|urlencode }}{% endif %}" {% if typ == "quote" %}aria-current="page"{% endif %}>Angebote</a>
+  <a href="?typ=order_confirmation{% if q %}&amp;q={{ q|urlencode }}{% endif %}" {% if typ == "order_confirmation" %}aria-current="page"{% endif %}>Auftragsbestätigungen</a>
+  <a href="?typ=cancellation{% if q %}&amp;q={{ q|urlencode }}{% endif %}" {% if typ == "cancellation" %}aria-current="page"{% endif %}>Stornos</a>
 </nav>
+<form method="get" role="search">
+  {% if typ %}<input type="hidden" name="typ" value="{{ typ }}">{% endif %}
+  <label class="visually-hidden" for="doc-search">Dokumente durchsuchen</label>
+  <input id="doc-search" type="search" name="q" value="{{ q }}" placeholder="Nummer oder Kunde suchen">
+</form>
 <div class="table-scroll"><table class="list">
-  <thead><tr><th>Nummer</th><th>Art</th><th>Kunde</th><th class="hide-small">Datum</th><th class="num">Betrag</th></tr></thead>
+  <thead><tr><th>Status</th><th>Nummer</th><th class="hide-small">Art</th><th>Kunde</th><th class="hide-small">Datum</th><th class="hide-small">Fällig</th><th class="num">Betrag</th></tr></thead>
   <tbody>
-  {% for doc in documents %}
+  {% for doc, state in rows %}
     <tr>
-      <td><a href="/dokumente/{{ doc.pk }}/">{{ doc }}</a>{% if doc.status == "draft" %} <span class="badge">Entwurf</span>{% endif %}{% if doc.ai_review_required and not doc.ai_reviewed_at %} <span class="badge">KI</span>{% endif %}</td>
-      <td>{{ doc.get_doc_type_display }}</td>
+      <td>{% stamp state %}</td>
+      <td><a href="/dokumente/{{ doc.pk }}/">{% if doc.number %}{{ doc.number }}{% else %}{{ doc.get_doc_type_display }}-Entwurf{% endif %}</a>{% if doc.ai_review_required and not doc.ai_reviewed_at %} <span class="badge">KI-Entwurf</span>{% endif %}</td>
+      <td class="hide-small">{{ doc.get_doc_type_display }}</td>
       <td>{{ doc.customer.name|default:"–" }}</td>
       <td class="hide-small">{{ doc.issue_date|date:"d.m.Y" }}</td>
-      <td class="num">{% if doc.gross_total is not None %}{{ doc.gross_total|floatformat:"2g" }} €{% endif %}</td>
+      <td class="hide-small">{% if doc.due_date and state != "paid" and state != "cancelled" and state != "final" %}<span{% if state == "overdue" %} class="danger"{% endif %}>{{ doc.due_date|date:"d.m.Y" }}</span>{% endif %}</td>
+      <td class="num amount">{% if doc.gross_total is not None %}{{ doc.gross_total|floatformat:"2g" }} €{% endif %}</td>
     </tr>
   {% empty %}
-    <tr><td colspan="5" class="muted">Noch keine Dokumente.</td></tr>
+    <tr><td colspan="7" class="muted">{% if q %}Nichts gefunden für „{{ q }}“.{% else %}Noch keine Dokumente. Lege oben eine Rechnung oder ein Angebot an.{% endif %}</td></tr>
   {% endfor %}
   </tbody>
 </table></div>

@@ -1,11 +1,12 @@
 {% extends "web/base.html" %}
 {% block title %}{% if item %}{{ item.name }}{% else %}Neue Leistung{% endif %}{% endblock %}
 {% block content %}
-<h1>{% if item %}{{ item.name }}{% else %}Neue Leistung{% endif %}</h1>
+<div class="heading"><h1>{% if item %}{{ item.name }}{% else %}Neue Leistung{% endif %}</h1>
+  <p><a class="button secondary" href="/leistungen/">Alle Leistungen</a></p></div>
 <p class="muted">Die Steuerbehandlung ist abstrakt: Als Kleinunternehmer wird automatisch keine Umsatzsteuer berechnet, nach einem Wechsel greift der hier gewählte Satz.</p>
-<form method="post" class="form">
+<form method="post" class="card form grid2">
   {% csrf_token %}
   {% include "web/_fields.html" %}
-  <button type="submit">Speichern</button>
+  <div class="actions"><button type="submit">Speichern</button> <a href="/leistungen/">Abbrechen</a></div>
 </form>
 {% endblock %}

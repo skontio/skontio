@@ -22,6 +22,7 @@ from skontio.recurring.services import due as recurring_due
 from skontio.tax.engine import Regime
 from skontio.taxstatus.services import TaxStatusError, regime_for, start_regime
 from skontio.taxstatus.thresholds import small_business_status
+from skontio.web.document_views import document_state
 from skontio.web.forms import ActivityForm, CompanyForm, CustomerForm, FollowUpForm, ItemForm, SetupForm
 from skontio.web.support import admin_required, company_view, current_company, render_page_or_fragment
 
@@ -39,6 +40,7 @@ def dashboard(request):
     ).exclude(children__doc_type=Document.Type.CANCELLATION)
     open_items = [(doc, open_amount(doc)) for doc in invoices.order_by("due_date")]
     open_items = [(doc, amount) for doc, amount in open_items if amount > 0]
+    drafts = Document.objects.filter(company=company, status=Document.Status.DRAFT).select_related("customer")
     return render(
         request,
         "web/dashboard.html",
@@ -47,16 +49,38 @@ def dashboard(request):
             "status": status,
             "revenue": de_amount(status.revenue) if status else "",
             "limit": de_amount(status.current_limit, 0) if status else "",
+            "ruler": _threshold_ruler(status) if status else None,
             "open_items": [(doc, de_amount(amount)) for doc, amount in open_items[:10]],
             "open_total": de_amount(sum((amount for _, amount in open_items), start=0)),
-            "overdue": [doc for doc, _ in open_items if doc.due_date and doc.due_date < today],
+            "overdue": [
+                (doc, de_amount(amount)) for doc, amount in open_items if doc.due_date and doc.due_date < today
+            ],
             "follow_ups": due_follow_ups(company, today),
             "dunning_due": len(dunning_candidates(company, today)),
             "recurring_due": len(recurring_due(company, today)),
-            "drafts": Document.objects.filter(company=company, status=Document.Status.DRAFT).count(),
+            "drafts": drafts.count(),
+            "draft_list": drafts.order_by("-pk")[:5],
             "today": today,
         },
     )
+
+
+def _bar(value, limit) -> str:
+    """Width of a ruler bar in percent (SVG attribute, the CSP forbids inline styles); at least a sliver."""
+    if not limit:
+        return "0"
+    percent = min(float(value) / float(limit) * 100, 100.0)
+    return f"{max(percent, 0.8 if value > 0 else 0):.1f}"
+
+
+def _threshold_ruler(status) -> dict:
+    """Both § 19 UStG limits: previous year (25.000 €) and current year (100.000 €)."""
+    return {
+        "current": _bar(status.revenue, status.current_limit),
+        "previous": _bar(status.previous_year_revenue, status.previous_year_limit),
+        "previous_revenue": de_amount(status.previous_year_revenue),
+        "previous_limit": de_amount(status.previous_year_limit, 0),
+    }
 
 
 @admin_required
@@ -107,16 +131,19 @@ def customer_detail(request, pk: int):
     if request.method == "POST" and form.is_valid():
         form.save()
         return redirect(f"/kunden/{customer.pk}/")
-    documents = Document.objects.filter(company=request.company, customer=customer)[:50]
+    documents = Document.objects.filter(company=request.company, customer=customer).prefetch_related(
+        "payments", "children", "deductions"
+    )[:50]
+    today = timezone.localdate()
     context = {
         "form": form,
         "customer": customer,
-        "documents": documents,
+        "documents": [(doc, document_state(doc, today)) for doc in documents],
         "activities": customer.activities.select_related("document", "created_by")[:50],
         "follow_ups": customer.follow_ups.filter(done_at__isnull=True).select_related("document"),
         "activity_form": ActivityForm(),
         "follow_up_form": FollowUpForm(initial={"due_on": timezone.localdate() + dt.timedelta(days=7)}),
-        "today": timezone.localdate(),
+        "today": today,
         "attachments": customer.attachments.select_related("blob"),
         "attach_customer": customer,
     }

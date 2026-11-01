@@ -1,0 +1,27 @@
+{% load skontio_ui %}<div class="navgroup">
+  <h2>Verkauf</h2>
+  <a class="navlink" href="/" {% nav_current "/" %}>Übersicht</a>
+  <a class="navlink" href="/dokumente/" {% nav_current "/dokumente/" %}>Dokumente</a>
+  <a class="navlink" href="/kunden/" {% nav_current "/kunden/" %}>Kunden</a>
+  <a class="navlink" href="/leistungen/" {% nav_current "/leistungen/" %}>Leistungen</a>
+  <a class="navlink" href="/wiederkehrend/" {% nav_current "/wiederkehrend/" %}>Wiederkehrend</a>
+  <a class="navlink" href="/mahnwesen/" {% nav_current "/mahnwesen/" %}>Mahnwesen</a>
+</div>
+<div class="navgroup">
+  <h2>Ausgaben und Bank</h2>
+  <a class="navlink" href="/ausgaben/" {% nav_current "/ausgaben/" "/ausgaben/belege/" %}>Ausgaben</a>
+  <a class="navlink" href="/ausgaben/belege/" {% nav_current "/ausgaben/belege/" %}>Belegeingang</a>
+  <a class="navlink" href="/eingang/" {% nav_current "/eingang/" %}>E-Rechnungen</a>
+  <a class="navlink" href="/bank/" {% nav_current "/bank/" %}>Bank</a>
+</div>
+<div class="navgroup">
+  <h2>Steuern</h2>
+  <a class="navlink" href="/auswertungen/euer/" {% nav_current "/auswertungen/euer" %}>EÜR</a>
+  <a class="navlink" href="/auswertungen/ustva/" {% nav_current "/auswertungen/ustva/" %}>Umsatzsteuer</a>
+  {% if user.is_staff %}<a class="navlink" href="/einstellungen/steuerstatus/" {% nav_current "/einstellungen/steuerstatus/" %}>Steuerstatus</a>{% endif %}
+</div>
+<div class="navgroup bottom">
+  <a class="navlink" href="/assistent/" {% nav_current "/assistent/" %}>Assistent</a>
+  {% if user.is_staff %}<a class="navlink" href="/einrichtung/" {% nav_current "/einrichtung/|/einstellungen/" "/einstellungen/steuerstatus/" %}>Einstellungen</a>{% endif %}
+  <form method="post" action="/auth/logout" class="logout">{% csrf_token %}<button type="submit" class="link">Abmelden</button></form>
+</div>
