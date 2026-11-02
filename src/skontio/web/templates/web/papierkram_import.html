@@ -1,0 +1,39 @@
+{% extends "web/base.html" %}
+{% block title %}Umzug aus Papierkram{% endblock %}
+{% block content %}
+<div class="heading"><h1>Umzug aus Papierkram</h1></div>
+{% include "web/_settings_nav.html" %}
+<p>In Papierkram unter <em>Einstellungen → Export</em> den <strong>CSV-Export</strong> als ZIP herunterladen und hier
+  hochladen. Skontio übernimmt Kontakte, Leistungen, Rechnungen und Angebote, Zahlungen, Bankkonten und Kontoumsätze.</p>
+<p class="muted">Rechnungen und Angebote kommen als <strong>Altbelege</strong>: mit Originalnummer, Datum und Beträgen, aber
+  ohne einzelne Positionen und ohne PDF – das enthält der CSV-Export nicht; die Originale bleiben in Papierkram
+  (bitte dort aufbewahren oder als PDF sichern). Altbelege zählen für EÜR, offene Posten und Kleinunternehmergrenze
+  und lassen sich nicht neu versenden. Ein zweiter Import legt nichts doppelt an.</p>
+<form method="post" enctype="multipart/form-data" class="card form">
+  {% csrf_token %}
+  <label for="export">CSV-Export aus Papierkram (ZIP)</label>
+  <input id="export" type="file" name="export" accept=".zip,application/zip" required>
+  <label><input type="checkbox" name="nummern" value="1" checked> Nummernkreise fortsetzen (z. B. nach R-00005 kommt R-00006)</label>
+  <div class="actions">
+    <button type="submit" name="aktion" value="pruefen" class="secondary">Nur prüfen</button>
+    <button type="submit" name="aktion" value="importieren">Übernehmen</button>
+  </div>
+</form>
+{% if problem %}<p class="danger" role="alert">{{ problem }}</p>{% endif %}
+{% if report %}
+<section class="card" aria-live="polite">
+  {% if report.errors %}
+    <h2>Nichts übernommen</h2>
+    <ul class="plain">{% for e in report.errors %}<li class="danger">{{ e }}</li>{% endfor %}</ul>
+  {% elif dry_run %}<h2>Prüfung: so würde Skontio übernehmen</h2><p class="muted">Noch nichts gespeichert.</p>
+  {% else %}<h2>Übernommen</h2>{% endif %}
+  <ul class="plain">
+    {% for label, n in created %}<li>{{ label }}: {{ n }} neu</li>{% endfor %}
+    {% for label, n in skipped %}<li class="muted">{{ label }}: {{ n }} schon vorhanden</li>{% endfor %}
+    {% for line in report.numbering %}<li>{{ line }}</li>{% endfor %}
+    {% for label, n in not_imported %}<li class="muted">{{ label }}: {{ n }} – nicht übernommen, das kann Skontio noch nicht</li>{% endfor %}
+  </ul>
+  {% if report.warnings %}<h3>Bitte prüfen</h3><ul class="plain">{% for w in report.warnings %}<li class="warn">{{ w }}</li>{% endfor %}</ul>{% endif %}
+</section>
+{% endif %}
+{% endblock %}

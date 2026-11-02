@@ -40,6 +40,7 @@ class Document(models.Model):
         ASSISTANT = "assistant", "KI-Assistent"
         API = "api", "API"
         RECURRING = "recurring", "Wiederkehrend"
+        IMPORT = "import", "Import"
 
     company = models.ForeignKey("core.Company", on_delete=models.PROTECT, related_name="documents")
     doc_type = models.CharField(max_length=32, choices=Type.choices)
@@ -79,6 +80,8 @@ class Document(models.Model):
     buyer_snapshot_sha256 = models.CharField(max_length=64, blank=True, default="")
 
     origin = models.CharField(max_length=16, choices=Origin.choices, default=Origin.UI)
+    # Altbeleg from another program (e.g. "Papierkram"): original number, totals only, the original PDF stays there
+    imported_from = models.CharField(max_length=40, blank=True, default="")
     ai_review_required = models.BooleanField(default=False)
     ai_reviewed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"

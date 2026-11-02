@@ -114,6 +114,10 @@ def send_document(
     document or its customer) sent along; ``activity_text`` replaces the customer-history entry."""
     if document.status != Document.Status.FINALIZED:
         raise MailError("Nur festgeschriebene Dokumente können versendet werden")
+    if document.imported_from:
+        raise MailError(
+            f"Altbelege aus {document.imported_from} lassen sich nicht neu versenden – das Original liegt dort"
+        )
     if not smtp_configured():
         raise MailError("Kein SMTP-Server eingerichtet (SKONTIO_SMTP_HOST, siehe docs/betrieb.md)")
     recipients, copies = _clean_addresses(to), _clean_addresses(cc or [])

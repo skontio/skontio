@@ -101,3 +101,32 @@ def full_export(request):
         filename=f"skontio-gesamtexport-{timezone.localdate().isoformat()}.zip",
         content_type="application/zip",
     )
+
+
+@admin_required
+@company_view
+def papierkram_import(request):
+    """Umzug aus Papierkram: first check (nothing saved), then import – same upload, one click each."""
+    from skontio.imports.papierkram import PapierkramError, import_papierkram
+
+    report, problem, dry_run = None, "", True
+    if request.method == "POST":
+        upload = request.FILES.get("export")
+        dry_run = request.POST.get("aktion") != "importieren"
+        if upload is None:
+            problem = "Bitte die ZIP-Datei aus Papierkram auswählen."
+        else:
+            try:
+                report = import_papierkram(
+                    request.company, upload.read(), user=request.user, dry_run=dry_run,
+                    continue_numbering=request.POST.get("nummern") == "1",
+                )  # fmt: skip
+            except PapierkramError as exc:
+                problem = str(exc)
+    lists = {
+        "created": sorted(report.created.items()) if report else [],
+        "skipped": sorted(report.skipped.items()) if report else [],
+        "not_imported": sorted(report.not_imported.items()) if report else [],
+    }  # template lookups on a Counter would read the key "items" instead of the method
+    return render(request, "web/papierkram_import.html",
+                  {"report": report, "problem": problem, "dry_run": dry_run, **lists})  # fmt: skip

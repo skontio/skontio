@@ -55,6 +55,7 @@ __all__ = [
     "LaborCosts",
     "labor_costs",
     "gross_check",
+    "seal_imported",
     "line_rate",
     "DocumentError",
     "DocumentLocked",
@@ -557,8 +558,14 @@ def _seal(
     totals: Totals,
     seller: dict,
     buyer: dict,
+    *,
+    number: str | None = None,
+    renditions: bool = True,
 ) -> Document:
-    """Write the snapshot and lock. Lines first – once the document is finalized they are locked."""
+    """Write the snapshot and lock. Lines first – once the document is finalized they are locked.
+
+    ``number``/``renditions=False`` only for Altbelege (``seal_imported``): they keep their original number and
+    have no PDF of their own."""
     if regime is Regime.SMALL_BUSINESS and totals.tax_total != 0:
         raise DocumentError("Kleinunternehmer dürfen keine Umsatzsteuer ausweisen (§ 14c UStG)")
     if prepaid_total(document) > totals.grand_total:
@@ -581,19 +588,45 @@ def _seal(
     document.tax_total = totals.tax_total
     document.gross_total = totals.grand_total
 
-    sequence = SEQUENCE_TYPE.get(Type(document.doc_type), Type(document.doc_type))
-    NumberSequence.objects.get_or_create(
-        company=document.company, doc_type=sequence, defaults={"pattern": DEFAULT_PATTERNS[sequence]}
-    )
-    document.number = allocate_number(document.company, sequence, document.issue_date)
+    if number is None:
+        sequence = SEQUENCE_TYPE.get(Type(document.doc_type), Type(document.doc_type))
+        NumberSequence.objects.get_or_create(
+            company=document.company, doc_type=sequence, defaults={"pattern": DEFAULT_PATTERNS[sequence]}
+        )
+        number = allocate_number(document.company, sequence, document.issue_date)
+    document.number = number
     document.status = Document.Status.FINALIZED
     document.locked_at = timezone.now()
     document.save()
-    try:
-        create_renditions(document)
-    except (RenditionError, ValueError) as exc:
-        raise DocumentError(str(exc)) from exc  # rolls back the whole finalize transaction
+    if renditions:
+        try:
+            create_renditions(document)
+        except (RenditionError, ValueError) as exc:
+            raise DocumentError(str(exc)) from exc  # rolls back the whole finalize transaction
     return document
+
+
+def seal_imported(document: Document, *, number: str, source: str) -> Document:
+    """Altbeleg: lock a draft built from another program's totals under its original number, without PDF.
+
+    Same checks, taxes and immutability as ``finalize`` – but no number from Skontio's sequence (the document was
+    numbered and sent by the other program) and no renditions (the original PDF lives there)."""
+    number, source = number.strip()[:64], source.strip()[:40]
+    if not number or not source:
+        raise DocumentError("Ein Altbeleg braucht seine Originalnummer und die Quelle")
+    with transaction.atomic():
+        doc = Document.objects.select_for_update(of=("self",)).select_related("company", "customer").get(pk=document.pk)
+        _require_draft(doc)
+        if doc.customer is None or not doc.lines.exists():
+            raise DocumentError("Ein Altbeleg braucht Kunde und Position")
+        if Document.objects.filter(company=doc.company, doc_type=doc.doc_type, number=number).exists():
+            raise DocumentError(f"Die Nummer {number} gibt es schon")
+        doc.origin, doc.imported_from = Document.Origin.IMPORT, source
+        regime = _regime(doc)
+        lines, inputs = _line_inputs(doc, regime)
+        totals = _calculate(doc, inputs)
+        return _seal(doc, regime, lines, totals, _seller_data(doc.company), _buyer_data(doc.customer),
+                     number=number, renditions=False)  # fmt: skip
 
 
 def finalize(document: Document) -> Document:

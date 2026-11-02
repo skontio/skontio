@@ -107,6 +107,7 @@ urlpatterns = [
     path("kunden/neu/", views.customer_create, name="customer_create"),
     path("kunden/export.csv", transfer.customers_csv, name="customers_csv"),
     path("kunden/import/", transfer.customers_import, name="customers_import"),
+    path("einstellungen/umzug/papierkram/", transfer.papierkram_import, name="papierkram_import"),
     path("kunden/<int:pk>/", views.customer_detail, name="customer_detail"),
     path("kunden/<int:pk>/aktivitaeten/", views.activity_add, name="activity_add"),
     path("kunden/<int:pk>/wiedervorlagen/", views.follow_up_add, name="follow_up_add"),
