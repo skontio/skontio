@@ -339,7 +339,7 @@ Legende: ✅ vorhanden · 🟡 teilweise · 📅 schon geplant · ➕ neu aufgen
 | Rechnungen ins EU-Ausland und in Drittländer | Free | ✅ | ig. Lieferung, § 13b, Ausfuhr |
 | Rechtskonforme Stornierung | Free | ✅ | |
 | Zahlungsziel zentral definierbar | Free | ✅ | Firmenstandard, je Kunde abweichend |
-| Filterbare Übersicht, CSV-Export | Free | 🟡 | Liste ✅; ➕ 2b: Filter (Status, Zeitraum, Kunde) und CSV-Export |
+| Filterbare Übersicht, CSV-Export | Free | ✅ | Filter nach Status, Zeitraum, Kunde, Art und Suche; CSV-Export der gefilterten Liste |
 
 ### 13.2 Vorlagen, Mahnwesen, Zahlungen
 
@@ -423,7 +423,7 @@ Legende: ✅ vorhanden · 🟡 teilweise · 📅 schon geplant · ➕ neu aufgen
 | Benachrichtigungen | Free | 📅 | 2 (Web Push), Wiedervorlagen ✅ |
 | Nummernkreise definierbar | Free | ✅ | Muster, Rücksetzung, Startnummer; nur vorwärts, kein Duplikat, im Protokoll |
 | Kontenrahmen SKR03 und SKR04 | Free | ✅ | Kontenvorschläge je Zweck, jedes Konto überschreibbar, Sachkontenlänge, Berater-/Mandantennummer |
-| Schnellsuche über alle Inhalte | Free | ➕ | 2b: eine Suche für Kunden, Dokumente, Ausgaben, Leistungen |
+| Schnellsuche über alle Inhalte | Free | ✅ | eine Suche für Kontakte (auch Ansprechpartner), Dokumente (auch Positionstexte), Ausgaben, Leistungen |
 | Waren und Dienstleistungen mit Preisen | Free | ✅ | Leistungskatalog |
 | Weitere Benutzer | M | ✅ | Rollen über OIDC-Gruppen: Admin, Mitarbeit, **nur Entwürfe** (2b); ➕ 3: Steuerberatung (nur lesen) |
 | Upload-Speicherplatz | alle | ➖ | selbst gehostet, kein Limit |

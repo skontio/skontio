@@ -21,12 +21,14 @@
   <aside class="sidebar" aria-label="Hauptmenü">
     <a class="brand" href="/">Skontio</a>
     <a class="button new" href="/dokumente/neu/?typ=invoice">Neue Rechnung</a>
+    <form class="quicksearch" method="get" action="/suche/" role="search"><label class="visually-hidden" for="quicksearch">Alles durchsuchen</label><input id="quicksearch" type="search" name="q" placeholder="Suchen …" maxlength="100"></form>
     <nav aria-label="Bereiche">{% include "web/_nav.html" %}</nav>
   </aside>
 
   <div class="content">
     <header class="mobilebar">
       <a class="brand" href="/">Skontio</a>
+      <a class="button secondary" href="/suche/" aria-label="Suchen">Suchen</a>
       <a class="button secondary" href="/dokumente/neu/?typ=quote">Neues Angebot</a>
     </header>
     <main class="page">

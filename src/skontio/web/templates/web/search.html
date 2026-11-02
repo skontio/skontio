@@ -1,0 +1,36 @@
+{% extends "web/base.html" %}{% load skontio_ui %}
+{% block title %}Suche{% endblock %}
+{% block content %}
+<h1>Suche</h1>
+<form method="get" action="/suche/" role="search">
+  <label class="visually-hidden" for="search-page">Alles durchsuchen</label>
+  <input id="search-page" type="search" name="q" value="{{ q }}" placeholder="Kunde, Nummer, Lieferant, Leistung …" autofocus>
+</form>
+{% if q|length < 2 %}<p class="muted">Mindestens zwei Zeichen eingeben.</p>
+{% elif not total %}<p class="muted">Nichts gefunden für „{{ q }}“.</p>
+{% else %}
+{% if customers %}<h2>Kontakte</h2>
+<div class="table-scroll"><table class="list"><tbody>{% for c in customers %}
+  <tr{% if c.archived_at %} class="muted"{% endif %}><td><a href="/kunden/{{ c.pk }}/">{{ c.name }}</a>{% if c.archived_at %} <span class="badge">archiviert</span>{% endif %}</td>
+    <td>{{ c.number }}</td><td class="hide-small">{{ c.get_role_display }}</td><td class="hide-small">{{ c.city }}</td></tr>
+{% endfor %}</tbody></table></div>{% endif %}
+{% if documents %}<h2>Dokumente</h2>
+<div class="table-scroll"><table class="list"><tbody>{% for doc, state in documents %}
+  <tr><td>{% stamp state %}</td>
+    <td><a href="/dokumente/{{ doc.pk }}/">{% if doc.number %}{{ doc.number }}{% else %}{{ doc.get_doc_type_display }}-Entwurf{% endif %}</a></td>
+    <td>{{ doc.customer.name|default:"–" }}</td><td class="hide-small">{{ doc.issue_date|date:"d.m.Y" }}</td>
+    <td class="num amount">{% if doc.gross_total is not None %}{{ doc.gross_total|floatformat:"2g" }} €{% endif %}</td></tr>
+{% endfor %}</tbody></table></div>{% endif %}
+{% if expenses %}<h2>Ausgaben</h2>
+<div class="table-scroll"><table class="list"><tbody>{% for e in expenses %}
+  <tr{% if e.cancelled_at %} class="muted"{% endif %}><td><a href="/ausgaben/{{ e.pk }}/">{{ e.number }}</a>{% if e.cancelled_at %} <span class="badge">storniert</span>{% endif %}</td>
+    <td>{{ e.receipt_date|date:"d.m.Y" }}</td><td>{{ e.supplier }}</td>
+    <td class="num">{{ e.gross_amount|floatformat:"2g" }} €</td></tr>
+{% endfor %}</tbody></table></div>{% endif %}
+{% if items %}<h2>Leistungen</h2>
+<div class="table-scroll"><table class="list"><tbody>{% for i in items %}
+  <tr{% if i.archived_at %} class="muted"{% endif %}><td><a href="/leistungen/{{ i.pk }}/">{{ i.name }}</a>{% if i.archived_at %} <span class="badge">archiviert</span>{% endif %}</td>
+    <td>{{ i.sku }}</td><td class="num">{{ i.net_price|floatformat:"2g" }} € netto</td></tr>
+{% endfor %}</tbody></table></div>{% endif %}
+{% endif %}
+{% endblock %}

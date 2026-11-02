@@ -55,6 +55,8 @@ hr { border: 0; border-top: 1px solid var(--rule); margin: 20px 0; }
 .brand { font: 700 1.5rem/1 var(--font-head); color: var(--ink); text-decoration: none; padding: 4px 10px 16px; letter-spacing: .01em; }
 .brand:hover { color: var(--ink); }
 .sidebar .new { margin: 0 6px 14px; }
+.quicksearch { margin: 0 6px 6px; }
+.quicksearch input { margin: 0; }
 .navgroup { margin: 0 0 10px; }
 .navgroup h2 { font: 600 .8rem/1 var(--font-text); color: var(--muted); margin: 12px 10px 6px; }
 .navlink { display: block; padding: 7px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
@@ -75,7 +77,7 @@ hr { border: 0; border-top: 1px solid var(--rule); margin: 20px 0; }
   .sidebar { display: none; }
   .mobilebar { display: flex; align-items: center; justify-content: space-between; gap: 12px; position: sticky; top: 0; z-index: 5;
                padding: 10px 16px; background: var(--paper); border-bottom: 1px solid var(--rule); }
-  .mobilebar .brand { padding: 4px 0; font-size: 1.3rem; }
+  .mobilebar .brand { padding: 4px 0; font-size: 1.3rem; margin-right: auto; }
   .page { padding: 20px 16px calc(var(--tabbar) + 24px); }
   .disclaimer { padding: 0 16px calc(var(--tabbar) + 20px); margin-top: -16px; }
   .tabbar { display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; inset: auto 0 0 0; z-index: 10;
