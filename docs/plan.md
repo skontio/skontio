@@ -397,7 +397,7 @@ Legende: ✅ vorhanden · 🟡 teilweise · 📅 schon geplant · ➕ neu aufgen
 | Zahlungseingang automatisch zuordnen | S | ➕ | 3: nur eindeutige Fälle (Nummer im Zweck, Betrag genau, ein Kandidat), standardmäßig aus, mit Hinweis und Gegenbuchung |
 | Gegenkonten und Regeln | S | ➕ | 2b: Regeln (Gegenpartei, Verwendungszweck → Kategorie) |
 | Suche in Kontobewegungen | S | ➕ | 2b |
-| Alle Daten als CSV exportieren | Free | ➕ | 2b: Gesamtexport als ZIP; ➕ 3: GoBD-Datenexport mit Beschreibungsstandard (index.xml) für die Betriebsprüfung |
+| Alle Daten als CSV exportieren | Free | ✅ | Gesamtexport als ZIP (CSV und geprüfte Originale); ➕ 3: GoBD-Datenexport mit Beschreibungsstandard (index.xml) für die Betriebsprüfung |
 | Waren importieren (CSV) | Free | ✅ | Leistungen/Artikel mit Einheit (Code oder Name), deutschen Beträgen, Steuerbehandlung |
 | Kunden und Lieferanten importieren (CSV) | Free | ✅ | Rolle Kunde/Lieferant/beides, Tags, Zahlungsziel; neue Nummern |
 | Rechnungen importieren (CSV) | Free | ➕ | 2b: Altbestand aus Papierkram oder sevdesk als „importiert“, ohne neue Festschreibung und ohne Nummernvergabe, Original-PDF im Archiv |

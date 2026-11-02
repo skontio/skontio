@@ -4,11 +4,15 @@ from __future__ import annotations
 
 from django import forms
 from django.contrib import messages
+from django.http import FileResponse
 from django.shortcuts import redirect, render
+from django.utils import timezone
 
+from skontio.audit.services import record
+from skontio.web import full_export as full_export_module
 from skontio.web import transfer
 from skontio.web.csvexport import csv_response
-from skontio.web.support import company_view, full_access
+from skontio.web.support import admin_required, company_view, full_access
 
 
 class UploadForm(forms.Form):
@@ -80,3 +84,20 @@ def customers_import(request):
 @full_access
 def items_import(request):
     return _import(request, "leistungen")
+
+
+@admin_required
+@company_view
+def full_export(request):
+    """GET: explanation; POST: the ZIP (POST so a stray link or prefetch never builds it)."""
+    if request.method != "POST":
+        return render(request, "web/full_export.html")
+    out, counts = full_export_module.build_tempfile(request.company)
+    record("export.full", actor=request.user, company=request.company, entity="core.Company",
+           entity_id=request.company.pk, data=counts)  # fmt: skip
+    return FileResponse(
+        out,
+        as_attachment=True,
+        filename=f"skontio-gesamtexport-{timezone.localdate().isoformat()}.zip",
+        content_type="application/zip",
+    )

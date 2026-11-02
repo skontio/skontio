@@ -1,0 +1,11 @@
+{% extends "web/base.html" %}
+{% block title %}Gesamtexport{% endblock %}
+{% block content %}
+<div class="heading"><h1>Gesamtexport</h1></div>
+{% include "web/_settings_nav.html" %}
+<p>Alle Daten in einer ZIP-Datei: Kontakte, Leistungen, Dokumente mit Positionen, Zahlungen, Ausgaben, Bankumsätze und
+  Mahnungen als CSV, dazu die archivierten Originale (PDF/A, E-Rechnungen, Belege, Dateien). Gedacht für die
+  Steuerberatung oder einen Umzug in andere Software.</p>
+<p class="muted">Das ist keine Datensicherung – zum Wiederherstellen dient das nächtliche Backup. Der Export steht im Protokoll.</p>
+<form method="post">{% csrf_token %}<button type="submit">ZIP herunterladen</button></form>
+{% endblock %}
