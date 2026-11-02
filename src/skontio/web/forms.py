@@ -255,8 +255,12 @@ class LineForm(forms.Form):
         empty_label="Stück (Standard)",
     )
     unit_price = forms.DecimalField(
-        label="Einzelpreis (€)", min_value=0, max_digits=14, decimal_places=4, localize=True, required=False
+        label="Einzelpreis netto (€)", min_value=0, max_digits=14, decimal_places=4, localize=True, required=False
     )
+    gross_price = forms.DecimalField(
+        label="oder Einzelpreis brutto (€)", min_value=0, max_digits=14, decimal_places=4, localize=True,
+        required=False, help_text="für Endkunden: Skontio rechnet den Nettopreis passend aus",
+    )  # fmt: skip
     discount_percent = forms.DecimalField(
         label="Rabatt (%)", min_value=0, max_value=100, decimal_places=2, localize=True, required=False
     )
@@ -277,8 +281,10 @@ class LineForm(forms.Form):
         if not data.get("item"):
             if not (data.get("text") or "").strip():
                 self.add_error("text", "Bitte eine Bezeichnung angeben oder eine Leistung aus dem Katalog wählen.")
-            if data.get("unit_price") is None:
-                self.add_error("unit_price", "Bitte einen Einzelpreis angeben.")
+            if data.get("unit_price") is None and data.get("gross_price") is None:
+                self.add_error("unit_price", "Bitte einen Einzelpreis (netto oder brutto) angeben.")
+            elif data.get("unit_price") is not None and data.get("gross_price") is not None:
+                self.add_error("gross_price", "Bitte entweder netto oder brutto angeben, nicht beides.")
         return data
 
 
@@ -288,11 +294,23 @@ class LineEditForm(forms.Form):
     text = forms.CharField(label="Bezeichnung")
     quantity = forms.DecimalField(label="Menge", min_value=0, max_digits=14, decimal_places=4, localize=True)
     unit_price = forms.DecimalField(
-        label="Einzelpreis (€)", min_value=0, max_digits=14, decimal_places=4, localize=True
+        label="Einzelpreis netto (€)", min_value=0, max_digits=14, decimal_places=4, localize=True, required=False
+    )
+    gross_price = forms.DecimalField(
+        label="Einzelpreis brutto (€)", min_value=0, max_digits=14, decimal_places=4, localize=True, required=False
     )
     discount_percent = forms.DecimalField(
         label="Rabatt (%)", min_value=0, max_value=100, decimal_places=2, localize=True, required=False
     )
+
+    def clean(self):
+        data = super().clean()
+        net, gross = data.get("unit_price"), data.get("gross_price")
+        if net is None and gross is None and not self.errors:
+            self.add_error("unit_price", "Bitte einen Einzelpreis angeben.")
+        elif net is not None and gross is not None:
+            self.add_error("gross_price", "Bitte entweder netto oder brutto angeben, nicht beides.")
+        return data
 
 
 class PaymentForm(forms.Form):

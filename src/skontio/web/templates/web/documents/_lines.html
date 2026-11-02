@@ -7,7 +7,7 @@
       <td>{{ row.line.position }}</td>
       <td>{{ row.line.text }}{% if row.line.description %}<br><small class="muted">{{ row.line.description }}</small>{% endif %}</td>
       <td class="num">{{ row.quantity }} {{ row.unit }}</td>
-      <td class="num">{{ row.unit_price }}</td>
+      <td class="num">{{ row.unit_price }}{% if row.gross %}<br><small class="muted">brutto {{ row.gross }}</small>{% endif %}</td>
       <td class="num hide-small">{{ row.discount }}</td>
       <td class="num">{{ row.net }}</td>
       <td class="row-actions">
@@ -23,6 +23,7 @@
 
 {% if line_error %}<p class="danger" role="alert">{{ line_error }}</p>{% endif %}
 {% if totals_error %}<p class="danger">{{ totals_error }}</p>{% endif %}
+{% for warning in gross_warnings %}<p class="warn" role="status">{{ warning }}</p>{% endfor %}
 {% if totals %}
 <table class="totals-preview">
   <tr><td>Summe Positionen</td><td class="num">{{ fmt.line_total }} €</td></tr>

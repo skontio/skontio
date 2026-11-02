@@ -43,14 +43,18 @@ from skontio.tax.engine import (
     TaxTreatment,
     Totals,
     calculate,
+    money,
     resolve,
 )
+from skontio.tax.gross import GrossResult, net_unit_price
 from skontio.taxstatus.services import TaxStatusError, regime_for
 
 __all__ = [
     "DELIVERY_BASES",
     "LaborCosts",
     "labor_costs",
+    "gross_check",
+    "line_rate",
     "DocumentError",
     "DocumentLocked",
     "add_line",
@@ -171,14 +175,24 @@ def add_line(
     text: str,
     quantity: Decimal,
     unit_code: str,
-    unit_price: Decimal,
+    unit_price: Decimal | None = None,
     tax_treatment: TaxTreatment = TaxTreatment.STANDARD,
     discount_percent: Decimal = Decimal("0"),
     description: str = "",
     item: Item | None = None,
     labor_percent: Decimal = Decimal("0"),
+    gross_unit_price: Decimal | None = None,
 ) -> DocumentLine:
+    """``gross_unit_price`` instead of ``unit_price``: the net price is derived so the line's gross
+    amount comes out as entered (or as close as the rate allows, see ``gross_check``)."""
     _require_draft(document)
+    if (unit_price is None) == (gross_unit_price is None):
+        raise DocumentError("Bitte entweder einen Netto- oder einen Bruttopreis angeben")
+    if gross_unit_price is not None:
+        if gross_unit_price < 0 or quantity < 0:
+            raise DocumentError("Menge und Bruttopreis dürfen nicht negativ sein")
+        rate = line_rate(document, TaxTreatment(tax_treatment))
+        unit_price = net_unit_price(gross_unit_price, quantity, rate, discount_percent).unit_price
     if not text.strip():
         raise DocumentError("Eine Position braucht eine Bezeichnung")
     if quantity < 0 or unit_price < 0:
@@ -201,7 +215,28 @@ def add_line(
         discount_percent=discount_percent,
         tax_treatment=TaxTreatment(tax_treatment),
         labor_percent=labor_percent,
+        gross_unit_price=gross_unit_price,
     )
+
+
+def line_rate(document: Document, treatment: TaxTreatment) -> Decimal:
+    """The VAT rate a line of this draft gets today (tax status and date of supply)."""
+    regime = _regime(document)
+    _, tax_date = _tax_dates(document)
+    try:
+        return resolve(treatment, regime, tax_date).rate
+    except TaxError as exc:
+        raise DocumentError(str(exc)) from exc
+
+
+def gross_check(line: DocumentLine) -> GrossResult | None:
+    """For a line entered gross: what it should and does come to now (rates or status may have changed)."""
+    if line.gross_unit_price is None:
+        return None
+    rate = line_rate(line.document, TaxTreatment(line.tax_treatment))
+    wanted = net_unit_price(line.gross_unit_price, line.quantity, rate, line.discount_percent)
+    net = money(line.quantity * line.unit_price) - money(line.quantity * line.unit_price * line.discount_percent / 100)
+    return GrossResult(line.unit_price, wanted.target, net + money(net * rate / 100))
 
 
 def _check_labor(labor_percent: Decimal) -> None:
@@ -218,6 +253,7 @@ def update_line(
     discount_percent: Decimal = Decimal("0"),
     unit_code: str | None = None,
     labor_percent: Decimal | None = None,
+    gross_unit_price: Decimal | None = None,
 ) -> DocumentLine:
     """Change a line of a draft in place (same checks as ``add_line``); the tax treatment stays."""
     _require_draft(line.document)
@@ -230,12 +266,26 @@ def update_line(
     unit_code = unit_code or line.unit_code
     if not Unit.objects.filter(code=unit_code).exists():
         raise DocumentError(f"Unbekannte Einheit {unit_code!r}")
+    old_price = line.unit_price
     line.text, line.quantity, line.unit_price = text.strip(), quantity, unit_price
     if labor_percent is not None:
         _check_labor(labor_percent)
         line.labor_percent = labor_percent
+    if gross_unit_price is None and line.gross_unit_price is not None and unit_price == old_price:
+        gross_unit_price = line.gross_unit_price  # gross line, only quantity/discount changed: keep the gross price
+    if gross_unit_price is not None:
+        if gross_unit_price < 0:
+            raise DocumentError("Der Bruttopreis darf nicht negativ sein")
+        rate = line_rate(line.document, TaxTreatment(line.tax_treatment))
+        line.unit_price = net_unit_price(gross_unit_price, quantity, rate, discount_percent).unit_price
+        line.gross_unit_price = gross_unit_price
+    else:
+        line.gross_unit_price = None  # a new net price replaces an earlier gross entry
     line.discount_percent, line.unit_code = discount_percent, unit_code
-    line.save(update_fields=["text", "quantity", "unit_price", "discount_percent", "unit_code", "labor_percent"])
+    line.save(
+        update_fields=["text", "quantity", "unit_price", "discount_percent", "unit_code", "labor_percent",
+                       "gross_unit_price"]
+    )  # fmt: skip
     return line
 
 
@@ -548,6 +598,7 @@ def _copy_lines(source: Document, target: Document) -> list[DocumentLine]:
             discount_percent=line.discount_percent,
             tax_treatment=line.tax_treatment,
             labor_percent=line.labor_percent,
+            gross_unit_price=line.gross_unit_price,
         )
         for line in source.lines.all()
     ]

@@ -52,6 +52,7 @@ NASTY = [
     "../../../../etc/passwd",
     "A" * 20_000,
     "‮﻿Ä😀",
+    "nul\x00byte",  # PostgreSQL rejects U+0000 in text fields
 ]
 FIELDS = (
     "name street postcode city country email iban bic tax_number vat_id customer item doc_type issue_date "

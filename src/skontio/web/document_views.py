@@ -34,6 +34,7 @@ from skontio.documents.services import (
     create_partial_invoice,
     eligible_partial_invoices,
     finalize,
+    gross_check,
     open_partials_for,
     prepaid_total,
     preview_pdf,
@@ -115,9 +116,11 @@ def _lines_context(request, doc: Document, line_form: LineForm | None = None, er
             "unit_price": de_amount(line.unit_price),
             "discount": de_percent(line.discount_percent) if line.discount_percent else "",
             "net": de_amount(totals.lines[index].net_amount) if totals else "",
+            "gross": de_amount(line.gross_unit_price) if line.gross_unit_price is not None else "",
         }
         for index, line in enumerate(lines)
     ]
+    gross_warnings = _gross_warnings(doc, lines, totals)
     breakdown = (
         [{"rate": de_percent(b.rate), "tax": de_amount(b.tax), "reason": b.exemption_reason} for b in totals.breakdown]
         if totals
@@ -142,10 +145,38 @@ def _lines_context(request, doc: Document, line_form: LineForm | None = None, er
         "breakdown": breakdown,
         "notes": list(dict.fromkeys(b["reason"] for b in breakdown if b["reason"])),
         "totals_error": totals_error,
+        "gross_warnings": gross_warnings,
         "line_form": line_form or LineForm(company=request.company, initial={"quantity": 1}),
         "line_error": error,
         **_deduction_context(doc, totals),
     }
+
+
+def _gross_warnings(doc: Document, lines, totals) -> list[str]:
+    """Lines entered gross whose amount cannot be hit exactly, and a total that is off by rounding."""
+    warnings, targets = [], []
+    for line in lines:
+        try:
+            check = gross_check(line)
+        except DocumentError:
+            return []
+        if check is None:
+            continue
+        targets.append(check.target)
+        if not check.exact:
+            warnings.append(
+                f"Pos. {line.position}: {de_amount(check.target)} € brutto sind mit diesem Steuersatz nicht exakt "
+                f"möglich – berechnet werden {de_amount(check.reached)} €."
+            )
+    if totals and targets and len(targets) == len(lines) and not doc.document_discount_percent:
+        wanted = sum(targets, Decimal("0"))
+        if wanted != totals.grand_total and not warnings:
+            warnings.append(
+                f"Die Summe der Bruttopreise ist {de_amount(wanted)} €, die Rechnung ergibt "
+                f"{de_amount(totals.grand_total)} € (Umsatzsteuer wird je Steuersatz auf die Summe gerechnet). "
+                "Ein Preis lässt sich um einen Cent anpassen."
+            )
+    return warnings
 
 
 def _deduction_context(doc: Document, totals=None) -> dict:
@@ -387,20 +418,26 @@ def line_add(request, pk: int):
     if form.is_valid():
         data = form.cleaned_data
         discount = data["discount_percent"] or Decimal("0")
-        labor = data["labor_percent"]
+        labor, gross = data["labor_percent"], data["gross_price"]
         try:
+            if gross is not None and data["unit_price"] is not None:
+                raise DocumentError("Bitte entweder den Netto- oder den Bruttopreis angeben, nicht beides")
             if data["item"]:
                 line = add_line_from_item(doc, data["item"], quantity=data["quantity"], discount_percent=discount)
-                if labor is not None and labor != line.labor_percent:
+                if (labor is not None and labor != line.labor_percent) or gross is not None:
                     update_line(line, text=line.text, quantity=line.quantity, unit_price=line.unit_price,
-                                discount_percent=line.discount_percent, labor_percent=labor)  # fmt: skip
+                                discount_percent=line.discount_percent, labor_percent=labor,
+                                gross_unit_price=gross)  # fmt: skip
             else:
+                if gross is None and data["unit_price"] is None:
+                    raise DocumentError("Bitte einen Einzelpreis (netto oder brutto) angeben")
                 add_line(
                     doc,
                     text=data["text"],
                     quantity=data["quantity"],
                     unit_code=data["unit_code"].code if data["unit_code"] else "C62",
-                    unit_price=data["unit_price"],
+                    unit_price=data["unit_price"] if gross is None else None,
+                    gross_unit_price=gross,
                     discount_percent=discount,
                     tax_treatment=TaxTreatment(data["tax_treatment"] or TaxTreatment.STANDARD),
                     labor_percent=labor or Decimal("0"),
@@ -428,13 +465,15 @@ def line_edit(request, pk: int, line_pk: int):
     error = ""
     if form.is_valid():
         data = form.cleaned_data
+        gross = data["gross_price"]
         try:
             update_line(
                 line,
                 text=data["text"],
                 quantity=data["quantity"],
-                unit_price=data["unit_price"],
+                unit_price=line.unit_price if gross is not None else data["unit_price"],
                 discount_percent=data["discount_percent"] or Decimal("0"),
+                gross_unit_price=gross,
             )
         except DocumentError as exc:
             error = str(exc)

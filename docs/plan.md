@@ -335,7 +335,7 @@ Legende: ✅ vorhanden · 🟡 teilweise · 📅 schon geplant · ➕ neu aufgen
 | Englische Dokumente | S | ✅ | |
 | Wiederkehrende Rechnungen | S | ✅ | als Entwürfe |
 | Lieferschein aus Rechnung | S | ✅ | aus Angebot, Auftrag oder Rechnung; ohne Preise, eigener Nummernkreis (LS-…), nur PDF |
-| Brutto- und Nettorechnungen | Free | 🟡 | Netto ✅; ➕ 2b: Bruttopreise eingeben (B2C), Rundung bleibt EN-16931-konform |
+| Brutto- und Nettorechnungen | Free | ✅ | Bruttopreis je Position: Nettopreis wird passend ermittelt (EN 16931); Unerreichbares wird gemeldet, bei Gleichstand der niedrigere Betrag |
 | Rechnungen ins EU-Ausland und in Drittländer | Free | ✅ | ig. Lieferung, § 13b, Ausfuhr |
 | Rechtskonforme Stornierung | Free | ✅ | |
 | Zahlungsziel zentral definierbar | Free | ✅ | Firmenstandard, je Kunde abweichend |

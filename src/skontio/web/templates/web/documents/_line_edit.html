@@ -4,8 +4,13 @@
     <input id="le-text-{{ line.pk }}" name="text" value="{{ line.text }}" form="line-edit-{{ line.pk }}" required autofocus></td>
   <td class="num"><label class="visually-hidden" for="le-qty-{{ line.pk }}">Menge</label>
     <input class="narrow" id="le-qty-{{ line.pk }}" name="quantity" value="{{ line.quantity|floatformat:'-4' }}" inputmode="decimal" form="line-edit-{{ line.pk }}" required></td>
-  <td class="num"><label class="visually-hidden" for="le-price-{{ line.pk }}">Einzelpreis</label>
+  {% if line.gross_unit_price is not None %}
+  <td class="num"><label for="le-price-{{ line.pk }}"><small class="muted">brutto</small></label>
+    <input class="narrow" id="le-price-{{ line.pk }}" name="gross_price" value="{{ line.gross_unit_price|floatformat:'-2' }}" inputmode="decimal" form="line-edit-{{ line.pk }}" required></td>
+  {% else %}
+  <td class="num"><label class="visually-hidden" for="le-price-{{ line.pk }}">Einzelpreis netto</label>
     <input class="narrow" id="le-price-{{ line.pk }}" name="unit_price" value="{{ line.unit_price|floatformat:'-2' }}" inputmode="decimal" form="line-edit-{{ line.pk }}" required></td>
+  {% endif %}
   <td class="num hide-small"><label class="visually-hidden" for="le-disc-{{ line.pk }}">Rabatt in Prozent</label>
     <input class="narrow" id="le-disc-{{ line.pk }}" name="discount_percent" value="{% if line.discount_percent %}{{ line.discount_percent|floatformat:'-2' }}{% endif %}" inputmode="decimal" placeholder="%" form="line-edit-{{ line.pk }}"></td>
   <td class="row-actions" colspan="2">
