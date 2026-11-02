@@ -1,0 +1,24 @@
+{% extends "web/base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<p><a href="{{ back }}">← zurück</a></p>
+<h1>{{ title }}</h1>
+<p>CSV mit Semikolon, Komma oder Tab, UTF-8 oder Windows-1252, höchstens 2 MB. Die erste Zeile enthält die Spaltennamen,
+  Pflicht sind: <strong>{{ required|join:", " }}</strong>. Weitere Spalten: {{ columns|join:", " }}.
+  Am einfachsten: <a href="{{ example }}">aktuellen Bestand als CSV laden</a>, ergänzen und wieder hochladen.</p>
+<p class="muted">Vorhandenes wird nie geändert; gleiche Einträge werden übersprungen. Ist eine Zeile fehlerhaft, wird nichts importiert. Nummern vergibt Skontio neu.</p>
+{% if problem %}<p class="danger" role="alert">{{ problem }}</p>{% endif %}
+{% if result.errors %}
+  <div class="danger" role="alert"><p><strong>Nichts importiert.</strong> Bitte diese Zeilen korrigieren:</p>
+  <ul>{% for e in result.errors|slice:":100" %}<li>{{ e }}</li>{% endfor %}</ul>
+  {% if result.errors|length > 100 %}<p>… und {{ result.errors|length|add:"-100" }} weitere.</p>{% endif %}</div>
+{% elif result %}
+  <p class="note">{{ result.created }} angelegt.</p>
+{% endif %}
+{% if result.skipped %}<details><summary>Übersprungen: {{ result.skipped|length }}</summary>
+  <ul>{% for s in result.skipped|slice:":200" %}<li>{{ s }}</li>{% endfor %}</ul></details>{% endif %}
+<form method="post" enctype="multipart/form-data" class="form">{% csrf_token %}
+  {% include "web/_fields.html" %}
+  <p><button type="submit">Importieren</button></p>
+</form>
+{% endblock %}

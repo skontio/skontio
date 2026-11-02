@@ -368,7 +368,7 @@ Legende: ✅ vorhanden · 🟡 teilweise · 📅 schon geplant · ➕ neu aufgen
 | Kategorien, mehrere Personen je Kontakt | Free | ✅ | Tags, Ansprechpartner |
 | Logo oder Bild je Kontakt | Free | ➖ | kaum Nutzen für Solo-Selbstständige |
 | Bankdaten und SEPA-Mandat | Free | ➕ | 3: Mandat am Kunden, Export als pain.008 für das Onlinebanking |
-| CSV-Export und -Import der Kontakte | Free | ➕ | 2b |
+| CSV-Export und -Import der Kontakte | Free | ✅ | gleiche Spalten für Export und Import; alles oder nichts, Duplikate übersprungen |
 
 ### 13.4 Projekte und Zeiterfassung
 
@@ -398,8 +398,8 @@ Legende: ✅ vorhanden · 🟡 teilweise · 📅 schon geplant · ➕ neu aufgen
 | Gegenkonten und Regeln | S | ➕ | 2b: Regeln (Gegenpartei, Verwendungszweck → Kategorie) |
 | Suche in Kontobewegungen | S | ➕ | 2b |
 | Alle Daten als CSV exportieren | Free | ➕ | 2b: Gesamtexport als ZIP; ➕ 3: GoBD-Datenexport mit Beschreibungsstandard (index.xml) für die Betriebsprüfung |
-| Waren importieren (CSV) | Free | 📅 | 2b (stand schon in §6.2) |
-| Kunden und Lieferanten importieren (CSV) | Free | ➕ | 2b |
+| Waren importieren (CSV) | Free | ✅ | Leistungen/Artikel mit Einheit (Code oder Name), deutschen Beträgen, Steuerbehandlung |
+| Kunden und Lieferanten importieren (CSV) | Free | ✅ | Rolle Kunde/Lieferant/beides, Tags, Zahlungsziel; neue Nummern |
 | Rechnungen importieren (CSV) | Free | ➕ | 2b: Altbestand aus Papierkram oder sevdesk als „importiert“, ohne neue Festschreibung und ohne Nummernvergabe, Original-PDF im Archiv |
 
 ### 13.6 Steuern, Auswertungen, Allgemeines

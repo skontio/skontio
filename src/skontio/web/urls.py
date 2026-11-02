@@ -8,6 +8,7 @@ from skontio.web import expense_views as expenses
 from skontio.web import inbox_views as inbox
 from skontio.web import outbox_views, pwa, search_views, views
 from skontio.web import recurring_views as recurring
+from skontio.web import transfer_views as transfer
 
 urlpatterns = [
     path("manifest.webmanifest", pwa.manifest, name="manifest"),
@@ -74,12 +75,16 @@ urlpatterns = [
     path("einrichtung/", views.setup, name="setup"),
     path("kunden/", views.customer_list, name="customer_list"),
     path("kunden/neu/", views.customer_create, name="customer_create"),
+    path("kunden/export.csv", transfer.customers_csv, name="customers_csv"),
+    path("kunden/import/", transfer.customers_import, name="customers_import"),
     path("kunden/<int:pk>/", views.customer_detail, name="customer_detail"),
     path("kunden/<int:pk>/aktivitaeten/", views.activity_add, name="activity_add"),
     path("kunden/<int:pk>/wiedervorlagen/", views.follow_up_add, name="follow_up_add"),
     path("wiedervorlagen/<int:pk>/erledigt/", views.follow_up_done, name="follow_up_done"),
     path("leistungen/", views.item_list, name="item_list"),
     path("leistungen/neu/", views.item_create, name="item_create"),
+    path("leistungen/export.csv", transfer.items_csv, name="items_csv"),
+    path("leistungen/import/", transfer.items_import, name="items_import"),
     path("leistungen/<int:pk>/", views.item_edit, name="item_edit"),
     path("leistungen/<int:pk>/archivieren/", views.item_archive, name="item_archive"),
 ]

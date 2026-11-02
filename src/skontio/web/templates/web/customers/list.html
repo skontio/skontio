@@ -2,7 +2,9 @@
 {% block title %}Kunden{% endblock %}
 {% block content %}
 <div class="heading"><h1>Kontakte</h1><a class="button" href="/kunden/neu/">Neuer Kunde</a>
-  <a class="button secondary" href="/kunden/neu/?rolle=lieferant">Neuer Lieferant</a></div>
+  <a class="button secondary" href="/kunden/neu/?rolle=lieferant">Neuer Lieferant</a>
+  <a class="button secondary" href="/kunden/export.csv">Als CSV</a>{% if can_finalize %}
+  <a class="button secondary" href="/kunden/import/">Importieren</a>{% endif %}</div>
 <nav class="filters" aria-label="Rolle"><a href="/kunden/"{% if not role %} aria-current="page"{% endif %}>Alle</a>
   <a href="/kunden/?rolle=kunden"{% if role == "kunden" %} aria-current="page"{% endif %}>Kunden</a>
   <a href="/kunden/?rolle=lieferanten"{% if role == "lieferanten" %} aria-current="page"{% endif %}>Lieferanten</a></nav>

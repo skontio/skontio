@@ -1,7 +1,9 @@
 {% extends "web/base.html" %}
 {% block title %}Leistungen{% endblock %}
 {% block content %}
-<div class="heading"><h1>Leistungen &amp; Artikel</h1><a class="button" href="/leistungen/neu/">Neue Leistung</a></div>
+<div class="heading"><h1>Leistungen &amp; Artikel</h1><a class="button" href="/leistungen/neu/">Neue Leistung</a>
+  <a class="button secondary" href="/leistungen/export.csv">Als CSV</a>{% if can_finalize %}
+  <a class="button secondary" href="/leistungen/import/">Importieren</a>{% endif %}</div>
 <input type="search" name="q" value="{{ q }}" placeholder="Suchen nach Name, Artikelnummer, Beschreibung" aria-label="Leistungen suchen"
        hx-get="/leistungen/" hx-trigger="input changed delay:250ms, search" hx-target="#rows" hx-push-url="true">
 <div class="table-scroll"><table class="list">
