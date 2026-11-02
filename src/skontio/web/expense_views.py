@@ -25,7 +25,8 @@ from skontio.banking.services import link_expense
 from skontio.crm.models import Customer
 from skontio.crm.services import SUPPLIER_ROLES
 from skontio.documents.renditions import de_amount
-from skontio.expenses.models import Expense, PendingReceipt
+from skontio.expenses import recurring as recurring_expenses
+from skontio.expenses.models import Expense, PendingReceipt, RecurringExpense
 from skontio.expenses.services import (
     ExpenseError,
     add_pending,
@@ -125,6 +126,10 @@ def expense_list(request):
         "missing_receipts": active.filter(receipt__isnull=True).count(),
         "unpaid": active.filter(paid_on__isnull=True).count(),
         "pending_count": PendingReceipt.objects.filter(company=request.company, expense__isnull=True).count(),
+        "suggestions": recurring_expenses.due_suggestions(request.company),
+        "templates": [
+            (t, recurring_expenses.next_due(t)) for t in RecurringExpense.objects.filter(company=request.company)
+        ],
     }
     return render(request, "web/expenses/list.html", context)
 
@@ -159,6 +164,18 @@ def _bank_transaction(request):
     return tx if tx is not None and not tx.done else None
 
 
+def _template(request) -> tuple[RecurringExpense, dt.date] | None:
+    """``?vorlage=<pk>&faellig=<date>``: a due recurring expense to prefill from; only its open period."""
+    pk = request.GET.get("vorlage") or request.POST.get("vorlage") or ""
+    due = _iso_date(request.GET.get("faellig") or request.POST.get("faellig") or "")
+    if not (pk.isascii() and pk.isdigit() and len(pk) < 19) or due is None:
+        return None
+    template = RecurringExpense.objects.filter(pk=pk, company=request.company, active=True).first()
+    if template is None or recurring_expenses.next_due(template) != due:
+        return None
+    return template, due
+
+
 def _pending(request) -> PendingReceipt | None:
     pk = request.GET.get("beleg") or request.POST.get("beleg")
     if not pk or not str(pk).isdigit():
@@ -169,15 +186,21 @@ def _pending(request) -> PendingReceipt | None:
 @company_view
 def expense_create(request):
     tx = _bank_transaction(request)
+    template = _template(request)
     if request.method == "POST":
         response, form, expense = _save(request, None)
         if response:
             if tx is not None:
                 link_expense(tx, expense, user=request.user)
+            if template is not None:
+                recurring_expenses.mark_done(template[0], template[1], user=request.user, action="taken")
             return response
     else:
         today = timezone.localdate()
         initial = {"receipt_date": today, "paid_on": today}
+        if template is not None:
+            initial |= recurring_expenses.prefill(*template)
+            initial["vat_rate"] = f"{template[0].vat_rate.normalize():f}"
         if tx is not None:
             initial |= {
                 "receipt_date": tx.booked_on,
@@ -188,8 +211,42 @@ def expense_create(request):
                 "method": Expense.Method.BANK,
             }
         form = ExpenseForm(initial=initial, company=request.company)
-    context = {"form": form, "expense": None, "bank": tx, "pending": _pending(request)}
+    context = {"form": form, "expense": None, "bank": tx, "pending": _pending(request), "template": template}
     return render(request, "web/expenses/form.html", context)
+
+
+@require_POST
+@company_view
+def recurring_from_expense(request, pk: int):
+    expense = get_object_or_404(Expense, pk=pk, company=request.company)
+    interval = request.POST.get("interval", "")
+    try:
+        template = recurring_expenses.from_expense(
+            expense, interval=int(interval) if interval.isdigit() and len(interval) < 3 else 0, user=request.user
+        )
+    except ExpenseError as exc:
+        messages.error(request, str(exc))
+        return redirect(f"/ausgaben/{expense.pk}/")
+    messages.success(request, f"„{template.name}“ wird ab {template.start_date:%d.%m.%Y} vorgeschlagen.")
+    return redirect("/ausgaben/")
+
+
+@require_POST
+@company_view
+def recurring_skip(request, pk: int):
+    template = get_object_or_404(RecurringExpense, pk=pk, company=request.company)
+    due = _iso_date(request.POST.get("faellig", ""))
+    if due is None or not recurring_expenses.mark_done(template, due, user=request.user, action="skipped"):
+        messages.error(request, "Dieser Termin ist schon erledigt.")
+    return redirect("/ausgaben/")
+
+
+@require_POST
+@company_view
+def recurring_toggle(request, pk: int):
+    template = get_object_or_404(RecurringExpense, pk=pk, company=request.company)
+    recurring_expenses.toggle(template, user=request.user)
+    return redirect("/ausgaben/")
 
 
 def _regime(company, day):

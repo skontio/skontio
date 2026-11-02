@@ -7,6 +7,12 @@
 </div>
 <p class="filters">{% for y in years %}<a href="?jahr={{ y }}"{% if y == year %} aria-current="page"{% endif %}>{{ y }}</a> {% endfor %}
   · <a href="/auswertungen/euer/?jahr={{ year }}">EÜR {{ year }}</a></p>
+{% if suggestions %}<section class="card" aria-labelledby="due-h"><h2 id="due-h">Fällige wiederkehrende Ausgaben</h2>
+<table class="list"><tbody>{% for t, due in suggestions %}
+  <tr><td>{{ due|date:"d.m.Y" }}</td><td>{{ t.name }}<br><span class="muted">{{ t.supplier }}</span></td><td class="num">{{ t.gross_amount|floatformat:"2g" }} €</td>
+    <td><a class="button" href="/ausgaben/neu/?vorlage={{ t.pk }}&amp;faellig={{ due|date:'Y-m-d' }}">Übernehmen</a>
+      <form method="post" action="/ausgaben/vorlagen/{{ t.pk }}/ueberspringen/" class="inline-form">{% csrf_token %}<input type="hidden" name="faellig" value="{{ due|date:'Y-m-d' }}"><button type="submit" class="link">Überspringen</button></form></td></tr>
+{% endfor %}</tbody></table></section>{% endif %}
 <p>Summe {{ total }} € (brutto, ohne Stornos){% if missing_receipts %} · <span class="badge danger">{{ missing_receipts }} ohne Beleg</span>{% endif %}{% if unpaid %} · <span class="badge">{{ unpaid }} unbezahlt</span>{% endif %}</p>
 {% if expenses %}
 <div class="table-scroll"><table class="list">
@@ -19,4 +25,10 @@
   {% endfor %}</tbody>
 </table></div>
 {% else %}<p class="muted">Keine Ausgaben mit Belegdatum {{ year }}.</p>{% endif %}
+{% if templates %}<details class="card"><summary>Wiederkehrende Ausgaben ({{ templates|length }})</summary>
+<table class="list"><tbody>{% for t, due in templates %}
+  <tr{% if not t.active %} class="muted"{% endif %}><td>{{ t.name }}</td><td>{{ t.get_interval_display }}</td><td class="num">{{ t.gross_amount|floatformat:"2g" }} €</td>
+    <td>{% if not t.active %}pausiert{% elif due %}nächster Termin {{ due|date:"d.m.Y" }}{% else %}beendet{% endif %}</td>
+    <td><form method="post" action="/ausgaben/vorlagen/{{ t.pk }}/umschalten/" class="inline-form">{% csrf_token %}<button type="submit" class="link">{% if t.active %}Pausieren{% else %}Fortsetzen{% endif %}</button></form></td></tr>
+{% endfor %}</tbody></table></details>{% endif %}
 {% endblock %}

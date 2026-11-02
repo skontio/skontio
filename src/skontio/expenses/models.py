@@ -134,3 +134,50 @@ class OtherIncome(models.Model):
 
     def __str__(self) -> str:
         return f"{self.number} · {self.payer}"
+
+
+class RecurringExpense(models.Model):
+    """Wiederkehrende Ausgabe (Miete, Abo): a suggestion per period, never booked without a person.
+
+    The due date of the next period is ``start_date + done × interval`` months; taking it over opens a
+    prefilled expense form, skipping it just counts it as done.
+    """
+
+    class Interval(models.IntegerChoices):
+        MONTHLY = 1, "monatlich"
+        QUARTERLY = 3, "vierteljährlich"
+        HALF_YEARLY = 6, "halbjährlich"
+        YEARLY = 12, "jährlich"
+
+    company = models.ForeignKey("core.Company", on_delete=models.PROTECT, related_name="recurring_expenses")
+    name = models.CharField("Bezeichnung", max_length=120)
+    supplier = models.CharField("Lieferant", max_length=200)
+    supplier_contact = models.ForeignKey(
+        "crm.Customer", null=True, blank=True, on_delete=models.PROTECT, related_name="recurring_expenses"
+    )
+    supplier_country = models.CharField(max_length=2, default="DE")
+    description = models.CharField(max_length=300, blank=True, default="")
+    category = models.CharField(max_length=20, choices=Expense.Category.choices, default=Expense.Category.OTHER)
+    gross_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    vat_rate = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("19"))
+    reverse_charge = models.BooleanField(default=False)
+    method = models.CharField(max_length=10, choices=Expense.Method.choices, default=Expense.Method.BANK)
+    interval = models.PositiveSmallIntegerField("Rhythmus", choices=Interval.choices, default=Interval.MONTHLY)
+    start_date = models.DateField("Erster Termin")
+    end_date = models.DateField("Endet am", null=True, blank=True)
+    done = models.PositiveIntegerField(default=0)  # periods taken over or skipped
+    active = models.BooleanField(default=True)
+    source = models.ForeignKey(Expense, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name", "pk"]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(gross_amount__gt=0), name="recurring_expense_amount_positive")
+        ]
+        verbose_name = "Wiederkehrende Ausgabe"
+        verbose_name_plural = "Wiederkehrende Ausgaben"
+
+    def __str__(self) -> str:
+        return self.name
