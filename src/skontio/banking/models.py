@@ -3,7 +3,7 @@ from django.db import models
 
 
 class BankTransaction(models.Model):
-    """One line of an imported bank statement (CAMT.053 or CSV). Amount is signed: + incoming, − outgoing."""
+    """One line of an imported bank statement (CAMT.053, MT940 or CSV). Amount is signed: + incoming, − outgoing."""
 
     company = models.ForeignKey("core.Company", on_delete=models.PROTECT, related_name="bank_transactions")
     booked_on = models.DateField()
@@ -13,7 +13,7 @@ class BankTransaction(models.Model):
     iban = models.CharField(max_length=34, blank=True, default="")
     purpose = models.CharField(max_length=500, blank=True, default="")
     import_key = models.CharField(max_length=64)  # SHA-256 over the line + its repetition count
-    source = models.CharField(max_length=20)  # "camt053" | "csv"
+    source = models.CharField(max_length=20)  # "camt053" | "mt940" | "csv"
     payment = models.OneToOneField(
         "payments.Payment", null=True, blank=True, on_delete=models.PROTECT, related_name="bank_transaction"
     )

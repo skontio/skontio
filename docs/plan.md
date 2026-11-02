@@ -392,7 +392,7 @@ Legende: ✅ vorhanden · 🟡 teilweise · 📅 schon geplant · ➕ neu aufgen
 | Kontoabruf PayPal | S | ➕ | 3: PayPal-Transaktionen über die PayPal-API oder den CSV-Export |
 | REST-API | M | 📅 | 3 |
 | Mehrere Konten | Free | ➕ | 2b: Bankkonto als eigene Entität; heute hängen Umsätze nur an der IBAN |
-| Import MT940/CAMT | S | 🟡 | CAMT.053 und CSV ✅; ➕ 2b: MT940 |
+| Import MT940/CAMT | S | ✅ | CAMT.053, MT940 (auch strukturierter Verwendungszweck, Stornokennzeichen) und CSV |
 | Umsätze mit Belegen und Rechnungen abgleichen, Dokument aus Umsatz anlegen | S | ✅ | Vorschläge und Zuordnung |
 | Zahlungseingang automatisch zuordnen | S | ➕ | 3: nur eindeutige Fälle (Nummer im Zweck, Betrag genau, ein Kandidat), standardmäßig aus, mit Hinweis und Gegenbuchung |
 | Gegenkonten und Regeln | S | ➕ | 2b: Regeln (Gegenpartei, Verwendungszweck → Kategorie) |

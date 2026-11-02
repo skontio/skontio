@@ -5,8 +5,8 @@
   <a class="button secondary" href="?{% if show_all %}{% else %}alle=1{% endif %}">{% if show_all %}Nur offene{% else %}Alle anzeigen{% endif %}</a></div>
 <form method="post" action="/bank/import/" enctype="multipart/form-data" class="form card">
   {% csrf_token %}
-  <label for="statement">Kontoauszug (CAMT.053 als XML oder CSV aus dem Online-Banking)</label>
-  <input id="statement" type="file" name="statement" accept=".xml,.csv,.txt,text/csv,application/xml" required>
+  <label for="statement">Kontoauszug (CAMT.053 als XML, MT940 oder CSV aus dem Online-Banking)</label>
+  <input id="statement" type="file" name="statement" accept=".xml,.csv,.txt,.sta,.mt940,text/csv,application/xml" required>
   <button type="submit">Importieren</button>
   <small>Doppelt importierte Zeiträume schaden nicht – bekannte Umsätze werden übersprungen.</small>
 </form>

@@ -1,4 +1,5 @@
-"""Bank statement parsers: CAMT.053 (ISO 20022, every German bank) and CSV exports with column detection.
+"""Bank statement parsers: CAMT.053 (ISO 20022, every German bank), MT940 (SWIFT, older exports) and CSV
+exports with column detection.
 
 Both return ``Row`` objects with a signed amount (+ incoming, − outgoing). Uploaded files are
 untrusted: the XML parser resolves no entities and loads nothing from the network; CSV values are
@@ -196,7 +197,85 @@ def parse_csv(data: bytes) -> list[Row]:
     return rows
 
 
+# --- MT940 ------------------------------------------------------------------------------------
+
+_MT940_TAG = re.compile(r"^:(\d{2}[A-Z]?):", re.MULTILINE)
+# :61: YYMMDD [MMDD] (C|D|RC|RD) [funds code] amount, then the type code (N…/F…/S…) and references
+_MT940_LINE = re.compile(r"^(\d{6})(\d{4})?(RC|RD|C|D)([A-Z])?(\d{1,12}(?:,\d{0,2})?)(?=[NFS])")
+_MT940_SUBFIELD = re.compile(r"\?(\d{2})")
+
+
+def is_mt940(data: bytes) -> bool:
+    head = data.lstrip()[:2000]
+    return head.startswith((b":20:", b"{1:", b"\r\n:20:", b"\n:20:")) or (
+        b"\n:61:" in data[:200_000] and b":20:" in head
+    )
+
+
+def _mt940_details(text: str) -> tuple[str, str, str]:
+    """(counterparty, iban, purpose) from an :86: field – structured (?20…) or free text."""
+    text = text.replace("\r", "").replace("\n", "")
+    if not re.match(r"^\d{3}\?", text):
+        return "", "", " ".join(text.split())
+    parts: dict[str, list[str]] = {}
+    pieces = _MT940_SUBFIELD.split(text[3:])
+    for code, value in zip(pieces[1::2], pieces[2::2], strict=False):
+        parts.setdefault(code, []).append(value.strip())
+    purpose = "".join(v for code in sorted(parts) if "20" <= code <= "29" or "60" <= code <= "63" for v in parts[code])
+    name = " ".join(v for code in ("32", "33") for v in parts.get(code, []) if v)
+    iban = "".join(parts.get("31", [])).replace(" ", "")
+    return name, iban if re.fullmatch(r"[A-Z]{2}\d{2}[A-Z0-9]{10,30}", iban) else "", purpose
+
+
+def parse_mt940(data: bytes) -> list[Row]:
+    text = _decode(data).replace("\r\n", "\n").replace("\r", "\n")
+    fields: list[tuple[str, str]] = []
+    matches = list(_MT940_TAG.finditer(text))
+    for index, match in enumerate(matches):
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
+        value = text[match.end() : end]
+        value = re.sub(r"\n-\}?\s*$", "", value.split("\n-}", 1)[0])  # statement separator "-" / "-}"
+        fields.append((match.group(1), value.strip("\n")))
+    if not any(tag == "61" for tag, _ in fields) and not any(tag == "20" for tag, _ in fields):
+        raise StatementError("Keine MT940-Kontoauszugsdatei.")
+    rows: list[Row] = []
+    currency = "EUR"
+    pending: dict | None = None
+
+    def flush():
+        if pending is not None:
+            rows.append(Row(**pending))
+
+    for tag, value in fields:
+        if tag in ("60F", "60M"):
+            currency = value[7:10] if len(value) >= 10 and value[7:10].isalpha() else currency
+        elif tag == "61":
+            flush()
+            if len(rows) >= MAX_ROWS:
+                pending = None
+                break
+            line = _MT940_LINE.match(value.replace("\n", ""))
+            if not line:
+                raise StatementError(f"Umsatzzeile nicht lesbar: {value[:40]!r}")
+            day, _entry, mark, _funds, raw = line.groups()
+            try:
+                booked_on = dt.datetime.strptime(day, "%y%m%d").date()  # noqa: DTZ007 – a plain booking date
+            except ValueError as exc:
+                raise StatementError(f"Datum nicht lesbar: {day!r}") from exc
+            amount = parse_amount(raw)
+            negative = mark in ("D", "RC")  # RC: reversal of a credit
+            pending = {"booked_on": booked_on, "amount": -amount if negative else amount, "currency": currency,
+                       "counterparty": "", "iban": "", "purpose": ""}  # fmt: skip
+        elif tag == "86" and pending is not None:
+            name, iban, purpose = _mt940_details(value)
+            pending |= {"counterparty": name[:200], "iban": iban[:34], "purpose": purpose[:500]}
+    flush()
+    return rows
+
+
 def parse_statement(data: bytes) -> tuple[str, list[Row]]:
     if data.lstrip()[:1] == b"<":
         return "camt053", parse_camt053(data)
+    if is_mt940(data):
+        return "mt940", parse_mt940(data)
     return "csv", parse_csv(data)
