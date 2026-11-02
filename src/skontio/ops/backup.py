@@ -156,6 +156,12 @@ def _add_file(tar: tarfile.TarFile, name: str, path: Path) -> None:
         tar.addfile(_tarinfo(name, os.fstat(handle.fileno()).st_size), handle)
 
 
+def audit_head() -> dict:
+    from skontio.audit.services import head
+
+    return head()
+
+
 def create_backup(target_dir: Path, *, reason: str = "manual") -> Path:
     target_dir = Path(target_dir)
     target_dir.mkdir(parents=True, exist_ok=True)
@@ -178,6 +184,8 @@ def create_backup(target_dir: Path, *, reason: str = "manual") -> Path:
             "reason": reason,
             "database": {"engine": engine, "file": DB_MEMBERS[engine], "sha256": _file_sha256(db_file), **db_info},
             "files": {member: path.name for member, path in files.items()},  # name == verified SHA-256
+            # anchor: end of the audit chain at backup time – an off-site copy reveals a rewritten history later
+            "audit_head": audit_head(),
         }
         partial = target_dir / f".{name}.part"
         with tarfile.open(partial, "w") as tar:

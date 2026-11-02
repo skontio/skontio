@@ -5,17 +5,17 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import connection
 from django.utils import timezone
 
-from skontio.core.doctor import check_backup, check_imap, check_oidc, check_smtp, check_worker
+from skontio.core.doctor import check_backup, check_db_role, check_imap, check_oidc, check_smtp, check_worker
 from skontio.ops import scheduler
 from skontio.ops.backup import check_pg_dump_version
 
 
 class Command(BaseCommand):
-    help = "Prüft die Betriebsumgebung, z. B. `skontio doctor oidc|smtp|imap|backup|worker`."
+    help = "Prüft die Betriebsumgebung, z. B. `skontio doctor oidc|smtp|imap|backup|worker|db`."
     requires_system_checks = []  # must work even when the rest of the setup is broken
 
     def add_arguments(self, parser):
-        parser.add_argument("target", choices=["oidc", "smtp", "imap", "backup", "worker"])
+        parser.add_argument("target", choices=["oidc", "smtp", "imap", "backup", "worker", "db"])
         parser.add_argument("--issuer", default=None, help="Standard: SKONTIO_OIDC_ISSUER")
 
     def handle(self, *args, target, issuer, **options):
@@ -29,6 +29,8 @@ class Command(BaseCommand):
             checks = check_backup(settings.BACKUP_DIR, vendor=connection.vendor, pg_versions=check_pg_dump_version)
         elif target == "worker":
             checks = check_worker(scheduler.status(), today=timezone.localdate())
+        elif target == "db":
+            checks = check_db_role(connection)
         elif target == "imap":
             from skontio.expenses.mailbox import connect
 

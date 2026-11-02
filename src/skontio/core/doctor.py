@@ -128,6 +128,33 @@ def check_imap(config: dict | None, *, connect) -> list[Check]:
     return checks
 
 
+def check_db_role(connection) -> list[Check]:
+    """Postgres: Skontio's database user must not be a superuser. A superuser can disable the triggers that
+    make finalized invoices and the audit log immutable – an attacker inside the app would inherit that."""
+    if connection.vendor != "postgresql":
+        return [Check("rolle", True, f"{connection.vendor}: Schutz über Dateirechte des Datenverzeichnisses")]
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT current_user, rolsuper, rolcreaterole, rolcreatedb, rolbypassrls FROM pg_roles"
+            " WHERE rolname = current_user"
+        )
+        user, superuser, createrole, createdb, bypassrls = cursor.fetchone()
+    hint = (
+        "Eigene Rolle nur für die Skontio-Datenbank anlegen: CREATE ROLE skontio LOGIN PASSWORD '…' (ohne SUPERUSER)."
+    )
+    checks = [Check("superuser", not superuser, f"{user}: {'SUPERUSER' if superuser else 'kein Superuser'}", hint)]
+    extra = [name for name, on in (("CREATEROLE", createrole), ("CREATEDB", createdb), ("BYPASSRLS", bypassrls)) if on]
+    checks.append(
+        Check(
+            "rechte",
+            not extra,
+            ", ".join(extra) or "keine Sonderrechte",
+            "Sonderrechte entziehen: ALTER ROLE … NO" + "/NO".join(extra),
+        )
+    )
+    return checks
+
+
 def check_smtp(mailer, *, host: str) -> list[Check]:
     """Connect and log in with the configured mailer, without sending anything."""
     if not host:

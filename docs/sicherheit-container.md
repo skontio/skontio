@@ -1,5 +1,7 @@
 # Sicherheitskonzept: Container und Betrieb
 
+Angriffswege und ihre Prüfung: `docs/sicherheit-angriffe.md`.
+
 Stand 2026-11-02. Ziel: Auch wenn Skontio einen Fehler hat, der Angreifern Code-Ausführung erlaubt, bekommen sie
 **keine Shell, kein root und keinen Weg aus dem Container** – und der Schaden bleibt auf das begrenzt, was die
 Anwendung selbst ohnehin darf.
@@ -66,8 +68,8 @@ viele unbehobene Debian-Meldungen zeigen.
 
 1. **Image-Scan in der CI** (z. B. Trivy) auf hohe und kritische Lücken in Systempaketen, Abbruch nur bei
    behebbaren Meldungen.
-2. **Basis-Image per Digest festnageln** und automatische Update-PRs (Renovate/Dependabot), damit Sicherheits-Updates
-   von Debian und Python zeitnah ankommen.
+2. **Basis-Image per Digest festnageln**; automatische Update-PRs (Dependabot) für Actions, Python-Pakete und das
+   Basis-Image sind eingerichtet, GitHub Actions sind bereits auf Commit-SHAs festgenagelt.
 3. **Signatur und SBOM** für veröffentlichte Images (cosign, `docker buildx --sbom`); TrueNAS zieht nur signierte
    Tags.
 4. **Ausgehende Verbindungen begrenzen**: Skontio braucht nur Pocket ID, den SMTP-/IMAP-Server, Enable Banking und

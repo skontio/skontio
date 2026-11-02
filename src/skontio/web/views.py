@@ -12,7 +12,7 @@ from django.views.decorators.http import require_POST
 from skontio.banking import psd2
 from skontio.catalog.models import Item
 from skontio.catalog.services import archive_item, search_items
-from skontio.core import onboarding
+from skontio.core import onboarding, watch
 from skontio.crm.activities import ActivityError, complete_follow_up, create_follow_up, due_follow_ups, log_activity
 from skontio.crm.models import Customer, FollowUp
 from skontio.crm.services import CUSTOMER_ROLES, SUPPLIER_ROLES, create_customer, search_customers
@@ -93,9 +93,12 @@ def setup(request):
     company = current_company()
     form_class = CompanyForm if company else SetupForm
     form = form_class(request.POST or None, instance=company)
+    before = watch.snapshot(company) if company else None
     if request.method == "POST" and form.is_valid():
         with transaction.atomic():
             saved = form.save()
+            if before is not None:
+                watch.report_changes(saved, before, user=request.user)
             if company is None:
                 start_regime(
                     saved,

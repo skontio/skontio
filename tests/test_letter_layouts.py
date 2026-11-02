@@ -75,8 +75,8 @@ def test_mandatory_details_on_dunning_letters_too(shop):
     company.managing_directors = "Erika Muster"
     company.save()
     notice = create_notice(invoice(shop), issued_on=dt.date(2026, 4, 30))
-    text = pdf_text(notice.blob)
-    assert "HRB 999" in text and "Erika Muster" in " ".join(text.split())  # the footer wraps lines
+    text = " ".join(pdf_text(notice.blob).split())  # line breaks in the footer depend on the fonts installed
+    assert "AG Musterstadt HRB 999" in text and "Erika Muster" in text
 
 
 def test_too_light_accent_colours_are_refused(shop):

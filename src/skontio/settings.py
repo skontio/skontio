@@ -263,6 +263,8 @@ STATIC_ROOT = Path(os.environ.get("SKONTIO_STATIC_ROOT", BASE_DIR.parent.parent 
 SESSION_COOKIE_SECURE = PUBLIC_URL.startswith("https://")
 CSRF_COOKIE_SECURE = SESSION_COOKIE_SECURE
 SESSION_COOKIE_HTTPONLY = True
+# a stolen session cookie should not stay useful for two weeks (Django's default); a new login is one passkey tap
+SESSION_COOKIE_AGE = int(os.environ.get("SKONTIO_SESSION_HOURS", "12")) * 3600
 SESSION_COOKIE_SAMESITE = "Lax"
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = "same-origin"

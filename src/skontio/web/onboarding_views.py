@@ -13,7 +13,7 @@ from django.views.decorators.http import require_POST
 from skontio.attachments.services import STANDARD_KINDS, standard_files
 from skontio.audit.services import record
 from skontio.banking import psd2
-from skontio.core import onboarding
+from skontio.core import onboarding, watch
 from skontio.documents.layouts import TemplateError, default_template, layout_context, save_template, soft
 from skontio.documents.models import DocumentTemplate
 from skontio.web.forms import AppearanceStepForm, BankStepForm, ShippingStepForm
@@ -104,9 +104,11 @@ def bank(request):
     company = current_company()
     if company is None:
         return redirect("/einrichtung/")
+    before = watch.snapshot(company)
     form = BankStepForm(request.POST or None, instance=company)
     if request.method == "POST" and form.is_valid():
         form.save()
+        watch.report_changes(company, before, user=request.user)
         record("company.bank_step", actor=request.user, company=company,
                data={"auto_match": company.auto_match_payments})  # fmt: skip
         onboarding.mark(company, "bank")
@@ -133,6 +135,7 @@ def shipping(request):
     company = current_company()
     if company is None:
         return redirect("/einrichtung/")
+    before = watch.snapshot(company)
     form = ShippingStepForm(request.POST or None, instance=company)
     if request.method == "POST" and request.POST.get("aktion") == "testmail":
         to = request.user.email or company.email
@@ -151,6 +154,7 @@ def shipping(request):
         return redirect("/einrichtung/assistent/versand/")
     if request.method == "POST" and form.is_valid():
         form.save()
+        watch.report_changes(company, before, user=request.user)
         onboarding.mark(company, "versand")
         return _continue(company, "versand")
     context = {"form": form, "smtp": onboarding.smtp_configured(), "back": "assistent",
