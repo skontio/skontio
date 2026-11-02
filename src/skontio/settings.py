@@ -287,7 +287,7 @@ MCP_SCOPES = {
     "catalog:read": "Leistungskatalog lesen",
     "catalog:write": "Leistungen anlegen und ändern",
     "customers:read": "Kunden suchen (gefilterte Felder)",
-    "customers:write": "Kunden anlegen",
+    "customers:write": "Kunden anlegen und ändern",
     "drafts:read": "Entwürfe prüfen und als Vorschau ansehen",
     "drafts:write": "Angebots- und Rechnungsentwürfe anlegen und ändern",
     "documents:read": "Rechnungen und offene Posten lesen",

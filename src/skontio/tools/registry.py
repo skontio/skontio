@@ -162,4 +162,4 @@ def call_tool(ctx: ToolContext, name: str, arguments: dict | None) -> dict:
 
 def _load() -> None:
     """Import the tool modules once so their @tool decorators run."""
-    from skontio.tools import catalog, customers, documents, drafts, reports  # noqa: F401
+    from skontio.tools import catalog, customers, documents, drafts, reports, workbench  # noqa: F401

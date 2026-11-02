@@ -85,3 +85,46 @@ def customer_create(ctx, args: CreateInput) -> Out:
     Anschrift nötig (Straße, PLZ, Ort)."""
     customer = create_customer(ctx.company, **args.model_dump())
     return Out(customer_view(customer, ctx, detail=True), "customer", customer.pk)
+
+
+class UpdateInput(Input):
+    customer_number: CustomerNumber
+    name: Name | None = None
+    kind: Customer.Kind | None = None
+    street: Short | None = None
+    postcode: Annotated[str, StringConstraints(strip_whitespace=True, max_length=20)] | None = None
+    city: Annotated[str, StringConstraints(strip_whitespace=True, max_length=100)] | None = None
+    country: Annotated[str, StringConstraints(pattern=r"^[A-Z]{2}$")] | None = None
+    vat_id: Annotated[str, StringConstraints(strip_whitespace=True, max_length=20)] | None = None
+    email: Email | None = None
+    buyer_reference: Annotated[str, StringConstraints(strip_whitespace=True, max_length=100)] | None = None
+    payment_terms_days: Annotated[int, Field(ge=0, le=120)] | None = None
+
+
+@tool(
+    name="customer_update",
+    title="Kunde ändern",
+    scope="customers:write",
+    input_model=UpdateInput,
+    read_only=False,
+    idempotent=True,
+)
+def customer_update(ctx, args: UpdateInput) -> Out:
+    """Ändert Stammdaten eines Kunden (nur angegebene Felder). Festgeschriebene Rechnungen behalten die
+    Anschrift von damals; die Änderung gilt für neue Dokumente."""
+    from skontio.audit.services import record
+    from skontio.crm.services import normalise_vat_id
+
+    customer = find_customer(ctx, args.customer_number)
+    changes = args.model_dump(exclude={"customer_number"}, exclude_none=True)
+    if "vat_id" in changes:
+        try:
+            changes["vat_id"] = normalise_vat_id(changes["vat_id"])
+        except ValueError as exc:
+            raise ToolError(str(exc)) from None
+    for field, value in changes.items():
+        setattr(customer, field, value)
+    customer.save()
+    record("customer.update", company=ctx.company, entity="customer", entity_id=customer.pk,
+           data={"fields": sorted(changes)})  # fmt: skip
+    return Out(customer_view(customer, ctx, detail=True), "customer", customer.pk)
