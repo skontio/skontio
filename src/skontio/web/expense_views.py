@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import datetime as dt
 import io
 from decimal import Decimal
 
@@ -39,6 +40,7 @@ from skontio.reports.euer import euer, journal
 from skontio.taxstatus.models import VatReturn
 from skontio.taxstatus.services import TaxStatusError, regime_for
 from skontio.web.csvexport import csv_safe
+from skontio.web.document_views import _iso_date
 from skontio.web.support import company_view, full_access
 
 DATE = forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d")
@@ -97,10 +99,11 @@ FIELDS = [name for name in ExpenseForm.base_fields if name != "receipt"]
 
 
 def _year(request) -> int:
-    try:
-        return int(request.GET.get("jahr", ""))
-    except ValueError:
-        return timezone.localdate().year
+    """?jahr= (also from a POST), only 1900–9999 – anything else is the current year."""
+    raw = request.GET.get("jahr") or request.POST.get("jahr") or ""
+    if len(raw) == 4 and raw.isascii() and raw.isdigit() and int(raw) >= 1900:
+        return int(raw)
+    return timezone.localdate().year
 
 
 def _years():
@@ -248,14 +251,27 @@ def expense_cancel(request, pk: int):
     return redirect(f"/ausgaben/{expense.pk}/")
 
 
+def _range(request):
+    """(year, start, end, custom): ?von=&bis= wins over ?jahr= when both bounds are valid."""
+    year = _year(request)
+    start, end = _iso_date(request.GET.get("von", "")), _iso_date(request.GET.get("bis", ""))
+    if start and end and start <= end:
+        return start.year, start, end, True
+    return year, dt.date(year, 1, 1), dt.date(year, 12, 31), False
+
+
 @company_view
 def euer_report(request):
-    year = _year(request)
-    report = euer(request.company, year)
+    year, start, end, custom = _range(request)
+    report = euer(request.company, start=start, end=end)
     context = {
         "report": report,
         "year": year,
         "years": _years(),
+        "start": start,
+        "end": end,
+        "custom": custom,
+        "range_query": f"von={start.isoformat()}&bis={end.isoformat()}" if custom else f"jahr={year}",
         "income": [(line.label, de_amount(line.amount)) for line in report.income],
         "expenses": [(line.label, de_amount(line.amount)) for line in report.expenses],
         "income_total": de_amount(report.income_total),
@@ -271,7 +287,7 @@ _csv_safe = csv_safe
 
 @company_view
 def euer_csv(request):
-    year = _year(request)
+    year, start, end, custom = _range(request)
     labels = dict(Expense.Category.choices) | {
         "small_business": "Einnahmen Kleinunternehmer",
         "taxable": "Einnahmen steuerpflichtig",
@@ -280,7 +296,7 @@ def euer_csv(request):
     buffer = io.StringIO()
     writer = csv.writer(buffer, delimiter=";")
     writer.writerow(["Datum", "Art", "Beleg", "Partner", "Zuordnung", "Netto", "USt", "Brutto", "Abziehbar"])
-    for e in journal(request.company, year):
+    for e in journal(request.company, start=start, end=end):
         deductible = de_amount(e.deductible) if e.kind == "Ausgabe" else ""
         writer.writerow(
             [
@@ -296,7 +312,8 @@ def euer_csv(request):
             ]
         )
     response = HttpResponse("﻿" + buffer.getvalue(), content_type="text/csv; charset=utf-8")
-    response["Content-Disposition"] = f'attachment; filename="euer-{year}.csv"'
+    name = f"euer-{start.isoformat()}-bis-{end.isoformat()}" if custom else f"euer-{year}"
+    response["Content-Disposition"] = f'attachment; filename="{name}.csv"'
     return response
 
 
@@ -414,11 +431,19 @@ def ustva_report(request):
         ],
         "payable": report.values["83"],
         "payable_text": de_amount(abs(report.values["83"])),
-        "deadline": period.deadline(request.company.vat_extension),
+        "deadline": None if period.annual else period.deadline(request.company.vat_extension),
+        "prepayments": _prepayments(request.company, period) if period.annual else None,
         "vat_return": vat_return,
         "differences": ustva.differences(report, vat_return) if vat_return else {},
     }
     return render(request, "web/reports/ustva.html", context)
+
+
+def _prepayments(company, period):
+    """Sum of Kz 83 of the Voranmeldungen marked as submitted for that year (annual view only)."""
+    returns = VatReturn.objects.filter(company=company, year=period.year).exclude(period="J")
+    total = sum((Decimal(r.values.get("83", "0")) for r in returns), Decimal("0"))
+    return {"count": returns.count(), "total": de_amount(total), "raw": total}
 
 
 @require_POST
@@ -426,6 +451,8 @@ def ustva_report(request):
 @full_access
 def ustva_submit(request):
     period, _ = _period(request, request.company)
+    if period.annual:
+        return HttpResponse("Die Jahresübersicht ist keine Voranmeldung.", status=400)
     report = ustva.vat_report(request.company, period)
     VatReturn.objects.update_or_create(
         company=request.company,

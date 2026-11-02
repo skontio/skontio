@@ -1,12 +1,17 @@
 {% extends "web/base.html" %}
-{% block title %}EÜR {{ year }}{% endblock %}
+{% block title %}EÜR {% if custom %}{{ start|date:"d.m.Y" }}–{{ end|date:"d.m.Y" }}{% else %}{{ year }}{% endif %}{% endblock %}
 {% block content %}
 <div class="heading">
-  <h1>Einnahmenüberschussrechnung {{ year }}</h1>
-  <p><a class="button secondary" href="/auswertungen/euer.csv?jahr={{ year }}">Journal als CSV</a>
+  <h1>Einnahmenüberschussrechnung {% if custom %}{{ start|date:"d.m.Y" }} – {{ end|date:"d.m.Y" }}{% else %}{{ year }}{% endif %}</h1>
+  <p><a class="button secondary" href="/auswertungen/euer.csv?{{ range_query }}">Journal als CSV</a>
      <a class="button secondary" href="/auswertungen/ustva/">USt-Voranmeldung</a></p>
 </div>
-<p class="filters">{% for y in years %}<a href="?jahr={{ y }}"{% if y == year %} aria-current="page"{% endif %}>{{ y }}</a> {% endfor %}</p>
+<p class="filters">{% for y in years %}<a href="?jahr={{ y }}"{% if y == year and not custom %} aria-current="page"{% endif %}>{{ y }}</a> {% endfor %}</p>
+<form method="get" class="inline-form" aria-label="Zeitraum">
+  <label for="euer-von">Von</label><input id="euer-von" type="date" name="von" value="{{ start|date:'Y-m-d' }}">
+  <label for="euer-bis">Bis</label><input id="euer-bis" type="date" name="bis" value="{{ end|date:'Y-m-d' }}">
+  <button type="submit" class="secondary">Zeitraum anzeigen</button>
+</form>
 <section class="card">
   <h2>Betriebseinnahmen</h2>
   <table class="list">{% for label, amount in income %}<tr><td>{{ label }}</td><td class="num">{{ amount }} €</td></tr>{% empty %}<tr><td class="muted">Keine Zahlungseingänge.</td><td></td></tr>{% endfor %}

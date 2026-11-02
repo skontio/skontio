@@ -409,11 +409,11 @@ Legende: ✅ vorhanden · 🟡 teilweise · 📅 schon geplant · ➕ neu aufgen
 | Kleinunternehmerregelung | Free | ✅ | mit Grenzwertüberwachung und Wechsel |
 | Ist-Versteuerung | Free | ✅ | Soll vorgesehen |
 | UStVA monatlich oder vierteljährlich | S | ✅ | |
-| UStVA jährlich, Umsatzsteuer-Jahresansicht | S | ➕ | 2b: Jahresübersicht als Vorbereitung der USt-Erklärung |
+| UStVA jährlich, Umsatzsteuer-Jahresansicht | S | ✅ | Jahresübersicht als Vorbereitung der USt-Erklärung, mit Summe der vermerkten Vorauszahlungen |
 | Zusammenfassende Meldung | S | ➕ | 2b: aus ig. Lieferungen und § 13b-Leistungen ins EU-Ausland (nur bei Regelbesteuerung und USt-IdNr.) |
 | EÜR | S | ✅ | |
 | BWA, erweiterte BWA | S/M | ➕ | 3: monatliche Auswertung nach EÜR-Kategorien mit Vorjahresvergleich |
-| Individuelle Berichtszeiträume | M | ➕ | 2b: Von-bis für EÜR, Umsatz und CSV-Journal |
+| Individuelle Berichtszeiträume | M | ✅ | Von-bis für EÜR und CSV-Journal (auch über den Jahreswechsel); Dokumentliste und Postausgang mit Zeitraum |
 | Cashflow | S | ➕ | 3: zusammen mit den Rücklagen |
 | Steuerberaterzugang | S | ➕ | 3: Rolle „nur lesen“ plus Exporte; braucht Rollen je Benutzer |
 | Postausgang | M | ✅ | alle Mails (Dokumente und Mahnungen) mit Status, Empfänger, Anhängen; Filter, Suche, CSV |

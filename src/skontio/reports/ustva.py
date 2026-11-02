@@ -57,21 +57,31 @@ class SollNotSupported(ValueError):
 @dataclass(frozen=True)
 class Period:
     year: int
-    code: str  # "M01".."M12", "Q1".."Q4"
+    code: str  # "M01".."M12", "Q1".."Q4", "J" (whole year: preparation of the annual return)
+
+    @property
+    def annual(self) -> bool:
+        return self.code == "J"
 
     @property
     def start(self) -> dt.date:
+        if self.annual:
+            return dt.date(self.year, 1, 1)
         if self.code.startswith("Q"):
             return dt.date(self.year, (int(self.code[1]) - 1) * 3 + 1, 1)
         return dt.date(self.year, int(self.code[1:]), 1)
 
     @property
     def end(self) -> dt.date:
+        if self.annual:
+            return dt.date(self.year, 12, 31)
         months = 3 if self.code.startswith("Q") else 1
         return add_months(self.start, months) - dt.timedelta(days=1)
 
     @property
     def label(self) -> str:
+        if self.annual:
+            return f"Jahr {self.year}"
         if self.code.startswith("Q"):
             return f"{self.code[1]}. Quartal {self.year}"
         return f"{self.start:%m}/{self.year}"
@@ -90,7 +100,7 @@ def periods(year: int, kind: str) -> list[Period]:
 
 
 def parse_period(year: int, code: str) -> Period:
-    if code not in {p.code for kind in ("quarterly", "monthly") for p in periods(year, kind)}:
+    if code != "J" and code not in {p.code for kind in ("quarterly", "monthly") for p in periods(year, kind)}:
         raise ValueError(f"Unbekannter Zeitraum: {code}")
     return Period(year, code)
 
@@ -191,6 +201,12 @@ def vat_report(company, period: Period) -> VatReport:
     rounded["83"] = (tax - rounded.get("66", ZERO) - rounded.get("67", ZERO)).quantize(CENT, rounding=ROUND_HALF_UP)
     small = _regime_on(company, period.end) is Regime.SMALL_BUSINESS
     report = VatReport(period, rounded, small)
+    if period.annual:
+        report.notes.append(
+            "Jahresübersicht zur Vorbereitung der Umsatzsteuererklärung: Summe aller Umsätze und Vorsteuern des "
+            "Jahres. Die Kennzahlen der Erklärung weichen von der Voranmeldung ab; abzuziehen sind die schon "
+            "angemeldeten Vorauszahlungen."
+        )
     if small:
         report.notes.append(
             "Kleinunternehmer: Eine Voranmeldung ist nur für Steuer nach § 13b nötig; Vorsteuer ist nicht abziehbar."

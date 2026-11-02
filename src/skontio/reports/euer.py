@@ -46,13 +46,19 @@ class Line:
 
 @dataclass
 class EuerReport:
-    year: int
+    year: int  # year of ``start``; a custom range may span years
     income: list[Line]
     expenses: list[Line]
     non_deductible: Decimal
     reverse_charge_vat: Decimal
     unpaid_expenses: int
     notes: list[str] = field(default_factory=list)
+    start: dt.date | None = None
+    end: dt.date | None = None
+
+    @property
+    def whole_year(self) -> bool:
+        return self.start == dt.date(self.year, 1, 1) and self.end == dt.date(self.year, 12, 31)
 
     @property
     def income_total(self) -> Decimal:
@@ -83,10 +89,21 @@ class Entry:
     regime: str
 
 
-def _payment_entries(company, year: int) -> list[Entry]:
+def period(year: int | None = None, start: dt.date | None = None, end: dt.date | None = None):
+    """(start, end) of a report: a calendar year unless both bounds are given."""
+    if start and end:
+        if start > end:
+            raise ValueError("Der Beginn liegt nach dem Ende.")
+        return start, end
+    if year is None:
+        raise ValueError("Jahr oder Zeitraum fehlt")
+    return dt.date(year, 1, 1), dt.date(year, 12, 31)
+
+
+def _payment_entries(company, start: dt.date, end: dt.date) -> list[Entry]:
     entries = []
     payments = (
-        Payment.objects.filter(company=company, received_on__year=year)
+        Payment.objects.filter(company=company, received_on__range=(start, end))
         .select_related("document", "document__customer")
         .order_by("received_on", "pk")
     )
@@ -125,9 +142,9 @@ def _regime_on(company, day: dt.date, cache: dict) -> Regime:
     return cache[day]
 
 
-def _expense_entries(company, year: int) -> list[Entry]:
+def _expense_entries(company, start: dt.date, end: dt.date) -> list[Entry]:
     entries, cache = [], {}
-    expenses = Expense.objects.filter(company=company, paid_on__year=year, cancelled_at__isnull=True).order_by(
+    expenses = Expense.objects.filter(company=company, paid_on__range=(start, end), cancelled_at__isnull=True).order_by(
         "paid_on", "pk"
     )
     for expense in expenses:
@@ -152,34 +169,41 @@ def _expense_entries(company, year: int) -> list[Entry]:
     return entries
 
 
-def journal(company, year: int) -> list[Entry]:
-    entries = _payment_entries(company, year) + _expense_entries(company, year)
+def journal(company, year: int | None = None, *, start: dt.date | None = None, end: dt.date | None = None):
+    start, end = period(year, start, end)
+    entries = _payment_entries(company, start, end) + _expense_entries(company, start, end)
     return sorted(entries, key=lambda e: (e.date, e.kind, e.number))
 
 
-def euer(company, year: int) -> EuerReport:
+def euer(company, year: int | None = None, *, start: dt.date | None = None, end: dt.date | None = None) -> EuerReport:
+    """The EÜR for a calendar year or a custom range (Zufluss/Abfluss within it)."""
+    start, end = period(year, start, end)
     income: dict[str, Decimal] = defaultdict(lambda: ZERO)
-    for entry in _payment_entries(company, year):
+    for entry in _payment_entries(company, start, end):
         income[entry.line] += entry.net
         income["collected_vat"] += entry.vat
     expenses: dict[str, Decimal] = defaultdict(lambda: ZERO)
     non_deductible = ZERO
-    for entry in _expense_entries(company, year):
+    for entry in _expense_entries(company, start, end):
         expenses[entry.line] += entry.deductible
         expenses["input_vat"] += entry.vat
         if entry.line == Expense.Category.HOSPITALITY:
             base = entry.gross if entry.regime == Regime.SMALL_BUSINESS else entry.net
             non_deductible += base - entry.deductible
     labels = dict(Expense.Category.choices) | {"input_vat": INPUT_VAT_LABEL}
-    rc = Expense.objects.filter(company=company, paid_on__year=year, cancelled_at__isnull=True, reverse_charge=True)
+    rc = Expense.objects.filter(
+        company=company, paid_on__range=(start, end), cancelled_at__isnull=True, reverse_charge=True
+    )
     report = EuerReport(
-        year=year,
+        year=start.year,
+        start=start,
+        end=end,
         income=[Line(k, label, income[k]) for k, label in INCOME_LABELS.items() if income.get(k)],
         expenses=[Line(k, labels[k], expenses[k]) for k in [*Expense.Category.values, "input_vat"] if expenses.get(k)],
         non_deductible=non_deductible,
         reverse_charge_vat=sum((reverse_charge_vat(e) for e in rc), ZERO),
         unpaid_expenses=Expense.objects.filter(
-            company=company, receipt_date__year=year, paid_on__isnull=True, cancelled_at__isnull=True
+            company=company, receipt_date__range=(start, end), paid_on__isnull=True, cancelled_at__isnull=True
         ).count(),
     )
     report.notes = _notes(report)
@@ -193,6 +217,10 @@ def _notes(report: EuerReport) -> list[str]:
         "Noch nicht enthalten: Abschreibungen (AfA), Zahlungen an und Erstattungen vom Finanzamt, "
         "die 10-Tage-Regel für regelmäßig wiederkehrende Zahlungen und Privatanteile.",
     ]
+    if not report.whole_year:
+        notes.insert(
+            0, "Frei gewählter Zeitraum zur Übersicht – die Anlage EÜR gilt immer für ein ganzes Kalenderjahr."
+        )
     if report.non_deductible:
         notes.append(f"Nicht abziehbarer Anteil der Bewirtung (30 %): {report.non_deductible} €.")
     if report.reverse_charge_vat:
@@ -202,7 +230,7 @@ def _notes(report: EuerReport) -> list[str]:
         )
     if report.unpaid_expenses:
         notes.append(
-            f"{report.unpaid_expenses} Ausgabe(n) mit Belegdatum {report.year} ohne Zahlungsdatum – zählen erst, "
+            f"{report.unpaid_expenses} Ausgabe(n) mit Belegdatum im Zeitraum ohne Zahlungsdatum – zählen erst, "
             "wenn sie bezahlt sind."
         )
     return notes
