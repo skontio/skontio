@@ -117,5 +117,38 @@ else
   fail "Worker läuft nicht"
 fi
 
+echo "==> Härtung (docs/sicherheit-container.md)"
+if "${compose[@]}" exec -T skontio sh -c true >/dev/null 2>&1; then fail "Shell im Container vorhanden"; else ok "keine Shell"; fi
+if "${compose[@]}" exec -T skontio bash -c true >/dev/null 2>&1; then fail "bash im Container vorhanden"; else ok "keine bash"; fi
+if "${compose[@]}" exec -T skontio python -c "
+import os, pathlib, stat, sys
+assert os.getuid() == 568 and os.getgid() == 568, ('uid', os.getuid())
+for pid in pathlib.Path('/proc').iterdir():
+    if pid.name.isdigit():
+        status = (pid / 'status').read_text()
+        uid = next(line.split()[1] for line in status.splitlines() if line.startswith('Uid:'))
+        assert uid != '0', ('Prozess als root', pid.name, (pid / 'cmdline').read_bytes())
+setuid = []
+for root, dirs, files in os.walk('/', topdown=True):
+    dirs[:] = [d for d in dirs if os.path.join(root, d) not in ('/proc', '/sys', '/dev')]
+    for name in files:
+        try:
+            mode = os.lstat(os.path.join(root, name)).st_mode
+        except OSError:
+            continue
+        if stat.S_ISREG(mode) and mode & (stat.S_ISUID | stat.S_ISGID):
+            setuid.append(os.path.join(root, name))
+assert not setuid, setuid
+for path in ('/app', '/usr', '/etc'):
+    try:
+        open(path + '/skontio-write-test', 'w')
+    except OSError:
+        continue
+    sys.exit(path + ' ist beschreibbar')
+caps = next(line.split()[1] for line in pathlib.Path('/proc/self/status').read_text().splitlines() if line.startswith('CapEff:'))
+assert int(caps, 16) == 0, ('Capabilities', caps)
+assert 'NoNewPrivs:\t1' in pathlib.Path('/proc/self/status').read_text()
+"; then ok "kein root, kein setuid, keine Capabilities, Dateisystem schreibgeschützt"; else fail "Härtung"; fi
+
 echo
 if [ "$failures" = 0 ]; then echo "Smoke-Test bestanden."; else echo "$failures Prüfung(en) fehlgeschlagen."; exit 1; fi

@@ -15,9 +15,10 @@ x-skontio: &skontio
   image: skontio:dev
   user: "568:568"
   read_only: true
-  tmpfs: [/tmp]
+  tmpfs: ["/tmp:rw,noexec,nosuid,nodev,size=256m"]
   security_opt: [no-new-privileges:true]
   cap_drop: [ALL]
+  pids_limit: 256
   depends_on:
     postgres:
       condition: service_healthy

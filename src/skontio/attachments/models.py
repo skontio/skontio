@@ -16,6 +16,9 @@ class Attachment(models.Model):
     filename = models.CharField(max_length=200)
     mime = models.CharField(max_length=100)
     note = models.CharField(max_length=500, blank=True, default="")
+    # Standardanhang (AGB, Datenschutz …): a company file without customer and document, preselected when
+    # sending these document types ("quote", "order_confirmation", "invoice")
+    send_with = models.JSONField(default=list, blank=True)
     uploaded_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
     )

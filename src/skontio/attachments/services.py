@@ -117,3 +117,53 @@ def delete_attachment(attachment: Attachment, *, user=None) -> bool:
         )
         attachment.delete()
         return release(blob)
+
+
+# --- Standardanhänge (AGB, Datenschutzerklärung, Widerrufsbelehrung …) --------------------------------
+
+STANDARD_KINDS = {"quote": "Angebote", "order_confirmation": "Auftragsbestätigungen", "invoice": "Rechnungen"}
+MAX_STANDARD_FILES = 10
+
+
+def standard_kind(doc_type: str) -> str:
+    """Abschlags- und Schlussrechnungen get the invoice files."""
+    return "invoice" if doc_type in ("invoice", "partial_invoice", "final_invoice") else doc_type
+
+
+def add_standard_file(company, data: bytes, *, filename: str, send_with: list[str], user=None) -> Attachment:
+    """A company-wide file sent along with the chosen document types. PDF only: it goes to customers."""
+    kinds = sorted(set(send_with))
+    if not kinds or not set(kinds) <= set(STANDARD_KINDS):
+        raise AttachmentError("Bitte wählen, bei welchen Dokumenten die Datei mitgeschickt wird.")
+    if not data:
+        raise AttachmentError("Die Datei ist leer")
+    if len(data) > MAX_BYTES:
+        raise AttachmentError("Die Datei ist größer als 20 MB")
+    if detect_mime(data, filename) != "application/pdf":
+        raise AttachmentError("Standardanhänge bitte als PDF hochladen.")
+    if standard_files(company).count() >= MAX_STANDARD_FILES:
+        raise AttachmentError(f"Höchstens {MAX_STANDARD_FILES} Standardanhänge.")
+    with transaction.atomic():
+        attachment = Attachment.objects.create(
+            company=company,
+            blob=store(
+                data,
+                mime="application/pdf",
+                retention_until=retention_end(timezone.localdate(), LETTER_RETENTION_YEARS),
+            ),
+            filename=safe_filename(filename),
+            mime="application/pdf",
+            send_with=kinds,
+            uploaded_by=user,
+        )
+        record("attachment.standard_add", actor=user, company=company, entity="attachment", entity_id=attachment.pk,
+               data={"sha256": attachment.blob.sha256, "send_with": kinds})  # fmt: skip
+    return attachment
+
+
+def standard_files(company, doc_type: str | None = None):
+    files = Attachment.objects.filter(company=company, customer__isnull=True, document__isnull=True)
+    if doc_type is not None:
+        kind = standard_kind(doc_type)
+        files = [f for f in files.select_related("blob") if kind in (f.send_with or [])]
+    return files

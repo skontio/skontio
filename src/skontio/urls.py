@@ -1,6 +1,6 @@
-from django.contrib import admin
 from django.urls import include, path
 from oauth2_provider import urls as oauth2_urls
+from oauth2_provider import views as oauth2_views
 
 from skontio.accounts import views as accounts
 from skontio.attachments import views as attachment_views
@@ -16,12 +16,26 @@ from skontio.web import template_views as layouts
 
 urlpatterns = [
     # /healthz is answered by skontio.core.health.HealthCheckMiddleware
-    path("admin/", admin.site.urls),
+    # No Django admin: its password login would bypass the LAN limit, lockout and second factor of
+    # /auth/local/. Everything is managed in the app (Einstellungen).
     # RFC 8414 / RFC 9728 documents must live at the origin root
     path("", include((oauth2_urls.metadata_urlpatterns, "oauth2_metadata"))),
     # own consent screen (admins only, German, privacy notes) in front of the toolkit's view
     path("oauth/authorize/", mcp_views.ConsentView.as_view(), name="oauth_authorize"),
-    path("oauth/", include((oauth2_urls.base_urlpatterns, "oauth2_provider"))),
+    # only what MCP clients need – no device flow, introspection or application management on the internet
+    path(
+        "oauth/",
+        include(
+            (
+                [
+                    path("authorize/", oauth2_views.AuthorizationView.as_view(), name="authorize"),
+                    path("token/", oauth2_views.TokenView.as_view(), name="token"),
+                    path("revoke_token/", oauth2_views.RevokeTokenView.as_view(), name="revoke-token"),
+                ],
+                "oauth2_provider",
+            )
+        ),
+    ),  # fmt: skip
     path("einstellungen/ki-zugriff/", mcp_views.ai_access, name="ai_access"),
     path("einstellungen/ki-zugriff/<int:pk>/widerrufen/", mcp_views.ai_access_revoke, name="ai_access_revoke"),
     path("einstellungen/ki-zugriff/tokens/", mcp_views.ai_token_create, name="ai_token_create"),
@@ -38,6 +52,7 @@ urlpatterns = [
     path("dateien/<int:pk>/loeschen/", attachment_views.remove, name="attachment_remove"),
     path("einstellungen/vorlagen/", layouts.template_list, name="template_list"),
     path("einstellungen/vorlagen/neu/", layouts.template_create, name="template_create"),
+    path("einstellungen/vorlagen/anhaenge/", layouts.standard_file_upload, name="standard_file_upload"),
     path("einstellungen/vorlagen/<int:pk>/", layouts.template_edit, name="template_edit"),
     path("einstellungen/vorlagen/<int:pk>/loeschen/", layouts.template_delete, name="template_delete"),
     path("einstellungen/textbausteine/", layouts.text_blocks, name="text_blocks"),

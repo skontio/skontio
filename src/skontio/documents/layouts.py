@@ -22,7 +22,30 @@ HEX_COLOR = re.compile(r"^#[0-9a-fA-F]{6}$")
 LOGO_MAX_BYTES = 1_000_000
 LOGO_MAX_PIXELS = 4000 * 4000
 LOGO_TYPES = {"image/png", "image/jpeg"}
-FALLBACK = {"layout": DocumentTemplate.Layout.CLASSIC, "accent_color": "#1f5f8b", "logo": "", "footer_text": ""}
+FALLBACK = {
+    "layout": DocumentTemplate.Layout.CLASSIC, "accent_color": "#1f5f8b", "accent_soft": "#edf2f7", "logo": "",
+    "footer_text": "",
+}  # fmt: skip
+MIN_CONTRAST = 3.0  # accent on white: lines, headings and the total must stay visible (WCAG 2.2, 1.4.11)
+
+
+def _rgb(color: str) -> tuple[int, int, int]:
+    return int(color[1:3], 16), int(color[3:5], 16), int(color[5:7], 16)
+
+
+def contrast_to_white(color: str) -> float:
+    def channel(value: int) -> float:
+        c = value / 255
+        return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+
+    r, g, b = (channel(v) for v in _rgb(color))
+    luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b
+    return 1.05 / (luminance + 0.05)
+
+
+def soft(color: str, share: float = 0.1) -> str:
+    """A light tint of the accent for boxes (payment block): ``share`` of the colour on white."""
+    return "#" + "".join(f"{round(255 - (255 - v) * share):02x}" for v in _rgb(color))
 
 
 class TemplateError(ValueError):
@@ -67,6 +90,8 @@ def save_template(
         raise TemplateError("Unbekanntes Layout.")
     if not HEX_COLOR.match(accent_color or ""):
         raise TemplateError("Akzentfarbe bitte als #RRGGBB angeben.")
+    if contrast_to_white(accent_color) < MIN_CONTRAST:
+        raise TemplateError("Die Akzentfarbe ist auf weißem Papier zu hell – bitte eine dunklere Farbe wählen.")
     mime = _check_logo(logo) if logo else None
     with transaction.atomic():
         template = template or DocumentTemplate(company=company)
@@ -126,6 +151,7 @@ def layout_context(template: DocumentTemplate | None) -> dict:
     return {
         "layout": template.layout,
         "accent_color": template.accent_color,
+        "accent_soft": soft(template.accent_color),
         "logo": logo,
         "footer_text": template.footer_text,
     }

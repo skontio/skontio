@@ -16,7 +16,9 @@ from skontio.web.support import company_view, full_access
 
 
 def _owner_url(customer_pk=None, document_pk=None) -> str:
-    return f"/dokumente/{document_pk}/#dateien" if document_pk else f"/kunden/{customer_pk}/#dateien"
+    if document_pk:
+        return f"/dokumente/{document_pk}/#dateien"
+    return f"/kunden/{customer_pk}/#dateien" if customer_pk else "/einstellungen/vorlagen/#anhaenge"
 
 
 @require_POST

@@ -65,7 +65,8 @@ MAX_MAIL_BYTES = 20 * 1024 * 1024
 
 
 def _extra_files(document: Document, extra) -> list[tuple[str, bytes, str]]:
-    """Files from the Dokumentenablage; only those of this document or its customer, each once."""
+    """Files from the Dokumentenablage – of this document, its customer, or the company's Standardanhänge
+    (AGB, Datenschutz) – each once."""
     files, seen = [], set()
     for attachment in extra:
         if attachment.pk in seen:
@@ -74,6 +75,7 @@ def _extra_files(document: Document, extra) -> list[tuple[str, bytes, str]]:
         own = attachment.company_id == document.company_id and (
             attachment.document_id == document.pk
             or (attachment.customer_id is not None and attachment.customer_id == document.customer_id)
+            or (attachment.customer_id is None and attachment.document_id is None and bool(attachment.send_with))
         )
         if not own:
             raise MailError("Diese Datei gehört nicht zu diesem Dokument oder Kunden.")

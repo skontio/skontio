@@ -258,7 +258,9 @@ class DocumentTemplate(models.Model):
 
     class Layout(models.TextChoices):
         CLASSIC = "classic", "Klassisch"
-        MODERN = "modern", "Modern (Farbbalken)"
+        MODERN = "modern", "Farbband"
+        MINIMAL = "minimal", "Schlicht"
+        SIDEBAR = "sidebar", "Seitenleiste"
 
     company = models.ForeignKey("core.Company", on_delete=models.PROTECT, related_name="document_templates")
     name = models.CharField("Name", max_length=100)

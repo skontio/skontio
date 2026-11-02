@@ -349,12 +349,13 @@ Legende: ✅ vorhanden · 🟡 teilweise · 📅 schon geplant · ➕ neu aufgen
 | Versand über ein Kundenportal | M | 📅 | 3 (Portal) |
 | Abschlagsrechnungen | M | ✅ | inkl. Schlussrechnung nach § 14 Abs. 5 UStG |
 | Rabatte | S | ✅ | je Position und auf die Gesamtsumme (EN 16931 BG-20 je Steuerkategorie) |
+| Standardanhänge (AGB, Datenschutz) | Free | ✅ | als PDF hochladen, je Dokumentart beim Versand vorausgewählt |
 | Positionen gruppieren | S | ✅ | Gruppen mit Überschrift und Zwischensumme (nur Darstellung, Steuer und E-Rechnung weiter je Position); Gruppen bleiben zusammen |
 | GiroCode | M | ✅ | |
 | PayPal-Link | M | ✅ | frei konfigurierbarer Zahlungslink (PayPal.me o. Ä.) mit {betrag}/{nummer} auf Rechnung und in der Mail; keine Zahlungsabwicklung durch Skontio (ZAG) |
 | E-Rechnung, XRechnung, ZUGFeRD | Free/S | ✅ | mit KoSIT und Mustang geprüft |
-| Eigenes Briefpapier, ohne Fremdlogo | Free/S | 🟡 | Logo, Farbe, Fußzeile ✅; ➕ 3: Briefpapier als PDF-Hintergrund, eigenes Briefpapier für Folgeseiten |
-| Eigene Schriften, Layouts per CSS | S | ➕ | 3: Schrift-Upload (mit Einbettung für PDF/A) und CSS-Layouts in einer Sandbox (kein Netzwerkzugriff von WeasyPrint) |
+| Eigenes Briefpapier, ohne Fremdlogo | Free/S | 🟡 | vier Designs (Klassisch, Farbband, Schlicht, Seitenleiste) nach DIN 5008 Form B mit Falzmarken, Folgeseitenkopf und Seitenzahlen, Auswahl mit Logo-Vorschau im Einrichtungsassistent, gilt für alle Dokumente inkl. Mahnung ✅; ➕ 3: Briefpapier als PDF-Hintergrund (Seite 1 und Folgeseiten) |
+| Eigene Schriften, Layouts per CSS | S | ➖/🟡 | kein CSS-Editor in der Oberfläche (Pflichtangaben, Fensterfeld, PDF/A); eigene Installationen passen die App-Oberfläche über `SKONTIO_THEME_DIR` an ✅; ➕ 3: Auswahl aus drei eingebetteten freien Schriften |
 | Automatischer Lohnkostenausweis | S | ✅ | Arbeitskostenanteil je Leistung/Position, Ausweis nach § 35a EStG mit USt auf Rechnungen an Privatkunden |
 | Englische Dokumente | S | ✅ | |
 | Wiederkehrende Rechnungen | S | ✅ | als Entwürfe |

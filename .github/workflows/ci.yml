@@ -5,6 +5,8 @@ on:
     branches: [main]
     tags: ["v*"]
   pull_request:
+  schedule:
+    - cron: "17 5 * * 1"   # weekly: new advisories for unchanged dependencies
 
 permissions:
   contents: read
@@ -19,6 +21,10 @@ jobs:
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: SKONTIO_DEBUG=1 uv run skontio makemigrations --check --dry-run
+      - name: Known vulnerabilities in runtime dependencies
+        run: |
+          uv export --frozen --no-dev --no-hashes --no-emit-project > requirements-audit.txt
+          uvx pip-audit --strict --progress-spinner off -r requirements-audit.txt
 
   test:
     name: test (${{ matrix.database }})

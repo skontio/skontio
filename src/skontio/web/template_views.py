@@ -7,6 +7,7 @@ from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
+from skontio.attachments.services import STANDARD_KINDS, AttachmentError, add_standard_file, standard_files
 from skontio.core.models import DOCUMENT_LANGUAGES
 from skontio.documents.layouts import (
     LOGO_MAX_BYTES,
@@ -44,7 +45,31 @@ def template_list(request):
     if company is None:
         return redirect("setup")
     templates = DocumentTemplate.objects.filter(company=company).select_related("logo")
-    return render(request, "web/layouts/list.html", {"templates": templates, "form": TemplateForm()})
+    files = standard_files(company).select_related("blob")
+    context = {"templates": templates, "form": TemplateForm(), "standard_files": files, "kinds": STANDARD_KINDS}
+    return render(request, "web/layouts/list.html", context)
+
+
+@require_POST
+@admin_required
+def standard_file_upload(request):
+    """Standardanhang (AGB, Datenschutz …): sent along with the chosen document types."""
+    company = current_company()
+    if company is None:
+        return redirect("setup")
+    upload = request.FILES.get("file")
+    kinds = [k for k in request.POST.getlist("send_with") if k in STANDARD_KINDS]
+    if upload is None:
+        messages.error(request, "Bitte eine PDF-Datei auswählen.")
+    else:
+        try:
+            add_standard_file(company, upload.read(), filename=upload.name, send_with=kinds, user=request.user)
+        except AttachmentError as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(request, f"{upload.name} wird ab jetzt beim Versand vorgeschlagen.")
+    return redirect(request.POST.get("zurueck") == "assistent" and "/einrichtung/assistent/versand/"
+                    or "/einstellungen/vorlagen/#anhaenge")  # fmt: skip
 
 
 def _save(request, company, template: DocumentTemplate | None):

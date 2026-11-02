@@ -1,0 +1,20 @@
+{# Standardanhänge: Liste und Upload; used on the template page and in the setup wizard #}
+<section class="card" id="anhaenge">
+  <h2>Standardanhänge</h2>
+  <p class="muted">AGB, Datenschutzerklärung, Widerrufsbelehrung: als PDF hochladen und festlegen, bei welchen Dokumenten sie
+    mitgeschickt werden. Im Versandformular sind sie dann schon angekreuzt und lassen sich abwählen.</p>
+  {% if standard_files %}<ul class="plain">{% for f in standard_files %}
+    <li><a href="/dateien/{{ f.pk }}/" target="_blank" rel="noopener">{{ f.filename }}</a>
+      <span class="muted">· bei {% for k in f.send_with %}{% for key, label in kinds.items %}{% if key == k %}{{ label }}{% endif %}{% endfor %}{% if not forloop.last %}, {% endif %}{% endfor %}</span>
+      <form method="post" action="/dateien/{{ f.pk }}/loeschen/" class="inline-form">{% csrf_token %}<button type="submit" class="link">entfernen</button></form></li>
+  {% endfor %}</ul>{% endif %}
+  <form method="post" action="/einstellungen/vorlagen/anhaenge/" enctype="multipart/form-data" class="form">
+    {% csrf_token %}{% if back %}<input type="hidden" name="zurueck" value="{{ back }}">{% endif %}
+    <label for="std-file">PDF-Datei</label>
+    <input id="std-file" type="file" name="file" accept="application/pdf,.pdf" required>
+    <fieldset><legend>Mitschicken bei</legend>
+      {% for key, label in kinds.items %}<label><input type="checkbox" name="send_with" value="{{ key }}"{% if key == "quote" %} checked{% endif %}> {{ label }}</label>{% endfor %}
+    </fieldset>
+    <button type="submit" class="secondary">Hochladen</button>
+  </form>
+</section>

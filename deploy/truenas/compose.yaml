@@ -46,12 +46,14 @@ services:
       - /mnt/POOL/apps/skontio/archive:/archive
       - /mnt/POOL/apps/skontio/backups:/backups
       - /mnt/POOL/apps/skontio-secrets:/secrets:ro
-    read_only: true
+    read_only: true                       # hardening: docs/sicherheit-container.md
     tmpfs:
-      - /tmp
+      - /tmp:rw,noexec,nosuid,nodev,size=256m
     security_opt:
       - no-new-privileges:true
     cap_drop: [ALL]
+    pids_limit: 256
+    mem_limit: 1g
 
   skontio-worker:
     image: ghcr.io/skontio/skontio:0.2
@@ -90,9 +92,11 @@ services:
       - /mnt/POOL/apps/skontio/archive:/archive
       - /mnt/POOL/apps/skontio/backups:/backups
       - /mnt/POOL/apps/skontio-secrets:/secrets:ro
-    read_only: true
+    read_only: true                       # hardening: docs/sicherheit-container.md
     tmpfs:
-      - /tmp
+      - /tmp:rw,noexec,nosuid,nodev,size=256m
     security_opt:
       - no-new-privileges:true
     cap_drop: [ALL]
+    pids_limit: 256
+    mem_limit: 1g

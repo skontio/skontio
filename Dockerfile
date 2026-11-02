@@ -35,20 +35,31 @@ ENV PATH=/app/.venv/bin:$PATH \
     SKONTIO_BACKUP_DIR=/backups \
     SKONTIO_STATIC_ROOT=/app/static \
     SKONTIO_PG_BIN_DIR=/usr/lib/postgresql/${PG_CLIENT_MAJOR}/bin \
-    XDG_CACHE_HOME=/tmp
+    XDG_CACHE_HOME=/tmp \
+    PYTHONDONTWRITEBYTECODE=1
 
 WORKDIR /app
 COPY --from=build /app /app
-COPY docker/entrypoint.sh /usr/local/bin/skontio-entrypoint
+# Last RUN of the image: afterwards there is no shell anymore (docs/sicherheit-container.md).
+# - no shells and no other script interpreters besides Python (exploits and `docker exec … sh` find none)
+# - no package manager: nothing can be installed later
+# - no setuid/setgid programs: nobody becomes root inside the container, even with a code execution bug
+# The dpkg status file stays so that image scanners still see the installed packages.
 RUN SKONTIO_SECRET_KEY=build-only skontio collectstatic --noinput \
  && mkdir -p /data /archive /backups \
- && chown -R 568:568 /data /archive /backups
+ && chown -R 568:568 /data /archive /backups \
+ && find / -xdev -type f -perm /6000 -exec chmod a-s {} + \
+ && rm -rf /usr/bin/apt* /usr/bin/dpkg* /usr/lib/apt /etc/apt /usr/share/doc /usr/share/man \
+           /usr/bin/perl* /usr/bin/su /usr/bin/login /usr/bin/passwd /usr/bin/chsh /usr/bin/chfn \
+           /usr/bin/newgrp /usr/bin/gpasswd /usr/bin/mount /usr/bin/umount \
+ && rm -f /usr/bin/bash /usr/bin/rbash /usr/bin/dash /usr/bin/sh /bin/sh /bin/bash /bin/dash
 
 USER 568:568
 VOLUME ["/data", "/archive", "/backups"]
 EXPOSE 8000
+# exec form: there is no shell to run a shell-form command
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-  CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=4).status == 200 else 1)"
+  CMD ["python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=4).status == 200 else 1)"]
 
 ENTRYPOINT ["tini", "--", "skontio-entrypoint"]
 CMD ["web"]

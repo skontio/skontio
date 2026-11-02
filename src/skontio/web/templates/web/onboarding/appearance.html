@@ -1,15 +1,31 @@
 {% extends "web/base.html" %}
-{% block title %}Einrichtung: Logo und Farbe{% endblock %}
+{% block title %}Einrichtung: Aussehen{% endblock %}
 {% block content %}
-<div class="heading"><h1>Logo und Farbe</h1></div>
+<div class="heading"><h1>Aussehen deiner Dokumente</h1></div>
 {% include "web/onboarding/_steps.html" %}
-<p>So sehen deine Angebote und Rechnungen aus. Weitere Vorlagen (z. B. auf Englisch) unter
-  <a href="/einstellungen/vorlagen/">Vorlagen</a>.</p>
-<form method="post" enctype="multipart/form-data" class="card form grid2">
+<p>Lade dein Logo hoch, wähle eine Farbe und ein Design. Angebote, Auftragsbestätigungen, Rechnungen, Lieferscheine und
+  Mahnungen sehen dann alle gleich aus. Alle Designs passen in einen Fensterumschlag (DIN 5008) und tragen die
+  Pflichtangaben automatisch.</p>
+<form method="post" enctype="multipart/form-data" class="card form">
   {% csrf_token %}
-  {% if template.logo_id %}<p class="muted">Ein Logo ist schon hinterlegt – eine neue Datei ersetzt es.</p>{% endif %}
-  {% include "web/_fields.html" %}
-  <div class="actions"><button type="submit">Speichern und weiter</button></div>
+  {% if form.non_field_errors %}<div class="errors" role="alert">{% for e in form.non_field_errors %}<p class="danger">{{ e }}</p>{% endfor %}</div>{% endif %}
+  <div class="grid2">
+    {% with field=form.logo %}{% include "web/_field.html" %}{% endwith %}
+    {% with field=form.accent_color %}{% include "web/_field.html" %}{% endwith %}
+  </div>
+  <p><button type="submit" name="aktion" value="vorschau" class="secondary">Vorschau mit Logo und Farbe aktualisieren</button></p>
+  <fieldset class="layout-choice">
+    <legend>Design</legend>
+    {% for p in previews %}
+    <label class="layout-option">
+      <input type="radio" name="layout" value="{{ p.key }}"{% if p.key == selected %} checked{% endif %}>
+      {% include "web/onboarding/_layout_preview.html" %}
+      <span><b>{{ p.label }}</b><br><small class="muted">{{ p.summary }}</small></span>
+    </label>
+    {% endfor %}
+  </fieldset>
+  {% if form.layout.errors %}<p class="danger">{{ form.layout.errors.0 }}</p>{% endif %}
+  <div class="actions"><button type="submit" name="aktion" value="weiter">Speichern und weiter</button></div>
 </form>
 {% include "web/onboarding/_skip.html" %}
 {% endblock %}

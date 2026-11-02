@@ -325,3 +325,13 @@ table.list tr.group-subtotal td { font-weight: 600; border-bottom: 1px solid var
   border: 1px solid var(--rule-strong); font-size: .85rem; }
 .wizard-steps li.current .wizard-mark { background: var(--blue); border-color: var(--blue); color: var(--on-blue); }
 .wizard-steps li.done .wizard-mark { background: var(--green-wash); border-color: var(--green); color: var(--green); }
+
+/* Design-Auswahl (Einrichtungsassistent) */
+.layout-choice { border: 0; padding: 0; margin: 0; display: grid; gap: var(--gap); grid-template-columns: repeat(auto-fill, minmax(min(100%, 170px), 1fr)); }
+.layout-choice legend { font-weight: 600; margin-bottom: 8px; }
+.layout-option { display: grid; gap: 8px; align-content: start; cursor: pointer; padding: 10px; border: 1px solid var(--rule); border-radius: 8px; background: var(--paper); }
+.layout-option:has(input:checked) { border-color: var(--blue); box-shadow: 0 0 0 2px var(--blue); }
+.layout-option input { justify-self: start; }
+.layout-option:focus-within { outline: 2px solid var(--blue); outline-offset: 2px; }
+.layout-preview { width: 100%; height: auto; display: block; }
+input[type="color"] { max-width: 120px; min-height: 44px; padding: 4px; }

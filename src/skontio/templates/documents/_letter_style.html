@@ -1,0 +1,82 @@
+{# Shared letter frame for every document (offer, invoice, dunning …): DIN 5008 form B, four layouts.
+   Content area starts 25 mm from the left and 20 mm from the top edge; positions below are measured
+   from the page edge in the comments. Included inside <style>. #}
+  @page {
+    size: A4;
+    margin: 20mm 20mm 30mm 25mm;
+    @bottom-left { content: element(footer); width: 165mm; vertical-align: top; }
+    @top-right { content: string(docref) " · {{ t.page }} " counter(page) " {{ t.page_of }} " counter(pages);
+                 font-size: 7.5pt; color: #5b636b; vertical-align: bottom; padding-bottom: 5mm; }
+  }
+  @page :first { @top-right { content: none; } }
+  :root { --accent: {{ accent_color }}; --accent-soft: {{ accent_soft }}; --text: #1d2125; --muted: #5b636b; --rule: #d6dadf; }
+  body { font-family: "DejaVu Sans", "Liberation Sans", sans-serif; font-size: 9.5pt; color: var(--text); line-height: 1.4; }
+  h1 { font-size: 14pt; margin: 0 0 4mm; string-set: docref content(text); }
+
+  /* letterhead zone: 20–45 mm from the top edge */
+  header { height: 25mm; display: flex; justify-content: space-between; align-items: flex-start; }
+  .brand { font-size: 15pt; font-weight: bold; color: var(--accent); }
+  .logo { max-width: 60mm; max-height: 20mm; }
+  /* address window 45 mm from the top, 20 mm from the left, 85 × 45 mm; info block from 125 mm, 50 mm down */
+  .top { position: relative; height: 53.5mm; }
+  .address { position: absolute; left: -5mm; top: 0; width: 85mm; height: 45mm; padding-left: 5mm; overflow: hidden; }
+  .sender-line { margin-top: 12.7mm; font-size: 7pt; color: var(--muted); border-bottom: 0.5pt solid var(--rule);
+                 padding-bottom: 1mm; margin-bottom: 2mm; white-space: nowrap; overflow: hidden; }
+  .meta { position: absolute; left: 100mm; top: 5mm; width: 65mm; }
+  .meta table { border-collapse: collapse; }
+  .meta table td { padding: 0.6mm 0; vertical-align: top; }
+  .meta table td:first-child { color: var(--muted); padding-right: 4mm; }
+  /* fold marks 105 mm and 210 mm, punch mark 148.5 mm */
+  .fold { position: fixed; left: -20mm; width: 5mm; border-top: 0.4pt solid #8a939c; }
+  .fold-1 { top: 85mm; } .fold-2 { top: 190mm; } .fold-hole { top: 128.5mm; width: 7mm; }
+
+  .intro, .closing { margin: 4mm 0; white-space: pre-line; }
+  table.lines { width: 100%; border-collapse: collapse; margin: 4mm 0; }
+  table.lines thead { display: table-header-group; }
+  table.lines tr { page-break-inside: avoid; }
+  table.lines th { text-align: left; font-size: 8pt; color: var(--muted); border-bottom: 1pt solid var(--accent); padding: 1.5mm 1mm; }
+  table.lines td { border-bottom: 0.5pt solid var(--rule); padding: 1.5mm 1mm; vertical-align: top; }
+  table.lines .num { text-align: right; white-space: nowrap; }
+  table.lines tr.group-heading td { font-weight: bold; padding-top: 3mm; border-bottom: 0.5pt solid var(--accent); }
+  table.lines tr.group-subtotal td { font-weight: bold; border-bottom: none; padding-bottom: 2.5mm; }
+  .desc { color: var(--muted); font-size: 8.5pt; white-space: pre-line; }
+  table.totals { margin-left: auto; width: 80mm; border-collapse: collapse; page-break-inside: avoid; }
+  table.totals td { padding: 1mm; }
+  table.totals td.num { text-align: right; white-space: nowrap; }
+  table.totals .muted { color: var(--muted); font-size: 7.5pt; }
+  table.totals tr.grand td { border-top: 1pt solid var(--accent); font-weight: bold; font-size: 10.5pt; }
+  .note { margin-top: 5mm; padding: 2.5mm 3mm; background: #f3f5f7; border-left: 2pt solid var(--accent); page-break-inside: avoid; }
+  .payment { display: flex; gap: 6mm; align-items: center; margin-top: 6mm; padding: 3mm; background: var(--accent-soft);
+             page-break-inside: avoid; }
+  .payment img { width: 26mm; height: 26mm; background: #ffffff; }
+  footer { position: running(footer); width: 165mm; font-size: 7pt; color: var(--muted); border-top: 0.5pt solid var(--rule);
+           padding-top: 2mm; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4mm; }
+  footer div { flex: 1; }
+  footer .footer-note { flex-basis: 100%; margin-top: 1.5mm; }
+  .draft-mark { position: fixed; top: 105mm; left: 0; width: 165mm; text-align: center; transform: rotate(-30deg);
+                font-size: 34pt; font-weight: bold; color: rgba(164, 38, 44, 0.18); }
+
+  /* Farbband: coloured band across the top edge, logo on white */
+  .layout-modern header { background: var(--accent); color: #ffffff; margin: -20mm -20mm 13mm -25mm; height: 32mm;
+                          padding: 0 20mm 0 25mm; align-items: center; }
+  .layout-modern .brand { color: #ffffff; }
+  .layout-modern .logo { max-height: 16mm; background: #ffffff; padding: 1.5mm; }
+  .layout-modern h1 { color: var(--accent); }
+  .layout-modern table.lines th { background: var(--accent); color: #ffffff; border-bottom: none; }
+
+  /* Schlicht: serif headings, black hairlines, colour only for the total */
+  .layout-minimal header { justify-content: flex-end; }
+  .layout-minimal .brand, .layout-minimal h1 { font-family: "DejaVu Serif", "Liberation Serif", serif; font-weight: normal; }
+  .layout-minimal .brand { color: var(--text); font-size: 16pt; letter-spacing: 0.3pt; }
+  .layout-minimal h1 { font-size: 15pt; }
+  .layout-minimal table.lines th { border-bottom: 0.5pt solid var(--text); color: var(--text); font-weight: normal; }
+  .layout-minimal table.lines tr.group-heading td { border-bottom-color: var(--rule); }
+  .layout-minimal table.totals tr.grand td { border-top: 0.5pt solid var(--text); border-bottom: 2pt solid var(--accent); }
+  .layout-minimal .payment { background: none; border-top: 0.5pt solid var(--rule); border-bottom: 0.5pt solid var(--rule); }
+
+  /* Seitenleiste: accent bar along the left edge on every page, logo on the right */
+  .sidebar { position: fixed; left: -25mm; top: -20mm; width: 6mm; height: 297mm; background: var(--accent); }
+  .layout-sidebar header { justify-content: flex-end; }
+  .layout-sidebar h1 { color: var(--accent); }
+  .layout-sidebar table.lines th { border-bottom: none; background: var(--accent-soft); color: var(--text); }
+  .layout-sidebar table.totals tr.grand td { border-top: none; background: var(--accent); color: #ffffff; }

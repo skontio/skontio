@@ -1,0 +1,4 @@
+<div class="address">
+  <div class="sender-line">{{ seller.name }} · {{ seller.street }} · {{ seller.postcode }} {{ seller.city }}</div>
+  <div>{{ buyer.name }}<br>{{ buyer.street }}<br>{{ buyer.postcode }} {{ buyer.city }}{% if buyer.country != "DE" %}<br>{{ buyer.country }}{% endif %}</div>
+</div>

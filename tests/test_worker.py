@@ -107,9 +107,22 @@ class TestLoop:
     def test_migrations_are_applied_in_tests(self, db):
         assert scheduler.migrations_pending() is False
 
-    def test_entrypoint_starts_the_worker(self):
-        entrypoint = Path(__file__).resolve().parents[1] / "docker" / "entrypoint.sh"
-        assert "exec skontio worker" in entrypoint.read_text()
+    def test_entrypoint_roles_replace_the_process_without_a_shell(self, monkeypatch):
+        from skontio import entrypoint
+
+        calls, runs = [], []
+        monkeypatch.setattr(entrypoint.os, "execvp", lambda file, argv: calls.append(argv))
+        monkeypatch.setattr(entrypoint.subprocess, "run", lambda argv, check: runs.append(argv))
+        entrypoint.main(["worker"])
+        entrypoint.main(["doctor", "smtp"])
+        monkeypatch.setenv("SKONTIO_WEB_WORKERS", "3")
+        entrypoint.main([])
+        assert calls[0] == ["skontio", "worker"] and calls[1] == ["skontio", "doctor", "smtp"]
+        assert runs == [["skontio", "upgrade"]]  # migrations (with backup) before the web server
+        assert calls[2][0] == "granian" and calls[2][calls[2].index("--workers") + 1] == "3"
+        monkeypatch.setenv("SKONTIO_WEB_WORKERS", "2; rm -rf /")
+        with pytest.raises(SystemExit):
+            entrypoint.main(["web"])
 
 
 def test_doctor_reports_stale_and_failed_jobs(db, settings):

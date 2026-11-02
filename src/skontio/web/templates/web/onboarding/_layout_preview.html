@@ -1,0 +1,30 @@
+{# Miniature A4 sheet of one layout with the company's logo and colour. SVG attributes instead of inline styles (CSP). #}
+<svg class="layout-preview" viewBox="0 0 210 297" role="img" aria-label="Vorschau {{ p.label }}">
+  <rect width="210" height="297" fill="#ffffff" stroke="#c9cfd6" stroke-width="0.8"/>
+  {% if p.key == "modern" %}<rect width="210" height="32" fill="{{ p.accent }}"/>{% endif %}
+  {% if p.key == "sidebar" %}<rect width="6" height="297" fill="{{ p.accent }}"/>{% endif %}
+  {% if p.logo %}
+    <rect x="{{ p.logo_x|add:'-2' }}" y="7" width="54" height="22" fill="#ffffff"/>
+    <image href="{{ p.logo }}" x="{{ p.logo_x }}" y="9" width="50" height="18" preserveAspectRatio="{{ p.logo_align }} meet"/>
+  {% else %}
+    <text x="{% if p.right %}190{% else %}25{% endif %}" y="24" text-anchor="{% if p.right %}end{% else %}start{% endif %}" font-size="9" font-weight="bold"
+      font-family="{% if p.key == 'minimal' %}serif{% else %}sans-serif{% endif %}" fill="{% if p.key == 'modern' %}#ffffff{% elif p.key == 'minimal' %}#1d2125{% else %}{{ p.accent }}{% endif %}">{{ p.name|truncatechars:24 }}</text>
+  {% endif %}
+  <rect x="25" y="57" width="70" height="1.2" fill="#c9cfd6"/>
+  <rect x="25" y="62" width="44" height="3" fill="#59626b"/><rect x="25" y="68" width="36" height="3" fill="#59626b"/><rect x="25" y="74" width="30" height="3" fill="#59626b"/>
+  <rect x="125" y="52" width="60" height="2.6" fill="#9aa3ad"/><rect x="125" y="58" width="60" height="2.6" fill="#9aa3ad"/><rect x="125" y="64" width="60" height="2.6" fill="#9aa3ad"/>
+  <rect x="25" y="96" width="80" height="6" fill="{% if p.key == 'modern' or p.key == 'sidebar' %}{{ p.accent }}{% else %}#1d2125{% endif %}"/>
+  {% if p.key == "modern" %}<rect x="25" y="110" width="165" height="6" fill="{{ p.accent }}"/>
+  {% elif p.key == "sidebar" %}<rect x="25" y="110" width="165" height="6" fill="{{ p.soft }}"/>
+  {% else %}<rect x="25" y="115" width="165" height="{% if p.key == 'minimal' %}0.5{% else %}1{% endif %}" fill="{% if p.key == 'minimal' %}#1d2125{% else %}{{ p.accent }}{% endif %}"/>{% endif %}
+  {% for y in p.rows %}<rect x="25" y="{{ y }}" width="165" height="0.5" fill="#d6dadf"/><rect x="27" y="{{ y|add:'-6' }}" width="80" height="2.6" fill="#7b848d"/><rect x="170" y="{{ y|add:'-6' }}" width="18" height="2.6" fill="#7b848d"/>{% endfor %}
+  {% if p.key == "sidebar" %}<rect x="120" y="190" width="70" height="8" fill="{{ p.accent }}"/>
+  {% else %}<rect x="120" y="196" width="70" height="{% if p.key == 'minimal' %}1.6{% else %}1{% endif %}" fill="{{ p.accent }}"/>{% endif %}
+  <rect x="120" y="190" width="40" height="3" fill="{% if p.key == 'sidebar' %}#ffffff{% else %}#1d2125{% endif %}"/>
+  {% if p.key == "minimal" %}<rect x="25" y="206" width="165" height="0.5" fill="#c9cfd6"/><rect x="25" y="232" width="165" height="0.5" fill="#c9cfd6"/>
+  {% else %}<rect x="25" y="206" width="165" height="26" fill="{{ p.soft }}"/>{% endif %}
+  <rect x="30" y="210" width="18" height="18" fill="#1d2125"/><rect x="54" y="214" width="70" height="3" fill="#59626b"/><rect x="54" y="221" width="50" height="3" fill="#59626b"/>
+  <rect x="25" y="268" width="165" height="0.5" fill="#c9cfd6"/>
+  {% for x in p.footer %}<rect x="{{ x }}" y="272" width="32" height="2" fill="#9aa3ad"/><rect x="{{ x }}" y="276" width="26" height="2" fill="#9aa3ad"/>{% endfor %}
+  <rect x="0" y="105" width="5" height="0.6" fill="#8a939c"/><rect x="0" y="148.5" width="7" height="0.6" fill="#8a939c"/><rect x="0" y="210" width="5" height="0.6" fill="#8a939c"/>
+</svg>

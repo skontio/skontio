@@ -366,7 +366,7 @@ class SendForm(forms.Form):
         label="Weitere Dateien anhängen",
         required=False,
         widget=forms.CheckboxSelectMultiple,
-        help_text="aus der Dokumentenablage dieses Dokuments und des Kunden",
+        help_text="aus der Ablage dieses Dokuments und des Kunden, dazu deine Standardanhänge (AGB, Datenschutz)",
     )
 
     def __init__(self, *args, attachments=None, **kwargs):
@@ -444,7 +444,7 @@ class AppearanceStepForm(forms.Form):
     accent_color = forms.CharField(
         label="Akzentfarbe", max_length=7, initial="#1f5f8b", widget=forms.TextInput(attrs={"type": "color"})
     )
-    layout = forms.ChoiceField(label="Layout", choices=DocumentTemplate.Layout.choices)
+    layout = forms.ChoiceField(label="Design", choices=DocumentTemplate.Layout.choices, widget=forms.RadioSelect)
 
 
 class BankStepForm(forms.ModelForm):

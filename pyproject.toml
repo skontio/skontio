@@ -27,6 +27,7 @@ dependencies = [
 
 [project.scripts]
 skontio = "skontio:main"
+skontio-entrypoint = "skontio.entrypoint:main"
 skontio-mcp = "skontio.mcp.bridge:main"
 
 [build-system]

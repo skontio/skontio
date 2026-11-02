@@ -15,6 +15,7 @@ from django.views.decorators.http import require_POST
 
 from skontio.archive.services import load
 from skontio.attachments.models import Attachment
+from skontio.attachments.services import standard_files
 from skontio.documents import groups as line_groups
 from skontio.documents.models import BASIS_TYPES, INVOICE_TYPES, Document, DocumentLine, Rendition
 from skontio.documents.renditions import UNIT_LABELS, de_amount, de_percent, de_quantity
@@ -616,11 +617,14 @@ def _send_form(doc: Document, data=None) -> SendForm:
     subject, body = default_message(doc)
     recipient = doc.customer.email if doc.customer else ""
     files = Attachment.objects.filter(company=doc.company).filter(
-        Q(document=doc) | Q(customer_id=doc.customer_id, customer__isnull=False)
+        Q(document=doc)
+        | Q(customer_id=doc.customer_id, customer__isnull=False)
+        | Q(customer__isnull=True, document__isnull=True)  # Standardanhänge
     )
+    standard = [f.pk for f in standard_files(doc.company, doc.doc_type)]  # preselected: AGB etc. for this type
     return SendForm(
         data,
-        initial={"to": recipient, "subject": subject, "body": body},
+        initial={"to": recipient, "subject": subject, "body": body, "extra": standard},
         attachments=files.select_related("blob").order_by("-uploaded_at"),
     )
 

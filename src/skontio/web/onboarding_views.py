@@ -10,10 +10,12 @@ from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from skontio.attachments.services import STANDARD_KINDS, standard_files
 from skontio.audit.services import record
 from skontio.banking import psd2
 from skontio.core import onboarding
-from skontio.documents.layouts import TemplateError, default_template, save_template
+from skontio.documents.layouts import TemplateError, default_template, layout_context, save_template, soft
+from skontio.documents.models import DocumentTemplate
 from skontio.web.forms import AppearanceStepForm, BankStepForm, ShippingStepForm
 from skontio.web.support import admin_required, current_company
 
@@ -42,6 +44,30 @@ def overview(request):
                    {"done": done, "total": total, "following": following})  # fmt: skip
 
 
+LAYOUT_SUMMARIES = {
+    "classic": "Ruhig und überall passend, Farbe nur als Akzent",
+    "modern": "Kopf in deiner Farbe, Logo auf weißem Feld",
+    "minimal": "Viel Weißraum, Überschriften mit Serifen",
+    "sidebar": "Farbige Leiste am linken Rand, Logo rechts",
+}
+
+
+def layout_previews(company, template) -> list[dict]:
+    """Data for the SVG miniatures: every layout with the company's logo and colour."""
+    context = layout_context(template)
+    accent = context["accent_color"]
+    previews = []
+    for key, label in DocumentTemplate.Layout.choices:
+        right = key in ("minimal", "sidebar")
+        previews.append({
+            "key": key, "label": label, "summary": LAYOUT_SUMMARIES.get(key, ""), "accent": accent,
+            "soft": soft(accent), "logo": context["logo"], "name": company.name, "right": right,
+            "logo_x": 140 if right else 25, "logo_align": "xMaxYMid" if right else "xMinYMid",
+            "rows": list(range(128, 186, 9)), "footer": [25, 68, 111, 154],
+        })  # fmt: skip
+    return previews
+
+
 @admin_required
 def appearance(request):
     company = current_company()
@@ -64,10 +90,13 @@ def appearance(request):
         except TemplateError as exc:
             form.add_error(None, str(exc))
         else:
+            if request.POST.get("aktion") == "vorschau":
+                return redirect("/einrichtung/assistent/aussehen/")
             onboarding.mark(company, "aussehen")
             return _continue(company, "aussehen")
-    return _render(request, company, "aussehen", "web/onboarding/appearance.html",
-                   {"form": form, "template": current})  # fmt: skip
+    selected = form["layout"].value() or (current.layout if current else DocumentTemplate.Layout.CLASSIC)
+    context = {"form": form, "template": current, "previews": layout_previews(company, current), "selected": selected}
+    return _render(request, company, "aussehen", "web/onboarding/appearance.html", context)
 
 
 @admin_required
@@ -124,8 +153,9 @@ def shipping(request):
         form.save()
         onboarding.mark(company, "versand")
         return _continue(company, "versand")
-    return _render(request, company, "versand", "web/onboarding/shipping.html",
-                   {"form": form, "smtp": onboarding.smtp_configured()})  # fmt: skip
+    context = {"form": form, "smtp": onboarding.smtp_configured(), "back": "assistent",
+               "standard_files": standard_files(company).select_related("blob"), "kinds": STANDARD_KINDS}  # fmt: skip
+    return _render(request, company, "versand", "web/onboarding/shipping.html", context)
 
 
 @require_POST
