@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from decimal import ROUND_DOWN, ROUND_HALF_UP, Decimal
 
 from skontio.documents.services import stored_totals
+from skontio.expenses import income as other_income
 from skontio.expenses.models import Expense
 from skontio.expenses.services import input_vat, net_amount, reverse_charge_vat
 from skontio.payments.models import Payment
@@ -153,6 +154,22 @@ def _outputs(company, period: Period, values: dict) -> None:
                 _add(values, "45", basis)
 
 
+def _other_income(company, period: Period, values: dict) -> int:
+    """Sonstige Einnahmen under Regelbesteuerung; returns how many tax-free ones were left out."""
+    left_out = 0
+    for income in other_income.active(company, period.start, period.end):
+        if other_income.regime_on(company, income.received_on) is not Regime.STANDARD:
+            continue
+        tax = other_income.split(income, Regime.STANDARD)
+        if income.vat_rate == 19:
+            _add(values, "81", tax.net)
+        elif income.vat_rate == 7:
+            _add(values, "86", tax.net)
+        else:
+            left_out += 1
+    return left_out
+
+
 def _regime_on(company, day: dt.date) -> Regime:
     try:
         return regime_for(company, day)
@@ -184,6 +201,7 @@ def vat_report(company, period: Period) -> VatReport:
         )
     values: dict[str, Decimal] = {}
     _outputs(company, period, values)
+    untaxed = _other_income(company, period, values)
     _inputs(company, period, values)
     rounded = {
         kz: amount.quantize(Decimal("1"), rounding=ROUND_DOWN)
@@ -201,6 +219,11 @@ def vat_report(company, period: Period) -> VatReport:
     rounded["83"] = (tax - rounded.get("66", ZERO) - rounded.get("67", ZERO)).quantize(CENT, rounding=ROUND_HALF_UP)
     small = _regime_on(company, period.end) is Regime.SMALL_BUSINESS
     report = VatReport(period, rounded, small)
+    if untaxed:
+        report.notes.append(
+            f"{untaxed} sonstige Einnahme(n) ohne Umsatzsteuer sind nicht enthalten – ob sie als steuerfreier "
+            "Umsatz anzumelden sind (z. B. Kz 48), bitte prüfen."
+        )
     if period.annual:
         report.notes.append(
             "Jahresübersicht zur Vorbereitung der Umsatzsteuererklärung: Summe aller Umsätze und Vorsteuern des "

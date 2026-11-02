@@ -16,6 +16,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from decimal import ROUND_HALF_UP, Decimal
 
+from skontio.expenses import income as other_income
 from skontio.expenses.models import Expense
 from skontio.expenses.services import HOSPITALITY_SHARE, input_vat, net_amount, reverse_charge_vat
 from skontio.payments.models import Payment
@@ -133,6 +134,33 @@ def _payment_entries(company, start: dt.date, end: dt.date) -> list[Entry]:
     return entries
 
 
+def _income_entries(company, start: dt.date, end: dt.date) -> list[Entry]:
+    """Sonstige Einnahmen ohne Rechnung, taxed by the status on the day the money came in."""
+    entries, cache = [], {}
+    for income in other_income.active(company, start, end):
+        regime = _regime_on(company, income.received_on, cache)
+        tax = other_income.split(income, regime)
+        if regime is Regime.SMALL_BUSINESS:
+            key = "small_business"
+        else:
+            key = "taxable" if tax.vat else "tax_free"
+        entries.append(
+            Entry(
+                date=income.received_on,
+                kind="Einnahme",
+                number=income.number,
+                counterparty=income.payer,
+                line=key,
+                net=tax.net,
+                vat=tax.vat,
+                gross=_money(income.gross_amount),
+                deductible=ZERO,
+                regime=str(regime),
+            )  # fmt: skip
+        )
+    return entries
+
+
 def _regime_on(company, day: dt.date, cache: dict) -> Regime:
     if day not in cache:
         try:
@@ -171,7 +199,11 @@ def _expense_entries(company, start: dt.date, end: dt.date) -> list[Entry]:
 
 def journal(company, year: int | None = None, *, start: dt.date | None = None, end: dt.date | None = None):
     start, end = period(year, start, end)
-    entries = _payment_entries(company, start, end) + _expense_entries(company, start, end)
+    entries = (
+        _payment_entries(company, start, end)
+        + _income_entries(company, start, end)
+        + _expense_entries(company, start, end)
+    )
     return sorted(entries, key=lambda e: (e.date, e.kind, e.number))
 
 
@@ -179,7 +211,7 @@ def euer(company, year: int | None = None, *, start: dt.date | None = None, end:
     """The EÜR for a calendar year or a custom range (Zufluss/Abfluss within it)."""
     start, end = period(year, start, end)
     income: dict[str, Decimal] = defaultdict(lambda: ZERO)
-    for entry in _payment_entries(company, start, end):
+    for entry in _payment_entries(company, start, end) + _income_entries(company, start, end):
         income[entry.line] += entry.net
         income["collected_vat"] += entry.vat
     expenses: dict[str, Decimal] = defaultdict(lambda: ZERO)

@@ -20,5 +20,6 @@ Status: ✅ am Primärtext geprüft · ⏳ offen (Sekundärquelle) · ❗ widers
 | Kontoinformationsdienst bei Hosting für Dritte | Registrierung nach § 34 ZAG wahrscheinlich nötig | § 34 ZAG | ⏳ (Fachanwalt) | – |
 | Gewerbesteuer in der Rücklagenschätzung | Freibetrag 24.500 €, Messzahl 3,5 %, Anrechnung § 35 EStG (Faktor 4,0) | GewStG, EStG | ⏳ | – |
 | Kennzahlen der USt-Voranmeldung | Kz 81/86/35/36/41/43/48/21/45, § 13b Kz 46/47/84/85, Vorsteuer 66/67, Zahllast 83; Abgabe am 10. nach Zeitraumende, Dauerfristverlängerung +1 Monat | Formular USt 1 A und Anleitung (jährlich), § 18 UStG, § 18b UStG | ⏳ | – |
+| Sonstige Einnahmen und Kleinunternehmergrenze | Gesamtumsatz ohne Umsätze von Wirtschaftsgütern des Anlagevermögens; Erstattungen und echte Zuschüsse sind kein Entgelt; Zinsen (§ 4 Nr. 8a) zählen | § 19 Abs. 2 UStG, § 10 Abs. 1 UStG | ⏳ | – |
 
 Vor jedem Release mit Steuerlogik: offene Punkte mit Primärquelle (BGBl., BMF-Schreiben im Original) schließen.

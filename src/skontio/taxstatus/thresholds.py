@@ -79,7 +79,13 @@ def net_receipts(company, year: int) -> list[tuple[dt.date, Decimal]]:
         gross, net = payment.document.gross_total, payment.document.net_total
         share = payment.amount if not gross else payment.amount * net / gross
         receipts.append((payment.received_on, share.quantize(CENT, rounding=ROUND_HALF_UP)))
-    return receipts
+    from skontio.expenses import income as other_income  # expenses → taxstatus.services → here
+
+    for income in other_income.active(company, dt.date(year, 1, 1), dt.date(year, 12, 31)):
+        if other_income.counts_as_turnover(income):
+            tax = other_income.split(income, other_income.regime_on(company, income.received_on))
+            receipts.append((income.received_on, tax.net))
+    return sorted(receipts, key=lambda receipt: receipt[0])
 
 
 def _level(revenue: Decimal, limit: Decimal) -> Level:

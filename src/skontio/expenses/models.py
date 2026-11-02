@@ -89,3 +89,48 @@ class PendingReceipt(models.Model):
 
     def __str__(self) -> str:
         return self.filename
+
+
+class OtherIncome(models.Model):
+    """Sonstige Einnahme ohne Rechnung aus Skontio (platform payout, cash sale, refund, interest …).
+
+    Counts in EÜR, Umsatzsteuer and DATEV like a payment. Never deleted – cancelled with a reason.
+    """
+
+    class Category(models.TextChoices):
+        PLATFORM = "platform", "Auszahlung einer Plattform"
+        SALE = "sale", "Verkauf ohne Rechnung (z. B. bar)"
+        INTEREST = "interest", "Zinsen"
+        ASSET_SALE = "asset_sale", "Verkauf von Anlagevermögen"
+        REFUND = "refund", "Erstattung"
+        SUBSIDY = "subsidy", "Zuschuss"
+        OTHER = "other", "Sonstige Einnahme"
+
+    company = models.ForeignKey("core.Company", on_delete=models.PROTECT, related_name="other_income")
+    number = models.CharField("Belegnummer", max_length=32)
+    received_on = models.DateField("Erhalten am")  # Zufluss (EÜR, Istversteuerung)
+    payer = models.CharField("Von", max_length=200)
+    description = models.CharField("Beschreibung", max_length=300, blank=True, default="")
+    category = models.CharField("Art", max_length=20, choices=Category.choices, default=Category.OTHER)
+    gross_amount = models.DecimalField("Betrag (brutto)", max_digits=12, decimal_places=2)
+    vat_rate = models.DecimalField("USt-Satz", max_digits=5, decimal_places=2, default=Decimal("0"))
+    method = models.CharField("Zahlart", max_length=10, choices=Expense.Method.choices, default=Expense.Method.BANK)
+    receipt = models.ForeignKey("archive.Blob", null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    receipt_filename = models.CharField(max_length=200, blank=True, default="")
+    note = models.CharField("Notiz", max_length=500, blank=True, default="")
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT)
+    created_at = models.DateTimeField(auto_now_add=True)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    cancel_reason = models.CharField(max_length=300, blank=True, default="")
+
+    class Meta:
+        ordering = ["-received_on", "-pk"]
+        constraints = [
+            models.UniqueConstraint(fields=["company", "number"], name="uniq_other_income_number"),
+            models.CheckConstraint(condition=models.Q(gross_amount__gt=0), name="other_income_amount_positive"),
+        ]
+        verbose_name = "Sonstige Einnahme"
+        verbose_name_plural = "Sonstige Einnahmen"
+
+    def __str__(self) -> str:
+        return f"{self.number} · {self.payer}"

@@ -1,0 +1,26 @@
+{% extends "web/base.html" %}
+{% block title %}Einnahme {{ income.number }}{% endblock %}
+{% block content %}
+<div class="heading"><h1>Einnahme {{ income.number }}</h1><p><a class="button secondary" href="/einnahmen/">Alle Einnahmen</a></p></div>
+{% if income.cancelled_at %}<p class="danger" role="status">Storniert am {{ income.cancelled_at|date:"d.m.Y" }}: {{ income.cancel_reason }}</p>{% endif %}
+<section class="card">
+  <dl class="facts">
+    <dt>Erhalten am</dt><dd>{{ income.received_on|date:"d.m.Y" }} ({{ income.get_method_display }})</dd>
+    <dt>Von</dt><dd>{{ income.payer }}</dd>
+    <dt>Art</dt><dd>{{ income.get_category_display }}{% if not turnover %} – zählt nicht zum Umsatz nach § 19 UStG{% endif %}</dd>
+    {% if income.description %}<dt>Beschreibung</dt><dd>{{ income.description }}</dd>{% endif %}
+    <dt>Brutto</dt><dd>{{ income.gross_amount|floatformat:"2g" }} €</dd>
+    <dt>Netto</dt><dd>{{ tax.net|floatformat:"2g" }} €</dd>
+    <dt>Umsatzsteuer</dt><dd>{{ tax.vat|floatformat:"2g" }} € ({{ income.vat_rate|floatformat:"0" }} %)</dd>
+    {% if income.note %}<dt>Notiz</dt><dd>{{ income.note }}</dd>{% endif %}
+    <dt>Beleg</dt><dd>{% if income.receipt_id %}<a href="/einnahmen/{{ income.pk }}/beleg/" target="_blank" rel="noopener">{{ income.receipt_filename|default:"anzeigen" }}</a>{% else %}<span class="badge danger">kein Beleg</span>{% endif %}</dd>
+  </dl>
+</section>
+{% if can_finalize and not income.cancelled_at %}
+<details class="card"><summary>Stornieren</summary>
+  <form method="post" action="/einnahmen/{{ income.pk }}/stornieren/" class="form">{% csrf_token %}
+    {% with form=cancel_form %}{% include "web/_fields.html" %}{% endwith %}
+    <button type="submit" class="danger">Stornieren</button>
+  </form>
+</details>{% endif %}
+{% endblock %}

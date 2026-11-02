@@ -20,7 +20,7 @@ from skontio.attachments.models import Attachment
 from skontio.banking.models import BankTransaction
 from skontio.documents.models import Document, DocumentLine, Rendition
 from skontio.dunning.models import DunningNotice
-from skontio.expenses.models import Expense
+from skontio.expenses.models import Expense, OtherIncome
 from skontio.payments.models import Payment
 from skontio.web import transfer
 from skontio.web.csvexport import cell
@@ -38,6 +38,7 @@ Texte, die mit = + - @ beginnen, haben ein vorangestelltes ' (Schutz vor Formeln
 kontakte.csv, leistungen.csv  – lassen sich in Skontio wieder importieren
 dokumente.csv, positionen.csv – Rechnungen, Angebote, Stornos usw. mit ihren Positionen
 zahlungen.csv                 – Zahlungseingänge (negative Beträge = Rückbuchung)
+einnahmen.csv                 – sonstige Einnahmen ohne Rechnung (z. B. Auszahlungen von Plattformen)
 ausgaben.csv, bankumsaetze.csv, mahnungen.csv
 dokumente/, belege/, mahnungen/, dateien/ – die archivierten Originale (PDF/A, E-Rechnung, Belege)
 
@@ -87,6 +88,7 @@ def build(company, out) -> dict:
     lines = DocumentLine.objects.filter(document__company=company).select_related("document")
     payments = Payment.objects.filter(company=company).select_related("document").order_by("received_on", "pk")
     bank = BankTransaction.objects.filter(company=company).select_related("payment__document", "expense")
+    incomes = OtherIncome.objects.filter(company=company).select_related("receipt").order_by("received_on", "pk")
     with zipfile.ZipFile(out, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         z = _Zip(zf)
         zf.writestr("LIESMICH.txt", README.format(date=timezone.localdate().strftime("%d.%m.%Y")))
@@ -120,6 +122,13 @@ def build(company, out) -> dict:
               e.cancelled_at.date() if e.cancelled_at else "", e.receipt_filename]
              for e in expenses.iterator()),
         ))  # fmt: skip
+        zf.writestr("einnahmen.csv", _csv(
+            ["Beleg", "Erhalten am", "Von", "Art", "Beschreibung", "Brutto", "USt %", "Zahlart", "Storniert",
+             "Belegdatei"],
+            ([i.number, i.received_on, i.payer, i.get_category_display(), i.description, i.gross_amount, i.vat_rate,
+              i.get_method_display(), i.cancelled_at.date() if i.cancelled_at else "", i.receipt_filename]
+             for i in incomes.iterator()),
+        ))  # fmt: skip
         zf.writestr("bankumsaetze.csv", _csv(
             ["Buchungstag", "Betrag", "Währung", "Gegenpartei", "IBAN", "Verwendungszweck", "Rechnung", "Ausgabe",
              "Ignoriert"],
@@ -139,6 +148,8 @@ def build(company, out) -> dict:
             z.blob("belege", f"{e.number}-{e.receipt_filename or 'beleg'}", e.receipt)
         for n in notices:
             z.blob("mahnungen", f"{n.number}.pdf", n.blob)
+        for i in incomes.exclude(receipt=None):
+            z.blob("belege", f"{i.number}-{i.receipt_filename or 'beleg'}", i.receipt)
         for a in Attachment.objects.filter(company=company).select_related("blob"):
             z.blob("dateien", f"{a.pk}-{a.filename}", a.blob)
         if z.problems:

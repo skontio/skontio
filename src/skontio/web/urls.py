@@ -6,6 +6,7 @@ from skontio.web import document_views as docs
 from skontio.web import dunning_views as dunning
 from skontio.web import expense_views as expenses
 from skontio.web import inbox_views as inbox
+from skontio.web import income_views as income
 from skontio.web import outbox_views, pwa, search_views, views
 from skontio.web import recurring_views as recurring
 from skontio.web import transfer_views as transfer
@@ -49,6 +50,11 @@ urlpatterns = [
     path("ausgaben/<int:pk>/", expenses.expense_detail, name="expense_detail"),
     path("ausgaben/<int:pk>/beleg/", expenses.expense_receipt, name="expense_receipt"),
     path("ausgaben/<int:pk>/stornieren/", expenses.expense_cancel, name="expense_cancel"),
+    path("einnahmen/", income.income_list, name="income_list"),
+    path("einnahmen/neu/", income.income_create, name="income_create"),
+    path("einnahmen/<int:pk>/", income.income_detail, name="income_detail"),
+    path("einnahmen/<int:pk>/beleg/", income.income_receipt, name="income_receipt"),
+    path("einnahmen/<int:pk>/stornieren/", income.income_cancel, name="income_cancel"),
     path("auswertungen/euer/", expenses.euer_report, name="euer_report"),
     path("auswertungen/euer.csv", expenses.euer_csv, name="euer_csv"),
     path("auswertungen/ustva/", expenses.ustva_report, name="ustva_report"),

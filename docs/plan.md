@@ -358,7 +358,7 @@ Legende: ✅ vorhanden · 🟡 teilweise · 📅 schon geplant · ➕ neu aufgen
 | Ausgabenbelege, beliebig viele | Free | ✅ | Belegfoto, Teilen an Skontio |
 | E-Rechnungen empfangen | Free | ✅ | CII, UBL, ZUGFeRD |
 | Persönliches E-Mail-Postfach für Belege | Free | ➕ | 2b: Abruf eines eigenen Postfachs per IMAP im Worker; Anhänge landen im Belegeingang |
-| Einnahmenbelege | Free | ➕ | 2b: sonstige Einnahmen ohne Rechnung (z. B. Auszahlungen von Plattformen), in EÜR und UStVA |
+| Einnahmenbelege | Free | ✅ | sonstige Einnahmen ohne Rechnung mit Beleg, in EÜR, UStVA, DATEV und § 19-Grenze (Anlageverkauf, Erstattung, Zuschuss zählen nicht) |
 | Automatische Inhaltserkennung | S | 🟡 | E-Rechnungen werden ausgelesen ✅; ➕ 3: Belegerkennung (OCR und LLM) über den vorhandenen LLM-Port, standardmäßig lokal (Ollama) |
 | Wiederkehrende Belege | S | ➕ | 2b: wiederkehrende Ausgaben (Miete, Abos) als Vorschlag |
 | Belege an Kunden oder Projekte weiterberechnen | S | ➕ | 3, zusammen mit Projekten |

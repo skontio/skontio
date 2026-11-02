@@ -26,7 +26,7 @@ from skontio.web.transfer import import_customers
 
 DAY = dt.date(2026, 3, 2)
 CSVS = ("kontakte.csv", "leistungen.csv", "dokumente.csv", "positionen.csv", "zahlungen.csv", "ausgaben.csv",
-        "bankumsaetze.csv", "mahnungen.csv", "LIESMICH.txt")  # fmt: skip
+        "bankumsaetze.csv", "mahnungen.csv", "einnahmen.csv", "LIESMICH.txt")  # fmt: skip
 
 
 def invoice(company, customer, item):

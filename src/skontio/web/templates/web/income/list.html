@@ -1,0 +1,22 @@
+{% extends "web/base.html" %}
+{% block title %}Sonstige Einnahmen {{ year }}{% endblock %}
+{% block content %}
+<div class="heading">
+  <h1>Sonstige Einnahmen {{ year }}</h1>
+  <p><a class="button" href="/einnahmen/neu/">Neue Einnahme</a></p>
+</div>
+<p class="muted">Geld, das ohne Rechnung aus Skontio hereinkommt: Auszahlungen von Plattformen, Barverkäufe, Zinsen, Erstattungen.
+  Es zählt in EÜR, Umsatzsteuer und DATEV-Export.</p>
+<p class="filters">{% for y in years %}<a href="?jahr={{ y }}"{% if y == year %} aria-current="page"{% endif %}>{{ y }}</a> {% endfor %}</p>
+<p>Summe {{ total|floatformat:"2g" }} € (brutto, ohne Stornos)</p>
+{% if rows %}
+<div class="table-scroll"><table class="list">
+  <thead><tr><th>Beleg</th><th>Datum</th><th>Von</th><th class="hide-small">Art</th><th class="num">Brutto</th></tr></thead>
+  <tbody>{% for i in rows %}
+    <tr{% if i.cancelled_at %} class="muted"{% endif %}><td><a href="/einnahmen/{{ i.pk }}/">{{ i.number }}</a>{% if i.cancelled_at %} <span class="badge">storniert</span>{% endif %}</td>
+      <td>{{ i.received_on|date:"d.m.Y" }}</td><td>{{ i.payer }}{% if i.description %}<br><span class="muted">{{ i.description }}</span>{% endif %}</td>
+      <td class="hide-small">{{ i.get_category_display }}</td><td class="num">{{ i.gross_amount|floatformat:"2g" }} €</td></tr>
+  {% endfor %}</tbody>
+</table></div>
+{% else %}<p class="muted">Keine sonstigen Einnahmen {{ year }}.</p>{% endif %}
+{% endblock %}

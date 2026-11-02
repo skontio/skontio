@@ -19,8 +19,9 @@ from skontio.documents.models import Document
 from skontio.documents.services import DEFAULT_PATTERNS, SEQUENCE_TYPE
 from skontio.dunning import services as dunning
 from skontio.dunning.models import DunningNotice
+from skontio.expenses import income as other_income
 from skontio.expenses import services as expenses
-from skontio.expenses.models import Expense
+from skontio.expenses.models import Expense, OtherIncome
 from skontio.numbering.models import NumberSequence
 from skontio.numbering.services import NumberingError, format_number, update_sequence
 from skontio.web.support import admin_required, current_company
@@ -42,6 +43,8 @@ class Kind:
             qs = Customer.objects.filter(company=company)
         elif self.key == expenses.SEQUENCE:
             qs = Expense.objects.filter(company=company)
+        elif self.key == other_income.SEQUENCE:
+            qs = OtherIncome.objects.filter(company=company)
         elif self.key == dunning.SEQUENCE:
             qs = DunningNotice.objects.filter(company=company)
         else:
@@ -58,6 +61,7 @@ KINDS = [
     Kind(CUSTOMER_SEQUENCE, "Kundennummern", DEFAULT_CUSTOMER_PATTERN, NEVER, 32),
     Kind(SUPPLIER_SEQUENCE, "Lieferantennummern", DEFAULT_SUPPLIER_PATTERN, NEVER, 32),
     Kind(expenses.SEQUENCE, "Ausgaben", expenses.PATTERN, YEARLY, 32),
+    Kind(other_income.SEQUENCE, "Sonstige Einnahmen", other_income.PATTERN, YEARLY, 32),
     Kind(dunning.SEQUENCE, "Mahnungen", dunning.PATTERN, YEARLY, 32),
 ]
 

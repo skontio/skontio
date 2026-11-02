@@ -18,6 +18,7 @@ from django.utils import timezone
 from skontio.accounting.accounts import AccountError, chart_of_accounts, ledger_settings, validate_account
 from skontio.accounting.datev_columns import COLUMNS
 from skontio.documents.services import stored_totals
+from skontio.expenses import income as other_income
 from skontio.expenses.models import Expense
 from skontio.payments.models import Payment
 from skontio.tax.engine import Regime
@@ -122,6 +123,31 @@ def _payment_bookings(company, start: dt.date, end: dt.date, accounts: dict[str,
     return bookings
 
 
+INCOME_BY_RATE = {Decimal("19"): "income_standard", Decimal("7"): "income_reduced"}
+
+
+def _other_income_bookings(company, start: dt.date, end: dt.date, accounts: dict[str, str]) -> list[Booking]:
+    bookings = []
+    for income in other_income.active(company, start, end):
+        if other_income.regime_on(company, income.received_on) is Regime.SMALL_BUSINESS:
+            key = "income_small_business"
+        else:
+            key = INCOME_BY_RATE.get(Decimal(income.vat_rate), "income_tax_free")
+        bookings.append(
+            Booking(
+                amount=_money(income.gross_amount),
+                side="S",
+                account=accounts[MONEY_BY_EXPENSE.get(income.method, "bank")],
+                counter_account=accounts[key],
+                bu_key="",
+                date=income.received_on,
+                document_field=_document_field(income.number),
+                text=_text(f"{income.payer} {income.description}".strip()),
+            )  # fmt: skip
+        )
+    return bookings
+
+
 def _expense_bookings(company, start: dt.date, end: dt.date, accounts: dict[str, str]) -> list[Booking]:
     bookings, regimes = [], {}
     expenses = Expense.objects.filter(company=company, paid_on__range=(start, end), cancelled_at__isnull=True).order_by(
@@ -166,7 +192,11 @@ def bookings(company, start: dt.date, end: dt.date) -> list[Booking]:
             validate_account(account, settings.account_length)
     except AccountError as exc:
         raise DatevError(f"{exc} Bitte unter Einstellungen → Buchhaltung korrigieren.") from exc
-    rows = _payment_bookings(company, start, end, accounts) + _expense_bookings(company, start, end, accounts)
+    rows = (
+        _payment_bookings(company, start, end, accounts)
+        + _other_income_bookings(company, start, end, accounts)
+        + _expense_bookings(company, start, end, accounts)
+    )
     return sorted(rows, key=lambda b: (b.date, b.document_field))
 
 

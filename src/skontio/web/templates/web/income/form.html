@@ -1,0 +1,11 @@
+{% extends "web/base.html" %}
+{% block title %}Neue Einnahme{% endblock %}
+{% block content %}
+<div class="heading"><h1>Neue sonstige Einnahme</h1><p><a class="button secondary" href="/einnahmen/">Alle Einnahmen</a></p></div>
+<p class="muted">Für Leistungen an Kunden bitte eine Rechnung schreiben. Hier gehört hin, was ohne eigene Rechnung hereinkommt.
+  Als Kleinunternehmer immer 0 % Umsatzsteuer.</p>
+<form method="post" enctype="multipart/form-data" class="card form grid2">{% csrf_token %}
+  {% include "web/_fields.html" %}
+  <div class="actions"><button type="submit">Speichern</button> <a href="/einnahmen/">Abbrechen</a></div>
+</form>
+{% endblock %}
