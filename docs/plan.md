@@ -331,6 +331,46 @@ Abdeckung mindestens 80 %; 100 % der Zweige in `tax`, `numbering`, `documents.lo
    `theme.css`; ein Theme lässt sich per Datei austauschen. Templates bleiben überschreibbar. Ein separates
    Frontend wäre später über die REST-API (Phase 3) möglich.
 
+## 12.2 Roadmap ab Phase 4 – Einzelunternehmer (Stand 2026-11)
+
+Reihenfolge nach Nutzen im Alltag eines Einzelunternehmers (Dienstleistung, wenige bis mittlere Rechnungszahl),
+abgeleitet aus dem Vergleich mit sevdesk und Invoice Ninja. Aufwand in Personentagen.
+
+| # | Erweiterung | Nutzen | Aufwand | Vorbereitung im Code |
+|---|---|---|---|---|
+| 0 | **Update-Sicherheitsnetz**: CI startet die zuletzt veröffentlichte Version mit Beispieldaten, aktualisiert auf die neue und prüft Rechnungen, PDFs, Audit-Kette und Archiv | jedes folgende Update bricht dein laufendes System nicht | 1–2 | `skontio upgrade` sichert vor dem Migrieren; Smoke-Test vorhanden – Upgrade-Pfad fehlt |
+| 1 | **UStVA direkt an ELSTER** (ERiC) | monatliches/vierteljährliches Abtippen entfällt | 8–10 + Lizenz | Kennzahlen je Zeitraum fertig (`reports/ustva`); ERiC als austauschbare Bibliothek zur Laufzeit einhängen, nicht ins Image backen (Lizenz) |
+| 2 | **Anlagen und AfA** | Pflicht für die EÜR bei Anschaffungen über 800 € netto | 4–5 | Ausgaben-Kategorien, EÜR-Zeilen, GWG vorhanden; neues Modul `assets` neben `expenses` |
+| 3 | **USt-IdNr. online prüfen** (BZSt/VIES, qualifizierte Bestätigung) | Nachweis für steuerfreie EU-Leistungen (Reverse Charge, ig. Lieferung) | 2–3 | Syntaxprüfung da (`normalise_vat_id`), Hinweis „Online-Prüfung folgt“ steht schon im Code |
+| 4 | **Kundenportal**: Angebote online annehmen, Rechnungen abrufen, online bezahlen (Stripe/PayPal-Checkout) | weniger Rückfragen, schnellere Zahlung | 8–12 | Dokumente, PDFs, Zahlungslink, Webhook-taugliche Zahlungsbuchung (`record_payment`) vorhanden; Portal braucht eigene, getrennte Anmeldung per Einmal-Link |
+| 5 | **Schweiz**: Rechnungen in CHF, QR-Rechnung, Schweizer UID (`CHE-… MWST`), Sprachvariante de-CH | Schweizer Kunden zahlen direkt per QR-Rechnung | 8–10 | `Document.currency` existiert, wird aber nirgends durchgezogen; Steuerbehandlung „nicht steuerbar“ und „Ausfuhr“ vorhanden; Zahlblock kennt nur GiroCode |
+| 6 | **Österreich und EU-B2C**: OSS (Steuersatz des Kundenlandes ab 10.000 € EU-weit), österreichische Hinweise | nur nötig bei Privatkunden im EU-Ausland | 6–8 | B2B (Reverse Charge, ig. Lieferung, ZM) fertig; Steuersätze liegen je Land in `tax/<land>.py` – weitere Länder passen in dieses Muster |
+| 7 | **Zeiterfassung und Projekte → Rechnung** | abrechenbare Stunden gehen nicht verloren | 8–10 | Positionen, Gruppen, Katalog, wiederkehrende Rechnungen vorhanden; neues Modul `projects` |
+| 8 | **Steuerberaterzugang** (nur lesen, mit Exporten) | Übergabe ohne Dateien hin und her | 2–3 | Rollen über OIDC-Gruppen vorhanden (`nur Entwürfe`); Rolle „nur lesen“ fehlt |
+| 9 | **Eigenes Briefpapier als PDF, Schriftwahl** | eigenes Corporate Design | 3–4 | gemeinsamer Briefrahmen (`_letter_*`) – Hintergrund und Schrift sind dort eine Stelle |
+| 10 | **FinTS, PayPal-Abruf, Rechnungsimport aus sevdesk** | weitere Banken, Umzug | je 3–6 | Bank-Schnittstelle `banking/enablebanking` als Muster; Import wartet auf echten Export |
+
+### Was beim Ausland grundsätzlich zu beachten ist
+
+- **Österreich** ist EU: Leistungen an Unternehmen laufen schon heute richtig (Reverse Charge mit `ATU…`, ZM).
+  Nur Privatkunden brauchen ab 10.000 € EU-weitem Umsatz den österreichischen Satz (20 %) über OSS.
+- **Schweiz** ist Drittland: Dienstleistungen an Unternehmen sind in Deutschland nicht steuerbar (schon heute
+  abbildbar). Neu wären Franken als Währung – die Umsatzsteuer-Meldung bleibt in Euro, also braucht jede
+  CHF-Rechnung einen Umrechnungskurs (§ 16 Abs. 6 UStG) und die E-Rechnung die Steuer in Euro (BT-6, BT-111) –
+  sowie die QR-Rechnung als Zahlteil.
+
+### Damit große Updates dein System nicht kaputt machen
+
+1. **Festgeschriebenes bleibt unberührt**: archivierte PDFs und XML werden nie neu erzeugt; Snapshots der Firmen-
+   und Kundendaten bleiben, neue Felder sind dort optional (Templates zeigen fehlende Felder einfach nicht).
+2. **Jede Schemaänderung** an gesperrten Tabellen läuft über `schema_change_operations` (Trigger kurz aus und
+   wieder an); neue Felder immer mit Standardwert, damit alte Datensätze gültig bleiben.
+3. **Neue Funktionen sind aus, bis man sie einschaltet** (wie automatische Zuordnung, Kontoabruf, Postfach).
+4. **Mehrwährung erst vollständig, dann sichtbar**: heute setzt kein Weg (Oberfläche, KI-Werkzeuge,
+   wiederkehrende Rechnungen) eine andere Währung als Euro; so bleibt es, bis Punkt 5 Summen, UStVA, DATEV und
+   Bankabgleich vollständig umgestellt hat.
+5. **Update-Test in der CI** (Punkt 0) vor jedem größeren Feature.
+
 ---
 
 ## 13. Abgleich mit Papierkram
