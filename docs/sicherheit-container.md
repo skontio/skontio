@@ -20,7 +20,7 @@ Anwendung selbst ohnehin darf.
 
 **Image** (`Dockerfile`)
 - läuft als UID/GID 568 (`apps`), nie als root – auch `tini` (PID 1) und `docker exec` ohne `-u`
-- **keine Shell** (`sh`, `bash`, `dash` entfernt), **keine Paketverwaltung** (`apt`, `dpkg`), kein Perl: Exploits,
+- **keine Shell** (`sh`, `bash`, `dash` entfernt), **keine Paketverwaltung** (`apt`, `dpkg`, `pip`), kein Perl: Exploits,
   die `/bin/sh -c …` starten, laufen ins Leere; `docker exec … sh` geht nicht
 - **keine setuid/setgid-Programme** (`su`, `passwd`, `mount` …): niemand wird im Container root
 - Einstieg in Python (`skontio-entrypoint`) statt Shell-Skript; Healthcheck in Exec-Form

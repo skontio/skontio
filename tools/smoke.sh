@@ -120,6 +120,7 @@ fi
 echo "==> Härtung (docs/sicherheit-container.md)"
 if "${compose[@]}" exec -T skontio sh -c true >/dev/null 2>&1; then fail "Shell im Container vorhanden"; else ok "keine Shell"; fi
 if "${compose[@]}" exec -T skontio bash -c true >/dev/null 2>&1; then fail "bash im Container vorhanden"; else ok "keine bash"; fi
+if "${compose[@]}" exec -T skontio python -m pip --version >/dev/null 2>&1; then fail "pip im Container vorhanden"; else ok "kein pip"; fi
 if "${compose[@]}" exec -T skontio python -c "
 import os, pathlib, stat, sys
 assert os.getuid() == 568 and os.getgid() == 568, ('uid', os.getuid())

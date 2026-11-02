@@ -43,7 +43,7 @@ WORKDIR /app
 COPY --from=build /app /app
 # Last RUN of the image: afterwards there is no shell anymore (docs/sicherheit-container.md).
 # - no shells and no other script interpreters besides Python (exploits and `docker exec … sh` find none)
-# - no package manager: nothing can be installed later
+# - no package manager and no pip: nothing can be installed later (the app's packages come from uv at build time)
 # - no setuid/setgid programs: nobody becomes root inside the container, even with a code execution bug
 # The dpkg status file stays so that image scanners still see the installed packages.
 RUN SKONTIO_SECRET_KEY=build-only skontio collectstatic --noinput \
@@ -53,6 +53,8 @@ RUN SKONTIO_SECRET_KEY=build-only skontio collectstatic --noinput \
  && rm -rf /usr/bin/apt* /usr/bin/dpkg* /usr/lib/apt /etc/apt /usr/share/doc /usr/share/man \
            /usr/bin/perl* /usr/bin/su /usr/bin/login /usr/bin/passwd /usr/bin/chsh /usr/bin/chfn \
            /usr/bin/newgrp /usr/bin/gpasswd /usr/bin/mount /usr/bin/umount \
+ && rm -rf /usr/local/lib/python3.13/site-packages/pip /usr/local/lib/python3.13/site-packages/pip-*.dist-info \
+           /usr/local/lib/python3.13/ensurepip /usr/local/bin/pip /usr/local/bin/pip3* \
  && rm -f /usr/bin/bash /usr/bin/rbash /usr/bin/dash /usr/bin/sh /bin/sh /bin/bash /bin/dash
 
 USER 568:568
