@@ -2,7 +2,7 @@
 # Skontio – one image, two roles (web, worker). Runs as UID/GID 568 (TrueNAS "apps").
 
 # Base images pinned by digest: a re-pushed tag cannot change what we build on. Dependabot proposes new digests.
-FROM ghcr.io/astral-sh/uv:0.12.19@sha256:04d046b13e60d6bcec73cbc5e1cad25d680dea90c8573340950a0ac2d1aef424 AS uv
+FROM ghcr.io/astral-sh/uv:0.13.6@sha256:af22a52f5eafef3d78e551599d405c02df61919d18028f0cea8eda93bc9986d0 AS uv
 
 FROM python:3.13-slim-trixie@sha256:ae14d4ce8771606477a81446e7ef429edd6762305fc50c84507c1041fa8285d1 AS build
 COPY --from=uv /uv /usr/local/bin/uv
