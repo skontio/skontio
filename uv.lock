@@ -607,7 +607,7 @@ wheels = [
 
 [[package]]
 name = "factur-x"
-version = "7.5"
+version = "7.7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "iso4217" },
@@ -616,9 +616,9 @@ dependencies = [
     { name = "python-stdnum" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/61/1c/26ab3d0ea512338a6d75bbd4a9eb04cfb739319531e5f6ca719f9cd9f25d/factur_x-7.5.tar.gz", hash = "sha256:33cd44f32e1729e2f4908bb1ded08188186ddecdf138bfc84c6c8f7e8c5b2418", size = 1146511, upload-time = "2026-10-09T22:24:30.793Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/11/7f/b7a760045cb2cfe0b2c62544b345622a23897d21536ceb721ad3fb79dce3/factur_x-7.7.tar.gz", hash = "sha256:242ba2944d17d6f099affac209c649ee2f3885fbd2329f3597c620e48e4b7013", size = 1149128, upload-time = "2026-10-14T21:59:02.871Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/db/fc/43af2c39229d93345095674e2e8a67731e3cb534b1780f08501a703b089a/factur_x-7.5-py3-none-any.whl", hash = "sha256:8f008e308a36d71c1405b7956b58ee7db51583115c8ac0b6e1b26e8632cc24e3", size = 931240, upload-time = "2026-10-09T22:24:28.559Z" },
+    { url = "https://files.pythonhosted.org/packages/8d/58/893562e1bac4e0aa64a416fedf57ee4673820dce50824d7720027d62ba51/factur_x-7.7-py3-none-any.whl", hash = "sha256:45829801f14fefc5d617de4f42d0ba0ab0c624971f109c750811e8eae205291b", size = 934082, upload-time = "2026-10-14T21:59:01.219Z" },
 ]
 
 [[package]]
