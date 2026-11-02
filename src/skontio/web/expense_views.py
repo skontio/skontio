@@ -20,7 +20,7 @@ from skontio.archive.services import load
 from skontio.attachments.services import MAX_BYTES
 from skontio.audit.models import AuditEvent
 from skontio.audit.services import record
-from skontio.banking.models import BankTransaction
+from skontio.banking.models import BankRule, BankTransaction
 from skontio.banking.services import link_expense
 from skontio.crm.models import Customer
 from skontio.crm.services import SUPPLIER_ROLES
@@ -166,6 +166,17 @@ def _bank_transaction(request):
     return tx if tx is not None and not tx.done else None
 
 
+def _rule_prefill(request, tx: BankTransaction) -> dict:
+    """``?regel=<pk>``: category and supplier of a matching bank rule."""
+    raw = request.GET.get("regel", "")
+    if not (raw.isascii() and raw.isdigit() and len(raw) < 19):
+        return {}
+    rule = BankRule.objects.filter(pk=raw, company=request.company, action=BankRule.Action.EXPENSE).first()
+    if rule is None or not rule.matches(tx):
+        return {}
+    return {"category": rule.category} | ({"supplier": rule.supplier} if rule.supplier else {})
+
+
 def _template(request) -> tuple[RecurringExpense, dt.date] | None:
     """``?vorlage=<pk>&faellig=<date>``: a due recurring expense to prefill from; only its open period."""
     pk = request.GET.get("vorlage") or request.POST.get("vorlage") or ""
@@ -212,6 +223,7 @@ def expense_create(request):
                 "description": tx.purpose[:300],
                 "method": Expense.Method.BANK,
             }
+            initial |= _rule_prefill(request, tx)
         form = ExpenseForm(initial=initial, company=request.company)
     context = {"form": form, "expense": None, "bank": tx, "pending": _pending(request), "template": template}
     return render(request, "web/expenses/form.html", context)

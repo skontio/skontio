@@ -395,7 +395,7 @@ Legende: ✅ vorhanden · 🟡 teilweise · 📅 schon geplant · ➕ neu aufgen
 | Import MT940/CAMT | S | ✅ | CAMT.053, MT940 (auch strukturierter Verwendungszweck, Stornokennzeichen) und CSV |
 | Umsätze mit Belegen und Rechnungen abgleichen, Dokument aus Umsatz anlegen | S | ✅ | Vorschläge und Zuordnung |
 | Zahlungseingang automatisch zuordnen | S | ➕ | 3: nur eindeutige Fälle (Nummer im Zweck, Betrag genau, ein Kandidat), standardmäßig aus, mit Hinweis und Gegenbuchung |
-| Gegenkonten und Regeln | S | ➕ | 2b: Regeln (Gegenpartei, Verwendungszweck → Kategorie) |
+| Gegenkonten und Regeln | S | ✅ | Regeln (Gegenpartei/Verwendungszweck, Richtung → Ausgabe mit Kategorie oder privat/ignorieren), nur als Vorschlag |
 | Suche in Kontobewegungen | S | ✅ | Gegenpartei, Zweck, IBAN, Betrag; Filter nach Konto, Status, Zeitraum |
 | Alle Daten als CSV exportieren | Free | ✅ | Gesamtexport als ZIP (CSV und geprüfte Originale); ➕ 3: GoBD-Datenexport mit Beschreibungsstandard (index.xml) für die Betriebsprüfung |
 | Waren importieren (CSV) | Free | ✅ | Leistungen/Artikel mit Einheit (Code oder Name), deutschen Beträgen, Steuerbehandlung |

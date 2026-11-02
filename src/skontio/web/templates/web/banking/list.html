@@ -37,6 +37,9 @@
             <input type="hidden" name="{{ s.kind }}" value="{{ s.target.pk }}">
             <button type="submit" class="secondary">{{ s.target.number }} ({{ s.amount }} €)</button></form>
             <small class="muted">{{ s.reason }}</small><br>{% endfor %}
+          {% if row.rule %}{% if row.rule.action == "expense" %}<a class="button secondary" href="/ausgaben/neu/?bank={{ tx.pk }}&amp;regel={{ row.rule.pk }}">Ausgabe: {{ row.rule_category }}</a>
+            {% else %}<form method="post" action="/bank/{{ tx.pk }}/ignorieren/" class="inline-form">{% csrf_token %}<button type="submit" class="secondary">Privat (Regel)</button></form>{% endif %}
+            <small class="muted">Regel: {{ row.rule }}</small><br>{% endif %}
           {% if tx.amount < 0 %}<a href="/ausgaben/neu/?bank={{ tx.pk }}">Ausgabe anlegen</a> · {% endif %}
         {% endif %}
         {% if not tx.payment and not tx.expense %}<form method="post" action="/bank/{{ tx.pk }}/ignorieren/" class="inline-form">{% csrf_token %}<button type="submit" class="link">{% if tx.ignored %}wieder anzeigen{% else %}privat/ignorieren{% endif %}</button></form>{% endif %}
@@ -44,6 +47,16 @@
   {% endwith %}{% endfor %}</tbody>
 </table></div>
 {% else %}<p class="muted">{% if q or von or bis or status != "offen" %}Keine Umsätze für diesen Filter.{% else %}Keine offenen Umsätze.{% endif %}</p>{% endif %}
+<details class="card"{% if rules %} id="regeln"{% endif %}><summary>Regeln ({{ rules|length }})</summary>
+  <p class="muted">Regeln schlagen nur vor – zugeordnet wird erst per Klick.</p>
+  <ul>{% for r, label in rules %}<li>{{ r.get_direction_display }}: {{ r }}{% if label %} ({{ label }}){% endif %}
+    <form method="post" action="/bank/regeln/{{ r.pk }}/loeschen/" class="inline-form">{% csrf_token %}<button type="submit" class="link">löschen</button></form></li>{% endfor %}</ul>
+  {% if rules %}<form method="post" action="/bank/regeln/anwenden/" class="inline-form">{% csrf_token %}<button type="submit" class="secondary">Alle Treffer von „privat/ignorieren“-Regeln ignorieren</button></form>{% endif %}
+  <form method="post" action="/bank/regeln/" class="form">{% csrf_token %}
+    {% with form=rule_form %}{% include "web/_fields.html" %}{% endwith %}
+    <button type="submit" class="secondary">Regel anlegen</button>
+  </form>
+</details>
 <details class="card"><summary>Konten ({{ accounts|length }})</summary>
   <ul>{% for a in accounts %}<li>{{ a.name }}{% if a.iban %} · {{ a.iban }}{% endif %}</li>{% empty %}<li class="muted">Noch keins – wird beim ersten Import angelegt.</li>{% endfor %}</ul>
   <form method="post" action="/bank/konten/" class="form">{% csrf_token %}

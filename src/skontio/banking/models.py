@@ -62,3 +62,47 @@ class BankTransaction(models.Model):
     @property
     def done(self) -> bool:
         return self.ignored or self.payment_id is not None or self.expense_id is not None
+
+
+class BankRule(models.Model):
+    """Zuordnungsregel: transactions whose counterparty/purpose contain the given text get a suggestion –
+    create an expense of a category, or ignore (private). Applied only when a person clicks."""
+
+    class Direction(models.TextChoices):
+        OUT = "out", "Ausgänge"
+        IN = "in", "Eingänge"
+        ANY = "any", "beide"
+
+    class Action(models.TextChoices):
+        EXPENSE = "expense", "Ausgabe anlegen"
+        IGNORE = "ignore", "privat/ignorieren"
+
+    company = models.ForeignKey("core.Company", on_delete=models.PROTECT, related_name="bank_rules")
+    counterparty_contains = models.CharField("Gegenpartei enthält", max_length=100, blank=True, default="")
+    purpose_contains = models.CharField("Verwendungszweck enthält", max_length=100, blank=True, default="")
+    direction = models.CharField("Richtung", max_length=3, choices=Direction.choices, default=Direction.OUT)
+    action = models.CharField("Dann", max_length=10, choices=Action.choices, default=Action.EXPENSE)
+    category = models.CharField("Kategorie", max_length=20, blank=True, default="")
+    supplier = models.CharField("Lieferant (für die Ausgabe)", max_length=200, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["pk"]
+        verbose_name = "Bankregel"
+        verbose_name_plural = "Bankregeln"
+
+    def __str__(self) -> str:
+        parts = [f"„{self.counterparty_contains}“" if self.counterparty_contains else "",
+                 f"Zweck „{self.purpose_contains}“" if self.purpose_contains else ""]  # fmt: skip
+        return " und ".join(p for p in parts if p) + f" → {self.get_action_display()}"
+
+    def matches(self, tx: BankTransaction) -> bool:
+        if self.direction == self.Direction.OUT and tx.amount >= 0:
+            return False
+        if self.direction == self.Direction.IN and tx.amount <= 0:
+            return False
+        if not (self.counterparty_contains or self.purpose_contains):
+            return False
+        if self.counterparty_contains and self.counterparty_contains.casefold() not in tx.counterparty.casefold():
+            return False
+        return not (self.purpose_contains and self.purpose_contains.casefold() not in tx.purpose.casefold())

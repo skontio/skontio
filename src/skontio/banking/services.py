@@ -16,7 +16,7 @@ from decimal import Decimal
 from django.db import transaction
 
 from skontio.audit.services import record
-from skontio.banking.models import BankAccount, BankTransaction
+from skontio.banking.models import BankAccount, BankRule, BankTransaction
 from skontio.banking.parsers import Row, StatementError, own_account, parse_statement
 from skontio.documents.models import INVOICE_TYPES, Document
 from skontio.expenses.models import Expense
@@ -209,3 +209,60 @@ def ignore(tx: BankTransaction, *, user=None) -> None:
         company=tx.company,
         data={"transaction": tx.pk},
     )
+
+
+# --- Zuordnungsregeln -----------------------------------------------------------------------------
+
+RULE_TEXT = 100
+
+
+def create_rule(company, *, user=None, **fields) -> BankRule:
+    allowed = {"counterparty_contains", "purpose_contains", "direction", "action", "category", "supplier"}
+    if set(fields) - allowed:
+        raise BankingError("Unbekannte Felder.")
+    rule = BankRule(company=company, **fields)
+    rule.counterparty_contains = " ".join(rule.counterparty_contains.split())[:RULE_TEXT]
+    rule.purpose_contains = " ".join(rule.purpose_contains.split())[:RULE_TEXT]
+    rule.supplier = " ".join(rule.supplier.split())[:200]
+    if not (rule.counterparty_contains or rule.purpose_contains):
+        raise BankingError("Bitte Gegenpartei oder Verwendungszweck angeben – eine leere Regel passt auf alles.")
+    if rule.direction not in BankRule.Direction.values or rule.action not in BankRule.Action.values:
+        raise BankingError("Unbekannte Richtung oder Aktion.")
+    if rule.action == BankRule.Action.EXPENSE:
+        if rule.category not in Expense.Category.values:
+            raise BankingError("Bitte eine Kategorie für die Ausgabe wählen.")
+        if rule.direction == BankRule.Direction.IN:
+            raise BankingError("Ausgaben passen nur zu Ausgängen.")
+    else:
+        rule.category, rule.supplier = "", ""
+    rule.save()
+    record(
+        "bank.rule_create", actor=user, company=company, entity="bank_rule", entity_id=rule.pk, data={"rule": str(rule)}
+    )
+    return rule
+
+
+def rule_for(tx: BankTransaction, rules: list[BankRule]) -> BankRule | None:
+    """The first rule that matches an open transaction (rules are checked in the order they were made)."""
+    if tx.done:
+        return None
+    return next((rule for rule in rules if rule.matches(tx)), None)
+
+
+def apply_ignore_rules(company, *, user=None) -> int:
+    """Ignore every open transaction an ignore rule matches (a person clicked the button)."""
+    rules = list(BankRule.objects.filter(company=company))
+    count = 0
+    with transaction.atomic():
+        open_tx = BankTransaction.objects.select_for_update().filter(
+            company=company, ignored=False, payment__isnull=True, expense__isnull=True
+        )
+        for tx in open_tx:
+            rule = rule_for(tx, rules)
+            if rule is not None and rule.action == BankRule.Action.IGNORE:
+                tx.ignored = True
+                tx.save(update_fields=["ignored"])
+                count += 1
+        if count:
+            record("bank.rules_applied", actor=user, company=company, data={"ignored": count})
+    return count

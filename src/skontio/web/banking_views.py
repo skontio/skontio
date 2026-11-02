@@ -11,9 +11,19 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from skontio.audit.services import record
-from skontio.banking.models import BankAccount, BankTransaction
+from skontio.banking.models import BankAccount, BankRule, BankTransaction
 from skontio.banking.parsers import StatementError, parse_amount
-from skontio.banking.services import BankingError, book_payment, ignore, import_statement, link_expense, suggestions
+from skontio.banking.services import (
+    BankingError,
+    apply_ignore_rules,
+    book_payment,
+    create_rule,
+    ignore,
+    import_statement,
+    link_expense,
+    rule_for,
+    suggestions,
+)
 from skontio.documents.models import Document
 from skontio.documents.renditions import de_amount
 from skontio.expenses.models import Expense
@@ -22,6 +32,7 @@ from skontio.web.document_views import _iso_date
 from skontio.web.forms import normalise_iban
 from skontio.web.support import company_view, full_access
 
+CATEGORIES = dict(Expense.Category.choices)
 STATES = {"offen": "offen", "erledigt": "zugeordnet oder ignoriert", "alle": "alle"}
 MAX_QUERY = 100
 
@@ -73,10 +84,13 @@ def _filtered(request):
 def bank_list(request):
     transactions, filters = _filtered(request)
     transactions = transactions.select_related("payment__document", "expense", "account")
+    rules = list(BankRule.objects.filter(company=request.company))
     rows = [
         {
             "tx": tx,
             "amount": de_amount(tx.amount),
+            "rule": (rule := rule_for(tx, rules)),
+            "rule_category": CATEGORIES.get(rule.category, "") if rule else "",
             "suggestions": [
                 {
                     "kind": "invoice" if isinstance(s.target, Document) else "expense",
@@ -101,6 +115,8 @@ def bank_list(request):
         "accounts": accounts,
         "states": STATES,
         "account_form": AccountForm(),
+        "rules": [(r, CATEGORIES.get(r.category, "")) for r in rules],
+        "rule_form": RuleForm(),
         **filters,
     }
     return render(request, "web/banking/list.html", context)
@@ -130,6 +146,52 @@ def bank_account_create(request):
     record("bank.account_create", actor=request.user, company=request.company, entity="bank_account",
            entity_id=account.pk, data={"name": account.name})  # fmt: skip
     messages.success(request, f"Konto „{account.name}“ angelegt.")
+    return redirect("bank_list")
+
+
+class RuleForm(forms.Form):
+    counterparty_contains = forms.CharField(label="Gegenpartei enthält", max_length=100, required=False)
+    purpose_contains = forms.CharField(label="Verwendungszweck enthält", max_length=100, required=False)
+    direction = forms.ChoiceField(label="Richtung", choices=BankRule.Direction.choices)
+    action = forms.ChoiceField(label="Dann", choices=BankRule.Action.choices)
+    category = forms.ChoiceField(label="Kategorie", choices=[("", "–"), *Expense.Category.choices], required=False)
+    supplier = forms.CharField(label="Lieferant (für die Ausgabe)", max_length=200, required=False)
+
+
+@require_POST
+@company_view
+@full_access
+def bank_rule_create(request):
+    form = RuleForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Regel nicht angelegt: Eingaben prüfen.")
+        return redirect("bank_list")
+    try:
+        rule = create_rule(request.company, user=request.user, **form.cleaned_data)
+    except BankingError as exc:
+        messages.error(request, f"Regel nicht angelegt: {exc}")
+    else:
+        messages.success(request, f"Regel angelegt: {rule}")
+    return redirect("bank_list")
+
+
+@require_POST
+@company_view
+@full_access
+def bank_rule_delete(request, pk: int):
+    rule = get_object_or_404(BankRule, pk=pk, company=request.company)
+    record("bank.rule_delete", actor=request.user, company=request.company, entity="bank_rule", entity_id=rule.pk,
+           data={"rule": str(rule)})  # fmt: skip
+    rule.delete()
+    return redirect("bank_list")
+
+
+@require_POST
+@company_view
+@full_access
+def bank_rules_apply(request):
+    count = apply_ignore_rules(request.company, user=request.user)
+    messages.success(request, f"{count} Umsätze nach Regeln als privat/ignoriert markiert.")
     return redirect("bank_list")
 
 
