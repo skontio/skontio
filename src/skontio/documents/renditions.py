@@ -11,6 +11,7 @@ from decimal import Decimal
 from django.template.loader import render_to_string
 
 from skontio.archive.services import retention_end, store
+from skontio.documents import groups as line_groups
 from skontio.documents.labor import compute as compute_labor
 from skontio.documents.languages import TEXTS, Lang
 from skontio.documents.layouts import layout_context, template_for
@@ -109,6 +110,26 @@ def _view(document: Document, *, draft: tuple[list[LineInput], dict, dict] | Non
     else:
         tax_notes = list(dict.fromkeys(t.tax_note(b.exemption_reason) for b in totals.breakdown if b.exemption_reason))
     iban = seller.get("iban", "")
+    line_rows = [
+        {
+            "position": line.position,
+            "group": line.group,
+            "text": line.text,
+            "description": line.description,
+            "quantity": t.quantity(line.quantity),
+            "unit": t.unit(line.unit_code),
+            "unit_price": t.amount(line.unit_price),
+            "discount": t.percent(line.discount_percent) if line.discount_percent else "",
+            "net": t.amount(result.net_amount),
+            "rate": t.percent(result.tax.rate),
+        }
+        for line, result in zip(lines, totals.lines, strict=True)
+    ]
+    line_groups.annotate(line_rows, lambda i: lines[i].group, lambda i: totals.lines[i].net_amount)
+    for row in line_rows:
+        if row["subtotal"]:
+            group, net = row["subtotal"]
+            row["subtotal"] = {"label": t("group_subtotal", group=group), "net": t.amount(net)}
     return {
         **layout_context(template_for(document)),
         "doc": document,
@@ -130,20 +151,7 @@ def _view(document: Document, *, draft: tuple[list[LineInput], dict, dict] | Non
         "show_rates": show_rates,
         "has_discounts": any(line.discount_percent for line in lines),
         "doc_discount": t.percent(document.document_discount_percent),
-        "lines": [
-            {
-                "position": line.position,
-                "text": line.text,
-                "description": line.description,
-                "quantity": t.quantity(line.quantity),
-                "unit": t.unit(line.unit_code),
-                "unit_price": t.amount(line.unit_price),
-                "discount": t.percent(line.discount_percent) if line.discount_percent else "",
-                "net": t.amount(result.net_amount),
-                "rate": t.percent(result.tax.rate),
-            }
-            for line, result in zip(lines, totals.lines, strict=True)
-        ],
+        "lines": line_rows,
         "subtotals": [
             {
                 "rate": t.percent(b.rate),

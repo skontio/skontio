@@ -35,6 +35,8 @@ services:
       SKONTIO_SMTP_SECURITY: starttls          # starttls | ssl | none
       SKONTIO_SMTP_USER: rechnung@example.org
       SKONTIO_SMTP_PASSWORD_FILE: /secrets/smtp_password
+      # Beleg-Postfach (optional): address shown in the Belegeingang; the worker reads the mailbox
+      # SKONTIO_RECEIPT_IMAP_ADDRESS: belege@example.org
       SKONTIO_MAIL_FROM: "Skontio <rechnung@example.org>"
     volumes:
       - /mnt/POOL/apps/skontio/data:/data
@@ -65,6 +67,17 @@ services:
       SKONTIO_BACKUP_AT: "02:30"       # HH:MM local time, "off" disables
       SKONTIO_BACKUP_KEEP: "14"
       SKONTIO_RECURRING_AT: "06:00"    # recurring invoices become drafts
+      # Beleg-Postfach (optional): forward invoices to an own mailbox, the worker files the attachments
+      # SKONTIO_RECEIPT_IMAP_HOST: imap.example.org
+      # SKONTIO_RECEIPT_IMAP_PORT: "993"
+      # SKONTIO_RECEIPT_IMAP_SECURITY: ssl           # ssl | starttls
+      # SKONTIO_RECEIPT_IMAP_USER: belege@example.org
+      # SKONTIO_RECEIPT_IMAP_PASSWORD_FILE: /secrets/imap_password
+      # SKONTIO_RECEIPT_IMAP_FOLDER: INBOX
+      # SKONTIO_RECEIPT_IMAP_DONE_FOLDER: Verarbeitet  # optional: processed mails are moved there
+      # SKONTIO_RECEIPT_IMAP_ALLOWED_SENDERS: ich@example.org,lieferant.de   # empty = everyone
+      # SKONTIO_RECEIPT_IMAP_EVERY_MINUTES: "15"
+      # SKONTIO_RECEIPT_IMAP_COMPANY: "1"            # only with several companies
     volumes:
       - /mnt/POOL/apps/skontio/data:/data
       - /mnt/POOL/apps/skontio/archive:/archive

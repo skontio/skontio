@@ -8,6 +8,7 @@ import io
 from decimal import Decimal
 
 from django import forms
+from django.conf import settings
 from django.contrib import messages
 from django.db.models import Sum
 from django.http import FileResponse, Http404, HttpResponse
@@ -26,7 +27,7 @@ from skontio.crm.models import Customer
 from skontio.crm.services import SUPPLIER_ROLES
 from skontio.documents.renditions import de_amount
 from skontio.expenses import recurring as recurring_expenses
-from skontio.expenses.models import Expense, PendingReceipt, RecurringExpense
+from skontio.expenses.models import Expense, PendingReceipt, ReceiptMail, RecurringExpense
 from skontio.expenses.services import (
     ExpenseError,
     add_pending,
@@ -402,7 +403,12 @@ def receipt_inbox(request):
             messages.error(request, error)
         return redirect("receipt_inbox")
     pending = PendingReceipt.objects.filter(company=request.company, expense__isnull=True).select_related("blob")
-    return render(request, "web/expenses/inbox.html", {"pending": pending})
+    context = {
+        "pending": pending,
+        "mailbox_address": settings.RECEIPT_MAILBOX_ADDRESS,
+        "mails": ReceiptMail.objects.filter(company=request.company)[:20],
+    }
+    return render(request, "web/expenses/inbox.html", context)
 
 
 def _add_files(request, files, *, note: str) -> tuple[int, list[str]]:

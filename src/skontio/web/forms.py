@@ -246,6 +246,11 @@ class LineForm(forms.Form):
         queryset=Item.objects.none(), required=False, label="Aus dem Katalog", empty_label="– freie Position –"
     )
     text = forms.CharField(required=False, label="Bezeichnung")
+    group = forms.CharField(
+        required=False, max_length=200, label="Gruppe (optional)",
+        help_text="Überschrift mit Zwischensumme, z. B. „Material“ oder „Arbeitszeit“",
+        widget=forms.TextInput(attrs={"list": "line-groups", "autocomplete": "off"}),
+    )  # fmt: skip
     quantity = forms.DecimalField(label="Menge", min_value=0, max_digits=14, decimal_places=4, localize=True)
     unit_code = forms.ModelChoiceField(
         queryset=Unit.objects.all(),
@@ -292,6 +297,7 @@ class LineEditForm(forms.Form):
     """Inline edit of one draft line (the row in the position table)."""
 
     text = forms.CharField(label="Bezeichnung")
+    group = forms.CharField(label="Gruppe", required=False, max_length=200)
     quantity = forms.DecimalField(label="Menge", min_value=0, max_digits=14, decimal_places=4, localize=True)
     unit_price = forms.DecimalField(
         label="Einzelpreis netto (€)", min_value=0, max_digits=14, decimal_places=4, localize=True, required=False

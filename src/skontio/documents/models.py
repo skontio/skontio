@@ -160,6 +160,8 @@ class DocumentLine(models.Model):
     labor_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     # entered as gross price (B2C); unit_price is the net price derived from it (tax/gross.py)
     gross_unit_price = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+    # heading the line is shown under; consecutive lines with the same group get a subtotal (display only)
+    group = models.CharField(max_length=200, blank=True, default="")
     tax_treatment = models.CharField(
         max_length=20, choices=[(t.value, t.name) for t in TaxTreatment], default=TaxTreatment.STANDARD
     )

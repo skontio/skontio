@@ -325,7 +325,7 @@ Legende: ✅ vorhanden · 🟡 teilweise · 📅 schon geplant · ➕ neu aufgen
 | Versand über ein Kundenportal | M | 📅 | 3 (Portal) |
 | Abschlagsrechnungen | M | ✅ | inkl. Schlussrechnung nach § 14 Abs. 5 UStG |
 | Rabatte | S | ✅ | je Position und auf die Gesamtsumme (EN 16931 BG-20 je Steuerkategorie) |
-| Positionen gruppieren | S | ➕ | 2b: Gruppen mit Zwischensumme (nur Darstellung, Steuer weiter je Position) |
+| Positionen gruppieren | S | ✅ | Gruppen mit Überschrift und Zwischensumme (nur Darstellung, Steuer und E-Rechnung weiter je Position); Gruppen bleiben zusammen |
 | GiroCode | M | ✅ | |
 | PayPal-Link | M | ✅ | frei konfigurierbarer Zahlungslink (PayPal.me o. Ä.) mit {betrag}/{nummer} auf Rechnung und in der Mail; keine Zahlungsabwicklung durch Skontio (ZAG) |
 | E-Rechnung, XRechnung, ZUGFeRD | Free/S | ✅ | mit KoSIT und Mustang geprüft |
@@ -357,7 +357,7 @@ Legende: ✅ vorhanden · 🟡 teilweise · 📅 schon geplant · ➕ neu aufgen
 |---|---|---|---|
 | Ausgabenbelege, beliebig viele | Free | ✅ | Belegfoto, Teilen an Skontio |
 | E-Rechnungen empfangen | Free | ✅ | CII, UBL, ZUGFeRD |
-| Persönliches E-Mail-Postfach für Belege | Free | ➕ | 2b: Abruf eines eigenen Postfachs per IMAP im Worker; Anhänge landen im Belegeingang |
+| Persönliches E-Mail-Postfach für Belege | Free | ✅ | eigenes Postfach per IMAP im Worker (alle 15 Min.): PDFs und Fotos in den Belegeingang, E-Rechnungen zu den Eingangsrechnungen; Absenderliste, nie doppelt |
 | Einnahmenbelege | Free | ✅ | sonstige Einnahmen ohne Rechnung mit Beleg, in EÜR, UStVA, DATEV und § 19-Grenze (Anlageverkauf, Erstattung, Zuschuss zählen nicht) |
 | Automatische Inhaltserkennung | S | 🟡 | E-Rechnungen werden ausgelesen ✅; ➕ 3: Belegerkennung (OCR und LLM) über den vorhandenen LLM-Port, standardmäßig lokal (Ollama) |
 | Wiederkehrende Belege | S | ➕ | 2b: wiederkehrende Ausgaben (Miete, Abos) als Vorschlag |
@@ -410,7 +410,7 @@ Legende: ✅ vorhanden · 🟡 teilweise · 📅 schon geplant · ➕ neu aufgen
 | Ist-Versteuerung | Free | ✅ | Soll vorgesehen |
 | UStVA monatlich oder vierteljährlich | S | ✅ | |
 | UStVA jährlich, Umsatzsteuer-Jahresansicht | S | ✅ | Jahresübersicht als Vorbereitung der USt-Erklärung, mit Summe der vermerkten Vorauszahlungen |
-| Zusammenfassende Meldung | S | ➕ | 2b: aus ig. Lieferungen und § 13b-Leistungen ins EU-Ausland (nur bei Regelbesteuerung und USt-IdNr.) |
+| Zusammenfassende Meldung | S | ✅ | aus ig. Lieferungen und § 13b-Leistungen ins EU-Ausland (nur bei Regelbesteuerung und USt-IdNr.) |
 | EÜR | S | ✅ | |
 | BWA, erweiterte BWA | S/M | ➕ | 3: monatliche Auswertung nach EÜR-Kategorien mit Vorjahresvergleich |
 | Individuelle Berichtszeiträume | M | ✅ | Von-bis für EÜR und CSV-Journal (auch über den Jahreswechsel); Dokumentliste und Postausgang mit Zeitraum |

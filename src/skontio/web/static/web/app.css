@@ -337,3 +337,7 @@ progress { width: 100%; height: 10px; accent-color: var(--blue); }
   .big { font-size: 1.6rem; }
   table.list th, table.list td { padding: 10px 8px; }
 }
+
+/* Positionsgruppen im Editor */
+table.list tr.group-heading th { background: var(--paper); color: var(--ink); font-size: .95rem; padding-top: 18px; }
+table.list tr.group-subtotal td { font-weight: 600; border-bottom: 1px solid var(--rule-strong); }

@@ -29,6 +29,8 @@
   table.lines th { text-align: left; font-size: 8pt; color: var(--muted); border-bottom: 1pt solid var(--accent); padding: 1.5mm 1mm; }
   table.lines td { border-bottom: 0.5pt solid var(--rule); padding: 1.5mm 1mm; vertical-align: top; }
   table.lines .num { text-align: right; white-space: nowrap; }
+  table.lines tr.group-heading td { font-weight: bold; padding-top: 3mm; border-bottom: 0.5pt solid var(--accent); }
+  table.lines tr.group-subtotal td { font-weight: bold; border-bottom: none; padding-bottom: 2.5mm; }
   .desc { color: var(--muted); font-size: 8.5pt; white-space: pre-line; }
   table.totals { margin-left: auto; width: 80mm; border-collapse: collapse; }
   table.totals td { padding: 1mm; }
@@ -93,6 +95,7 @@
   <thead><tr><th>{{ t.col_position }}</th><th>{{ t.col_text }}</th><th class="num">{{ t.col_quantity }}</th><th>{{ t.col_unit }}</th></tr></thead>
   <tbody>
     {% for line in lines %}
+    {% if line.heading %}<tr class="group-heading"><td colspan="4">{{ line.heading }}</td></tr>{% endif %}
     <tr><td>{{ line.position }}</td><td>{{ line.text }}{% if line.description %}<div class="desc">{{ line.description }}</div>{% endif %}</td><td class="num">{{ line.quantity }}</td><td>{{ line.unit }}</td></tr>
     {% endfor %}
   </tbody>
@@ -104,6 +107,7 @@
   </thead>
   <tbody>
     {% for line in lines %}
+    {% if line.heading %}<tr class="group-heading"><td colspan="{% if has_discounts and show_rates %}8{% elif has_discounts or show_rates %}7{% else %}6{% endif %}">{{ line.heading }}</td></tr>{% endif %}
     <tr>
       <td>{{ line.position }}</td>
       <td>{{ line.text }}{% if line.description %}<div class="desc">{{ line.description }}</div>{% endif %}</td>
@@ -114,6 +118,7 @@
       <td class="num">{{ line.net }}</td>
       {% if show_rates %}<td class="num">{{ line.rate }}</td>{% endif %}
     </tr>
+    {% if line.subtotal %}<tr class="group-subtotal"><td colspan="{% if has_discounts %}6{% else %}5{% endif %}" class="num">{{ line.subtotal.label }}</td><td class="num">{{ line.subtotal.net }}</td>{% if show_rates %}<td></td>{% endif %}</tr>{% endif %}
     {% endfor %}
   </tbody>
 </table>

@@ -15,6 +15,7 @@ from django.views.decorators.http import require_POST
 
 from skontio.archive.services import load
 from skontio.attachments.models import Attachment
+from skontio.documents import groups as line_groups
 from skontio.documents.models import BASIS_TYPES, INVOICE_TYPES, Document, DocumentLine, Rendition
 from skontio.documents.renditions import UNIT_LABELS, de_amount, de_percent, de_quantity
 from skontio.documents.services import (
@@ -120,6 +121,11 @@ def _lines_context(request, doc: Document, line_form: LineForm | None = None, er
         }
         for index, line in enumerate(lines)
     ]
+    line_groups.annotate(rows, lambda i: lines[i].group, lambda i: totals.lines[i].net_amount if totals else None)
+    for row in rows:
+        if row["subtotal"]:
+            group, net = row["subtotal"]
+            row["subtotal"] = {"group": group, "net": de_amount(net) if net is not None else ""}
     gross_warnings = _gross_warnings(doc, lines, totals)
     breakdown = (
         [{"rate": de_percent(b.rate), "tax": de_amount(b.tax), "reason": b.exemption_reason} for b in totals.breakdown]
@@ -147,6 +153,7 @@ def _lines_context(request, doc: Document, line_form: LineForm | None = None, er
         "totals_error": totals_error,
         "gross_warnings": gross_warnings,
         "line_form": line_form or LineForm(company=request.company, initial={"quantity": 1}),
+        "group_names": list(dict.fromkeys(line.group for line in lines if line.group)),
         "line_error": error,
         **_deduction_context(doc, totals),
     }
@@ -210,21 +217,28 @@ def _attachment_context(doc: Document) -> dict:
 
 
 def _finalized_context(doc: Document, **extra) -> dict:
+    lines = list(doc.lines.all())
+    rows = [
+        {
+            "line": line,
+            "quantity": de_quantity(line.quantity),
+            "unit": UNIT_LABELS.get(line.unit_code, line.unit_code),
+            "unit_price": de_amount(line.unit_price),
+            "net": de_amount(line.net_amount),
+            "rate": de_percent(line.tax_rate),
+        }
+        for line in lines
+    ]
+    line_groups.annotate(rows, lambda i: lines[i].group, lambda i: lines[i].net_amount)
+    for row in rows:
+        if row["subtotal"]:
+            group, net = row["subtotal"]
+            row["subtotal"] = {"group": group, "net": de_amount(net) if net is not None else ""}
     context = {
         **_attachment_context(doc),
         "doc": doc,
         "renditions": list(doc.renditions.all()),
-        "lines": [
-            {
-                "line": line,
-                "quantity": de_quantity(line.quantity),
-                "unit": UNIT_LABELS.get(line.unit_code, line.unit_code),
-                "unit_price": de_amount(line.unit_price),
-                "net": de_amount(line.net_amount),
-                "rate": de_percent(line.tax_rate),
-            }
-            for line in doc.lines.all()
-        ],
+        "lines": rows,
         "gross": de_amount(doc.gross_total),
         "net": de_amount(doc.net_total),
         "tax": de_amount(doc.tax_total),
@@ -414,16 +428,18 @@ def line_add(request, pk: int):
     if doc.status != Document.Status.DRAFT:
         return _locked()
     form = LineForm(request.POST, company=request.company)
-    error = ""
+    error, added = "", False
     if form.is_valid():
         data = form.cleaned_data
         discount = data["discount_percent"] or Decimal("0")
-        labor, gross = data["labor_percent"], data["gross_price"]
+        labor, gross, group = data["labor_percent"], data["gross_price"], data["group"]
         try:
             if gross is not None and data["unit_price"] is not None:
                 raise DocumentError("Bitte entweder den Netto- oder den Bruttopreis angeben, nicht beides")
             if data["item"]:
-                line = add_line_from_item(doc, data["item"], quantity=data["quantity"], discount_percent=discount)
+                line = add_line_from_item(
+                    doc, data["item"], quantity=data["quantity"], discount_percent=discount, group=group
+                )
                 if (labor is not None and labor != line.labor_percent) or gross is not None:
                     update_line(line, text=line.text, quantity=line.quantity, unit_price=line.unit_price,
                                 discount_percent=line.discount_percent, labor_percent=labor,
@@ -441,11 +457,14 @@ def line_add(request, pk: int):
                     discount_percent=discount,
                     tax_treatment=TaxTreatment(data["tax_treatment"] or TaxTreatment.STANDARD),
                     labor_percent=labor or Decimal("0"),
+                    group=group,
                 )
-            form = None
+            # the next line most likely belongs to the same group
+            form = LineForm(company=request.company, initial={"quantity": 1, "group": group})
+            added = True
         except DocumentError as exc:
             error = str(exc)
-    if form is None and not is_htmx(request):
+    if added and not is_htmx(request):
         return redirect(f"/dokumente/{doc.pk}/")
     return render(request, "web/documents/_lines.html", _lines_context(request, doc, form, error))
 
@@ -460,7 +479,8 @@ def line_edit(request, pk: int, line_pk: int):
     if request.method == "GET":
         if request.GET.get("abbrechen"):
             return render(request, "web/documents/_lines.html", _lines_context(request, doc))
-        return render(request, "web/documents/_line_edit.html", {"doc": doc, "line": line})
+        groups = list(dict.fromkeys(doc.lines.exclude(group="").values_list("group", flat=True)))
+        return render(request, "web/documents/_line_edit.html", {"doc": doc, "line": line, "group_names": groups})
     form = LineEditForm(request.POST)
     error = ""
     if form.is_valid():
@@ -474,6 +494,7 @@ def line_edit(request, pk: int, line_pk: int):
                 unit_price=line.unit_price if gross is not None else data["unit_price"],
                 discount_percent=data["discount_percent"] or Decimal("0"),
                 gross_unit_price=gross,
+                group=data["group"] if "group" in request.POST else None,
             )
         except DocumentError as exc:
             error = str(exc)

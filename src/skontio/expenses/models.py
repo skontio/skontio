@@ -91,6 +91,26 @@ class PendingReceipt(models.Model):
         return self.filename
 
 
+class ReceiptMail(models.Model):
+    """A mail read from the Beleg-Postfach – recorded once per Message-ID, so it is never imported twice."""
+
+    company = models.ForeignKey("core.Company", on_delete=models.PROTECT, related_name="receipt_mails")
+    message_id = models.CharField(max_length=255)
+    sender = models.CharField(max_length=320, blank=True, default="")
+    subject = models.CharField(max_length=300, blank=True, default="")
+    result = models.CharField(max_length=500, blank=True, default="")
+    received_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-received_at", "-pk"]
+        constraints = [models.UniqueConstraint(fields=["company", "message_id"], name="uniq_receipt_mail")]
+        verbose_name = "Beleg-Mail"
+        verbose_name_plural = "Beleg-Mails"
+
+    def __str__(self) -> str:
+        return f"{self.sender}: {self.subject}"
+
+
 class OtherIncome(models.Model):
     """Sonstige Einnahme ohne Rechnung aus Skontio (platform payout, cash sale, refund, interest …).
 

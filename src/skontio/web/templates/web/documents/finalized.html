@@ -40,7 +40,9 @@
         <thead><tr><th>Pos.</th><th>Bezeichnung</th><th class="num">Menge</th><th class="num hide-small">Einzelpreis</th><th class="num">Betrag</th></tr></thead>
         <tbody>
         {% for row in lines %}
+          {% if row.heading %}<tr class="group-heading"><th colspan="5" scope="rowgroup">{{ row.heading }}</th></tr>{% endif %}
           <tr><td>{{ row.line.position }}</td><td>{{ row.line.text }}</td><td class="num">{{ row.quantity }} {{ row.unit }}</td><td class="num hide-small">{{ row.unit_price }}</td><td class="num">{{ row.net }}</td></tr>
+          {% if row.subtotal %}<tr class="group-subtotal"><td></td><td colspan="3">Zwischensumme {{ row.subtotal.group }}</td><td class="num">{{ row.subtotal.net }}</td></tr>{% endif %}
         {% endfor %}
         </tbody>
       </table></div>

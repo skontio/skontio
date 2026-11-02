@@ -96,6 +96,38 @@ def check_oidc(issuer: str, *, http_client: httpx.Client, now: dt.datetime | Non
     return checks
 
 
+def check_imap(config: dict | None, *, connect) -> list[Check]:
+    """Beleg-Postfach: log in and open the folder, without reading or changing any mail."""
+    if not config:
+        hint = "Nur nötig für das Beleg-Postfach."
+        return [Check("server", False, "SKONTIO_RECEIPT_IMAP_HOST ist nicht gesetzt", hint)]
+    import imaplib
+
+    from skontio.expenses.mailbox import quote
+
+    try:
+        client = connect(config)
+    except imaplib.IMAP4.error as exc:
+        return [Check("login", False, f"Anmeldung abgelehnt: {exc}", "SKONTIO_RECEIPT_IMAP_USER und Passwort prüfen.")]
+    except ssl.SSLError as exc:
+        hint = "Port 993 nutzt ssl, Port 143 starttls (SKONTIO_RECEIPT_IMAP_SECURITY)."
+        return [Check("tls", False, f"TLS fehlgeschlagen: {exc}", hint)]
+    except OSError as exc:
+        where = f"{config['host']}:{config['port']}"
+        return [Check("server", False, f"{where} nicht erreichbar: {exc}", "Host und Port prüfen.")]
+    checks = [Check("login", True, f"{config['user']} @ {config['host']}")]
+    try:
+        for name in ("folder", "done_folder"):
+            folder = config.get(name)
+            if not folder:
+                continue
+            status, _ = client.select(quote(folder), readonly=True)
+            checks.append(Check(name, status == "OK", folder, "" if status == "OK" else "Ordner gibt es nicht."))
+    finally:
+        client.logout()
+    return checks
+
+
 def check_smtp(mailer, *, host: str) -> list[Check]:
     """Connect and log in with the configured mailer, without sending anything."""
     if not host:

@@ -13,10 +13,11 @@ import json
 from decimal import Decimal
 
 from django.db import transaction
-from django.db.models import Max, Sum
+from django.db.models import F, Max, Sum
 from django.utils import timezone
 
 from skontio.catalog.models import Item, Unit
+from skontio.documents import groups as line_groups
 from skontio.documents.labor import LaborCosts
 from skontio.documents.labor import compute as compute_labor
 from skontio.documents.languages import LANGUAGES, Lang
@@ -182,6 +183,7 @@ def add_line(
     item: Item | None = None,
     labor_percent: Decimal = Decimal("0"),
     gross_unit_price: Decimal | None = None,
+    group: str = "",
 ) -> DocumentLine:
     """``gross_unit_price`` instead of ``unit_price``: the net price is derived so the line's gross
     amount comes out as entered (or as close as the rate allows, see ``gross_check``)."""
@@ -202,8 +204,9 @@ def add_line(
     _check_labor(labor_percent)
     if not Unit.objects.filter(code=unit_code).exists():
         raise DocumentError(f"Unbekannte Einheit {unit_code!r}")
+    group = _clean_group(group)
     position = (document.lines.aggregate(m=Max("position"))["m"] or 0) + 1
-    return DocumentLine.objects.create(
+    line = DocumentLine.objects.create(
         document=document,
         position=position,
         item=item,
@@ -216,7 +219,32 @@ def add_line(
         tax_treatment=TaxTreatment(tax_treatment),
         labor_percent=labor_percent,
         gross_unit_price=gross_unit_price,
+        group=group,
     )
+    if group:
+        _place_in_group(line)
+    return line
+
+
+def _clean_group(group: str) -> str:
+    try:
+        return line_groups.clean(group)
+    except ValueError as exc:
+        raise DocumentError(str(exc)) from exc
+
+
+def _place_in_group(line: DocumentLine) -> None:
+    """Keep groups together: the line moves behind the last other line of its group,
+    or to the end when its group has no other lines (new group, or none)."""
+    others = [other for other in line.document.lines.all() if other.pk != line.pk]
+    anchor = max((i for i, other in enumerate(others) if line.group and other.group == line.group), default=None)
+    ordered = others[: anchor + 1] + [line] + others[anchor + 1 :] if anchor is not None else [*others, line]
+    with transaction.atomic():
+        # shift everything out of the way first: positions are unique per document
+        line.document.lines.update(position=F("position") + 1_000_000)
+        for number, current in enumerate(ordered, start=1):
+            current.position = number
+            DocumentLine.objects.filter(pk=current.pk).update(position=number)
 
 
 def line_rate(document: Document, treatment: TaxTreatment) -> Decimal:
@@ -254,8 +282,10 @@ def update_line(
     unit_code: str | None = None,
     labor_percent: Decimal | None = None,
     gross_unit_price: Decimal | None = None,
+    group: str | None = None,
 ) -> DocumentLine:
-    """Change a line of a draft in place (same checks as ``add_line``); the tax treatment stays."""
+    """Change a line of a draft in place (same checks as ``add_line``); the tax treatment stays.
+    A changed ``group`` moves the line behind its new group (or to the end)."""
     _require_draft(line.document)
     if not text.strip():
         raise DocumentError("Eine Position braucht eine Bezeichnung")
@@ -281,16 +311,22 @@ def update_line(
         line.gross_unit_price = gross_unit_price
     else:
         line.gross_unit_price = None  # a new net price replaces an earlier gross entry
+    regroup = False
+    if group is not None:
+        group = _clean_group(group)
+        regroup, line.group = group != line.group, group
     line.discount_percent, line.unit_code = discount_percent, unit_code
     line.save(
         update_fields=["text", "quantity", "unit_price", "discount_percent", "unit_code", "labor_percent",
-                       "gross_unit_price"]
+                       "gross_unit_price", "group"]
     )  # fmt: skip
+    if regroup:
+        _place_in_group(line)
     return line
 
 
 def add_line_from_item(
-    document: Document, item: Item, *, quantity: Decimal, discount_percent: Decimal = Decimal("0")
+    document: Document, item: Item, *, quantity: Decimal, discount_percent: Decimal = Decimal("0"), group: str = ""
 ) -> DocumentLine:
     """Copy the catalog entry into the document; later catalog changes do not affect it."""
     if item.company_id != document.company_id:
@@ -308,6 +344,7 @@ def add_line_from_item(
         discount_percent=discount_percent,
         item=item,
         labor_percent=item.labor_percent,
+        group=group,
     )
 
 
@@ -599,6 +636,7 @@ def _copy_lines(source: Document, target: Document) -> list[DocumentLine]:
             tax_treatment=line.tax_treatment,
             labor_percent=line.labor_percent,
             gross_unit_price=line.gross_unit_price,
+            group=line.group,
         )
         for line in source.lines.all()
     ]

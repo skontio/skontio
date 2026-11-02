@@ -20,6 +20,7 @@ Im Dataset `skontio-secrets` je eine Datei anlegen (ohne Zeilenumbruch am Ende):
 openssl rand -base64 48 | tr -d '\n' > secret_key        # Django-Schlüssel
 printf '%s' 'CLIENT-SECRET-AUS-POCKET-ID' > oidc_client_secret
 printf '%s' 'SMTP-PASSWORT' > smtp_password
+printf '%s' 'IMAP-PASSWORT' > imap_password            # nur für das Beleg-Postfach (optional)
 chmod 0400 *
 ```
 
@@ -136,6 +137,30 @@ Mehrfache oder parallele Läufe erzeugen keinen Zeitraum doppelt.
 Das Mahnwesen (*Übersicht → Mahnwesen*) schlägt fällige Zahlungserinnerungen und Mahnungen vor. Stufen, Fristen
 und Gebühren unter *Mahnwesen → Mahnstufen*. Mahnschreiben werden als PDF archiviert und zusammen mit der
 Rechnung per E-Mail verschickt.
+
+## 5c-1. Beleg-Postfach (Rechnungen per E-Mail)
+
+Eingangsrechnungen einfach weiterleiten: Der Worker liest ein **eigenes** Postfach (z. B. `belege@…`, nicht das
+normale Postfach) alle `SKONTIO_RECEIPT_IMAP_EVERY_MINUTES` Minuten (Standard 15). Es werden nur ungelesene
+Mails gelesen; danach sind sie gelesen und, falls `SKONTIO_RECEIPT_IMAP_DONE_FOLDER` gesetzt ist, verschoben.
+
+- E-Rechnungen (XRechnung, ZUGFeRD) → *Eingangsrechnungen*
+- andere PDFs und Fotos → *Belegeingang*, mit Absender und Betreff als Notiz
+- kleine eingebettete Bilder (Logos in Signaturen), ZIPs, Office-Dateien und anderes werden ignoriert
+- jede Mail wird nur einmal übernommen (Message-ID); eine Mail, die nicht verarbeitet werden kann, wird im
+  Postfach **markiert** (Flagge) und nicht immer wieder versucht
+
+Einrichten: Passwort als Datei `imap_password` im Dataset `skontio-secrets`, dann die Variablen
+`SKONTIO_RECEIPT_IMAP_*` am Worker setzen (siehe `compose.yaml`) und `SKONTIO_RECEIPT_IMAP_ADDRESS` am
+Web-Container, damit der Belegeingang die Adresse anzeigt. Prüfen mit
+
+```sh
+docker exec -it <worker-container> skontio doctor imap     # Anmeldung und Ordner, liest keine Mail
+docker exec -it <worker-container> skontio doctor worker   # letzter Abruf
+```
+
+Jeder kann an die Adresse schreiben. Mit `SKONTIO_RECEIPT_IMAP_ALLOWED_SENDERS` (Adressen oder Domains,
+kommagetrennt) übernimmt Skontio nur Mails dieser Absender; die übrigen werden nur protokolliert.
 
 ## 5d. KI-Assistent in Skontio
 

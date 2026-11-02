@@ -3,6 +3,7 @@
   <thead><tr><th>Pos.</th><th>Bezeichnung</th><th class="num">Menge</th><th class="num">Einzelpreis</th><th class="num hide-small">Rabatt</th><th class="num">Betrag</th><th><span class="visually-hidden">Aktionen</span></th></tr></thead>
   <tbody>
   {% for row in rows %}
+    {% if row.heading %}<tr class="group-heading"><th colspan="7" scope="rowgroup">{{ row.heading }}</th></tr>{% endif %}
     <tr>
       <td>{{ row.line.position }}</td>
       <td>{{ row.line.text }}{% if row.line.description %}<br><small class="muted">{{ row.line.description }}</small>{% endif %}</td>
@@ -15,6 +16,7 @@
         <button type="button" class="link quiet" hx-post="/dokumente/{{ doc.pk }}/positionen/{{ row.line.pk }}/entfernen/" hx-target="#lines" hx-swap="outerHTML" aria-label="Position {{ row.line.position }} entfernen">Entfernen</button>
       </td>
     </tr>
+    {% if row.subtotal %}<tr class="group-subtotal"><td></td><td colspan="4">Zwischensumme {{ row.subtotal.group }}</td><td class="num">{{ row.subtotal.net }}</td><td></td></tr>{% endif %}
   {% empty %}
     <tr><td colspan="7" class="muted">Noch keine Positionen. Füge unten die erste hinzu, aus dem Katalog oder frei.</td></tr>
   {% endfor %}
@@ -39,6 +41,7 @@
   <form class="form grid2" hx-post="/dokumente/{{ doc.pk }}/positionen/" hx-target="#lines" hx-swap="outerHTML" method="post" action="/dokumente/{{ doc.pk }}/positionen/">
     {% csrf_token %}
     {% with form=line_form %}{% include "web/_fields.html" %}{% endwith %}
+    <datalist id="line-groups">{% for name in group_names %}<option value="{{ name }}">{% endfor %}</datalist>
     <button type="submit">Hinzufügen</button>
   </form>
 </details>

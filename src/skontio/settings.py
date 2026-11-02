@@ -201,6 +201,34 @@ def mailers_from_env() -> dict:
 
 
 MAILERS = mailers_from_env()
+
+
+def receipt_mailbox_from_env() -> dict | None:
+    """Beleg-Postfach: an own IMAP mailbox the worker reads; attachments go to the Belegeingang."""
+    host = os.environ.get("SKONTIO_RECEIPT_IMAP_HOST", "").strip()
+    if not host:
+        return None
+    security = os.environ.get("SKONTIO_RECEIPT_IMAP_SECURITY", "ssl")
+    if security not in ("ssl", "starttls"):
+        raise RuntimeError("SKONTIO_RECEIPT_IMAP_SECURITY must be ssl or starttls")
+    company = os.environ.get("SKONTIO_RECEIPT_IMAP_COMPANY", "").strip()
+    return {
+        "host": host,
+        "port": int(os.environ.get("SKONTIO_RECEIPT_IMAP_PORT", "993" if security == "ssl" else "143")),
+        "security": security,
+        "user": os.environ.get("SKONTIO_RECEIPT_IMAP_USER", ""),
+        "password": read_secret("SKONTIO_RECEIPT_IMAP_PASSWORD", "") or "",
+        "folder": os.environ.get("SKONTIO_RECEIPT_IMAP_FOLDER", "INBOX"),
+        "done_folder": os.environ.get("SKONTIO_RECEIPT_IMAP_DONE_FOLDER", ""),
+        "company": int(company) if company else None,
+        "allowed_senders": [s.lower() for s in env_list("SKONTIO_RECEIPT_IMAP_ALLOWED_SENDERS")],
+        "every_minutes": max(1, int(os.environ.get("SKONTIO_RECEIPT_IMAP_EVERY_MINUTES", "15"))),
+    }
+
+
+RECEIPT_MAILBOX = receipt_mailbox_from_env()  # read by the worker
+# shown in the Belegeingang; the web container needs only this, not the IMAP access
+RECEIPT_MAILBOX_ADDRESS = os.environ.get("SKONTIO_RECEIPT_IMAP_ADDRESS", "").strip()
 DEFAULT_FROM_EMAIL = os.environ.get("SKONTIO_MAIL_FROM", "skontio@localhost")
 SERVER_EMAIL = DEFAULT_FROM_EMAIL
 

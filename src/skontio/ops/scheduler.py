@@ -72,6 +72,41 @@ def jobs() -> list[Job]:
     return [Job(name, label, at, run) for name, label, value, run in configured if (at := parse_time(value))]
 
 
+MAILBOX_JOB = "receipt_mail"
+
+
+def poll_mailbox(now: dt.datetime | None = None) -> JobRun | None:
+    """Beleg-Postfach: read the mailbox every few minutes (not once a day like the other jobs).
+
+    One ``JobRun`` row per day holds the latest poll – enough for ``skontio doctor worker``."""
+    config = settings.RECEIPT_MAILBOX
+    if not config:
+        return None
+    from skontio.expenses.mailbox import poll
+
+    now = now or timezone.now()
+    last = JobRun.objects.filter(job=MAILBOX_JOB).order_by("-day").first()
+    if last and now - last.started_at < dt.timedelta(minutes=config["every_minutes"]):
+        return None
+    try:
+        row, _ = JobRun.objects.get_or_create(
+            job=MAILBOX_JOB, day=timezone.localtime(now).date(), defaults={"started_at": now}
+        )
+    except IntegrityError:  # another worker started the same poll
+        return None
+    row.status, row.started_at, row.finished_at = JobRun.Status.RUNNING, now, None
+    row.attempts = min(row.attempts + 1, 32767)
+    row.save()
+    try:
+        row.message, row.status = poll(config), JobRun.Status.OK
+    except Exception as exc:  # noqa: BLE001 – e.g. mail server unreachable; next poll tries again
+        row.status, row.message = JobRun.Status.FAILED, f"{type(exc).__name__}: {exc}"[:4000]
+        log.error("Beleg-Postfach: %s", row.message)
+    row.finished_at = timezone.now()
+    row.save(update_fields=["status", "message", "finished_at"])
+    return row
+
+
 def migrations_pending() -> bool:
     executor = MigrationExecutor(connection)
     return bool(executor.migration_plan(executor.loader.graph.leaf_nodes()))
@@ -124,6 +159,8 @@ def run_due(now: dt.datetime | None = None) -> list[JobRun]:
 def serve(stop: threading.Event, tick: float = TICK_SECONDS) -> None:
     """Main loop of the worker container until ``stop`` is set (SIGTERM)."""
     names = ", ".join(f"{job.label} {job.at:%H:%M}" for job in jobs()) or "keine Aufgaben"
+    if settings.RECEIPT_MAILBOX:
+        names += f", Beleg-Postfach alle {settings.RECEIPT_MAILBOX['every_minutes']} Minuten"
     log.info("Worker gestartet (%s)", names)
     waiting = False
     while not stop.is_set():
@@ -136,6 +173,7 @@ def serve(stop: threading.Event, tick: float = TICK_SECONDS) -> None:
             else:
                 waiting = False
                 run_due()
+                poll_mailbox()
         except Exception:  # noqa: BLE001 – e.g. database briefly unreachable; try again next tick
             log.exception("Worker-Durchlauf fehlgeschlagen")
         stop.wait(tick)
@@ -145,4 +183,7 @@ def serve(stop: threading.Event, tick: float = TICK_SECONDS) -> None:
 
 def status() -> list[tuple[Job, JobRun | None]]:
     """Latest run per configured job – for ``skontio doctor worker``."""
-    return [(job, JobRun.objects.filter(job=job.name).order_by("-day").first()) for job in jobs()]
+    configured = jobs()
+    if settings.RECEIPT_MAILBOX:
+        configured.append(Job(MAILBOX_JOB, "Beleg-Postfach", dt.time(0, 0), lambda: ""))
+    return [(job, JobRun.objects.filter(job=job.name).order_by("-day").first()) for job in configured]

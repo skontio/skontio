@@ -1,7 +1,10 @@
 <tr class="editing">
   <td>{{ line.position }}</td>
   <td><label class="visually-hidden" for="le-text-{{ line.pk }}">Bezeichnung</label>
-    <input id="le-text-{{ line.pk }}" name="text" value="{{ line.text }}" form="line-edit-{{ line.pk }}" required autofocus></td>
+    <input id="le-text-{{ line.pk }}" name="text" value="{{ line.text }}" form="line-edit-{{ line.pk }}" required autofocus>
+    <label class="visually-hidden" for="le-group-{{ line.pk }}">Gruppe</label>
+    <input id="le-group-{{ line.pk }}" name="group" value="{{ line.group }}" placeholder="Gruppe (optional)" list="le-groups-{{ line.pk }}" autocomplete="off" maxlength="200" form="line-edit-{{ line.pk }}">
+    <datalist id="le-groups-{{ line.pk }}">{% for name in group_names %}<option value="{{ name }}">{% endfor %}</datalist></td>
   <td class="num"><label class="visually-hidden" for="le-qty-{{ line.pk }}">Menge</label>
     <input class="narrow" id="le-qty-{{ line.pk }}" name="quantity" value="{{ line.quantity|floatformat:'-4' }}" inputmode="decimal" form="line-edit-{{ line.pk }}" required></td>
   {% if line.gross_unit_price is not None %}
