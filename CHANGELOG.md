@@ -35,6 +35,13 @@ Das bisher größte Update: Bank, Belege, Einrichtung, Briefvorlagen und eine gr
 - Beleg-Postfach (IMAP), Belegerkennung über den KI-Anbieter (nur als geprüfter Vorschlag)
 - sonstige Einnahmen, wiederkehrende Ausgaben, Lieferanten als Kontakte
 
+**Umzug und KI**
+- Umzug aus Papierkram: CSV-Export (ZIP) übernehmen – Kontakte, Leistungen, Rechnungen und Angebote als
+  Altbelege mit Originalnummer, Zahlungen, Bankkonten und -umsätze; Probelauf, alles oder nichts, Nummernkreise
+  laufen weiter (*Einstellungen → Umzug aus Papierkram* oder `skontio import_papierkram`)
+- MCP: Kunden ändern (`customer_update`), Entwürfe auflisten und ungeprüfte KI-Entwürfe verwerfen, offene
+  Bankumsätze mit Zuordnungsvorschlägen lesen – Festschreiben, Versenden und Buchen bleiben bei dir
+
 **Steuern und Export**
 - Zusammenfassende Meldung, DATEV-Export (SKR03/SKR04), frei wählbare Zeiträume, USt-Jahresübersicht
 - Gesamtexport als ZIP, CSV-Import und -Export für Kontakte und Leistungen
