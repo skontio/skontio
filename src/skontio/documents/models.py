@@ -28,6 +28,7 @@ class Document(models.Model):
         PARTIAL_INVOICE = "partial_invoice", "Abschlagsrechnung"
         FINAL_INVOICE = "final_invoice", "Schlussrechnung"
         CANCELLATION = "cancellation", "Stornorechnung"
+        DELIVERY_NOTE = "delivery_note", "Lieferschein"
 
     class Status(models.TextChoices):
         DRAFT = "draft", "Entwurf"
@@ -155,6 +156,8 @@ class DocumentLine(models.Model):
     unit_code = models.CharField(max_length=8, default="C62")
     unit_price = models.DecimalField(max_digits=14, decimal_places=4)
     discount_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    # Arbeitskostenanteil (§ 35a EStG): share of this line's net amount that is labour, 0–100
+    labor_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     tax_treatment = models.CharField(
         max_length=20, choices=[(t.value, t.name) for t in TaxTreatment], default=TaxTreatment.STANDARD
     )
@@ -166,7 +169,12 @@ class DocumentLine(models.Model):
 
     class Meta:
         ordering = ["position"]
-        constraints = [models.UniqueConstraint(fields=["document", "position"], name="uniq_line_position")]
+        constraints = [
+            models.UniqueConstraint(fields=["document", "position"], name="uniq_line_position"),
+            models.CheckConstraint(
+                condition=models.Q(labor_percent__gte=0, labor_percent__lte=100), name="line_labor_percent_range"
+            ),
+        ]
 
     def __str__(self) -> str:
         return f"{self.document} · Pos. {self.position}"

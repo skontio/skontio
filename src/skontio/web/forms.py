@@ -260,6 +260,10 @@ class LineForm(forms.Form):
     discount_percent = forms.DecimalField(
         label="Rabatt (%)", min_value=0, max_value=100, decimal_places=2, localize=True, required=False
     )
+    labor_percent = forms.DecimalField(
+        label="Arbeitskosten (%)", min_value=0, max_value=100, decimal_places=2, localize=True, required=False,
+        help_text="§ 35a EStG, nur für Privatkunden; leer = aus der Leistung bzw. keiner",
+    )  # fmt: skip
     tax_treatment = forms.ChoiceField(
         label="Steuer", choices=list(TAX_TREATMENT_LABELS.items()), initial=TaxTreatment.STANDARD, required=False
     )
@@ -372,10 +376,17 @@ class ItemForm(forms.ModelForm):
     )
     net_price = forms.DecimalField(label="Nettopreis (€)", min_value=0, max_digits=14, decimal_places=4, localize=True)
     tax_treatment = forms.ChoiceField(label="Steuerbehandlung", choices=list(TAX_TREATMENT_LABELS.items()))
+    labor_percent = forms.DecimalField(
+        label="Arbeitskostenanteil (%)", min_value=0, max_value=100, max_digits=5, decimal_places=2, localize=True,
+        required=False, help_text="Für Handwerker- und haushaltsnahe Leistungen an Privatkunden (§ 35a EStG)",
+    )  # fmt: skip
+
+    def clean_labor_percent(self):
+        return self.cleaned_data.get("labor_percent") or Decimal("0")
 
     class Meta:
         model = Item
-        fields = ["kind", "name", "sku", "description", "unit", "net_price", "tax_treatment"]
+        fields = ["kind", "name", "sku", "description", "unit", "net_price", "tax_treatment", "labor_percent"]
         labels = {"kind": "Art", "name": "Bezeichnung", "description": "Beschreibung"}
 
 

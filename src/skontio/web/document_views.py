@@ -18,6 +18,7 @@ from skontio.attachments.models import Attachment
 from skontio.documents.models import BASIS_TYPES, INVOICE_TYPES, Document, DocumentLine, Rendition
 from skontio.documents.renditions import UNIT_LABELS, de_amount, de_percent, de_quantity
 from skontio.documents.services import (
+    DELIVERY_BASES,
     DocumentError,
     DocumentLocked,
     add_deduction,
@@ -26,6 +27,7 @@ from skontio.documents.services import (
     cancel_invoice,
     confirm_ai_review,
     convert_quote_to_invoice,
+    create_delivery_note,
     create_draft,
     create_final_invoice,
     create_order_confirmation,
@@ -66,6 +68,7 @@ TYPE_FILTERS = {
     "quote": {Type.QUOTE},
     "order_confirmation": {Type.ORDER_CONFIRMATION},
     "cancellation": {Type.CANCELLATION},
+    "delivery_note": {Type.DELIVERY_NOTE},
 }
 FILE_SUFFIX = {
     Rendition.Kind.PDF: ".pdf",
@@ -197,6 +200,7 @@ def _finalized_context(doc: Document, **extra) -> dict:
         "children": doc.children.all(),
         "mail_logs": doc.mail_logs.all(),
         "send_form": _send_form(doc),
+        "can_deliver": doc.doc_type in DELIVERY_BASES,
     }
     context |= _deduction_context(doc)
     context["replacement"] = doc.replaced_by.order_by("-pk").first()
@@ -383,9 +387,13 @@ def line_add(request, pk: int):
     if form.is_valid():
         data = form.cleaned_data
         discount = data["discount_percent"] or Decimal("0")
+        labor = data["labor_percent"]
         try:
             if data["item"]:
-                add_line_from_item(doc, data["item"], quantity=data["quantity"], discount_percent=discount)
+                line = add_line_from_item(doc, data["item"], quantity=data["quantity"], discount_percent=discount)
+                if labor is not None and labor != line.labor_percent:
+                    update_line(line, text=line.text, quantity=line.quantity, unit_price=line.unit_price,
+                                discount_percent=line.discount_percent, labor_percent=labor)  # fmt: skip
             else:
                 add_line(
                     doc,
@@ -395,6 +403,7 @@ def line_add(request, pk: int):
                     unit_price=data["unit_price"],
                     discount_percent=discount,
                     tax_treatment=TaxTreatment(data["tax_treatment"] or TaxTreatment.STANDARD),
+                    labor_percent=labor or Decimal("0"),
                 )
             form = None
         except DocumentError as exc:
@@ -613,6 +622,17 @@ def document_order_confirmation(request, pk: int):
     except DocumentError as exc:
         return HttpResponse(str(exc), status=409)
     return redirect(f"/dokumente/{confirmation.pk}/")
+
+
+@require_POST
+@company_view
+def document_delivery_note(request, pk: int):
+    basis = _document(request, pk)
+    try:
+        note = create_delivery_note(basis, issue_date=timezone.localdate(), created_by=request.user)
+    except DocumentError as exc:
+        return HttpResponse(str(exc), status=409)
+    return redirect(f"/dokumente/{note.pk}/")
 
 
 @require_POST

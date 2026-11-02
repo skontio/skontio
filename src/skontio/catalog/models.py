@@ -51,6 +51,13 @@ class Item(models.Model):
         max_length=20, choices=[(t.value, t.name) for t in TaxTreatment], default=TaxTreatment.STANDARD
     )
     category = models.ForeignKey(ItemCategory, null=True, blank=True, on_delete=models.SET_NULL)
+    labor_percent = models.DecimalField(
+        "Arbeitskostenanteil (%)",
+        max_digits=5,
+        decimal_places=2,
+        default=0,
+        help_text="Für Handwerker- und haushaltsnahe Leistungen an Privatkunden (§ 35a EStG); 0 = keiner",
+    )
     archived_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -61,6 +68,9 @@ class Item(models.Model):
                 fields=["company", "sku"], condition=~models.Q(sku=""), name="uniq_item_sku_per_company"
             ),
             models.CheckConstraint(condition=models.Q(net_price__gte=0), name="item_price_not_negative"),
+            models.CheckConstraint(
+                condition=models.Q(labor_percent__gte=0, labor_percent__lte=100), name="item_labor_percent_range"
+            ),
         ]
         verbose_name = "Leistung/Artikel"
         verbose_name_plural = "Leistungen/Artikel"

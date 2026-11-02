@@ -126,6 +126,14 @@
     </section>
     {% endif %}
 
+    {% if can_deliver %}
+    <details class="card">
+      <summary><h2>Lieferschein</h2></summary>
+      <p class="muted">Übernimmt die Positionen ohne Preise in einen Lieferschein (Entwurf) mit eigener Nummer.</p>
+      <form method="post" action="/dokumente/{{ doc.pk }}/lieferschein/">{% csrf_token %}<button type="submit" class="secondary">Lieferschein erstellen</button></form>
+    </details>
+    {% endif %}
+
     {% if partial_form %}
     <details class="card">
       <summary><h2>Abschlagsrechnung</h2></summary>

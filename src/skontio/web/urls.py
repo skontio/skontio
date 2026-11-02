@@ -36,6 +36,7 @@ urlpatterns = [
         name="document_order_confirmation",
     ),
     path("dokumente/<int:pk>/schlussrechnung/", docs.document_final, name="document_final"),
+    path("dokumente/<int:pk>/lieferschein/", docs.document_delivery_note, name="document_delivery_note"),
     path("dokumente/<int:pk>/abzuege/", docs.deduction_add, name="deduction_add"),
     path("dokumente/<int:pk>/abzuege/<int:partial_pk>/entfernen/", docs.deduction_remove, name="deduction_remove"),
     path("dokumente/<int:pk>/pruefen/", docs.document_review, name="document_review"),

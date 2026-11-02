@@ -17,6 +17,8 @@ from django.db.models import Max, Sum
 from django.utils import timezone
 
 from skontio.catalog.models import Item, Unit
+from skontio.documents.labor import LaborCosts
+from skontio.documents.labor import compute as compute_labor
 from skontio.documents.languages import LANGUAGES, Lang
 from skontio.documents.languages import normalise as normalise_language
 from skontio.documents.layouts import template_for, text_block
@@ -46,6 +48,9 @@ from skontio.tax.engine import (
 from skontio.taxstatus.services import TaxStatusError, regime_for
 
 __all__ = [
+    "DELIVERY_BASES",
+    "LaborCosts",
+    "labor_costs",
     "DocumentError",
     "DocumentLocked",
     "add_line",
@@ -57,6 +62,7 @@ __all__ = [
     "convert_quote_to_invoice",
     "create_draft",
     "create_final_invoice",
+    "create_delivery_note",
     "create_order_confirmation",
     "create_partial_invoice",
     "eligible_partial_invoices",
@@ -80,7 +86,9 @@ DEFAULT_PATTERNS = {
     Type.ORDER_CONFIRMATION: "AB-{YYYY}-{####}",
     Type.INVOICE: "RE-{YYYY}-{####}",
     Type.CANCELLATION: "ST-{YYYY}-{####}",
+    Type.DELIVERY_NOTE: "LS-{YYYY}-{####}",
 }
+DELIVERY_BASES = {Type.QUOTE, Type.ORDER_CONFIRMATION, Type.INVOICE, Type.PARTIAL_INVOICE, Type.FINAL_INVOICE}
 # Abschlags- und Schlussrechnungen are invoices: one gap-free invoice number range for all of them
 SEQUENCE_TYPE = {Type.PARTIAL_INVOICE: Type.INVOICE, Type.FINAL_INVOICE: Type.INVOICE}
 DEFAULT_QUOTE_VALIDITY_DAYS = 30
@@ -168,6 +176,7 @@ def add_line(
     discount_percent: Decimal = Decimal("0"),
     description: str = "",
     item: Item | None = None,
+    labor_percent: Decimal = Decimal("0"),
 ) -> DocumentLine:
     _require_draft(document)
     if not text.strip():
@@ -176,6 +185,7 @@ def add_line(
         raise DocumentError("Menge und Einzelpreis dürfen nicht negativ sein")
     if not (Decimal("0") <= discount_percent <= Decimal("100")):
         raise DocumentError("Der Rabatt muss zwischen 0 und 100 % liegen")
+    _check_labor(labor_percent)
     if not Unit.objects.filter(code=unit_code).exists():
         raise DocumentError(f"Unbekannte Einheit {unit_code!r}")
     position = (document.lines.aggregate(m=Max("position"))["m"] or 0) + 1
@@ -190,7 +200,13 @@ def add_line(
         unit_price=unit_price,
         discount_percent=discount_percent,
         tax_treatment=TaxTreatment(tax_treatment),
+        labor_percent=labor_percent,
     )
+
+
+def _check_labor(labor_percent: Decimal) -> None:
+    if not (Decimal("0") <= labor_percent <= Decimal("100")):
+        raise DocumentError("Der Arbeitskostenanteil muss zwischen 0 und 100 % liegen")
 
 
 def update_line(
@@ -201,6 +217,7 @@ def update_line(
     unit_price: Decimal,
     discount_percent: Decimal = Decimal("0"),
     unit_code: str | None = None,
+    labor_percent: Decimal | None = None,
 ) -> DocumentLine:
     """Change a line of a draft in place (same checks as ``add_line``); the tax treatment stays."""
     _require_draft(line.document)
@@ -214,8 +231,11 @@ def update_line(
     if not Unit.objects.filter(code=unit_code).exists():
         raise DocumentError(f"Unbekannte Einheit {unit_code!r}")
     line.text, line.quantity, line.unit_price = text.strip(), quantity, unit_price
+    if labor_percent is not None:
+        _check_labor(labor_percent)
+        line.labor_percent = labor_percent
     line.discount_percent, line.unit_code = discount_percent, unit_code
-    line.save(update_fields=["text", "quantity", "unit_price", "discount_percent", "unit_code"])
+    line.save(update_fields=["text", "quantity", "unit_price", "discount_percent", "unit_code", "labor_percent"])
     return line
 
 
@@ -237,6 +257,7 @@ def add_line_from_item(
         tax_treatment=TaxTreatment(item.tax_treatment),
         discount_percent=discount_percent,
         item=item,
+        labor_percent=item.labor_percent,
     )
 
 
@@ -526,6 +547,7 @@ def _copy_lines(source: Document, target: Document) -> list[DocumentLine]:
             unit_price=line.unit_price,
             discount_percent=line.discount_percent,
             tax_treatment=line.tax_treatment,
+            labor_percent=line.labor_percent,
         )
         for line in source.lines.all()
     ]
@@ -643,6 +665,15 @@ def stored_totals(document: Document) -> Totals:
         for line in document.lines.all()
     ]
     return calculate(inputs, document_discount_percent=document.document_discount_percent)
+
+
+def labor_costs(document: Document, totals: Totals | None = None) -> LaborCosts:
+    """Arbeitskosten of a document (§ 35a EStG), after the document discount, with their VAT."""
+    lines = list(document.lines.all())
+    if not any(line.labor_percent for line in lines):
+        return LaborCosts(Decimal("0.00"), Decimal("0.00"))
+    totals = totals or stored_totals(document)
+    return compute_labor(lines, totals.lines, document.document_discount_percent)
 
 
 def prepaid_total(document: Document) -> Decimal:
@@ -793,6 +824,31 @@ def _related_basis_ids(basis: Document) -> set[int]:
 def open_partials_for(basis: Document) -> list[Document]:
     ids = _related_basis_ids(basis)
     return [p for p in eligible_partial_invoices(basis.company, basis.customer) if p.parent_id in ids]
+
+
+def create_delivery_note(basis: Document, *, issue_date: dt.date, created_by=None) -> Document:
+    """Lieferschein as a draft copy of a finalized quote, order confirmation or invoice (no prices printed)."""
+    basis = Document.objects.select_related("company", "customer").get(pk=basis.pk)
+    if basis.doc_type not in DELIVERY_BASES or basis.status != Document.Status.FINALIZED:
+        raise DocumentError(
+            "Ein Lieferschein entsteht aus einem festgeschriebenen Angebot, Auftrag oder einer Rechnung"
+        )
+    with transaction.atomic():
+        note = create_draft(
+            basis.company,
+            Type.DELIVERY_NOTE,
+            basis.customer,
+            issue_date=issue_date,
+            service_date=basis.service_date,
+            service_period=(
+                (basis.service_period_start, basis.service_period_end) if basis.service_period_start else None
+            ),
+            created_by=created_by,
+            language=basis.language,
+            parent=basis,
+        )
+        _copy_lines(basis, note)
+    return note
 
 
 def create_order_confirmation(

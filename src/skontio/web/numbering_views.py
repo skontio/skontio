@@ -58,6 +58,7 @@ KINDS = [
     Kind(Type.CANCELLATION, "Stornorechnungen", DEFAULT_PATTERNS[Type.CANCELLATION], YEARLY, 64),
     Kind(Type.QUOTE, "Angebote", DEFAULT_PATTERNS[Type.QUOTE], YEARLY, 64),
     Kind(Type.ORDER_CONFIRMATION, "Auftragsbestätigungen", DEFAULT_PATTERNS[Type.ORDER_CONFIRMATION], YEARLY, 64),
+    Kind(Type.DELIVERY_NOTE, "Lieferscheine", DEFAULT_PATTERNS[Type.DELIVERY_NOTE], YEARLY, 64),
     Kind(CUSTOMER_SEQUENCE, "Kundennummern", DEFAULT_CUSTOMER_PATTERN, NEVER, 32),
     Kind(SUPPLIER_SEQUENCE, "Lieferantennummern", DEFAULT_SUPPLIER_PATTERN, NEVER, 32),
     Kind(expenses.SEQUENCE, "Ausgaben", expenses.PATTERN, YEARLY, 32),

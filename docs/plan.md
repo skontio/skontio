@@ -331,10 +331,10 @@ Legende: ✅ vorhanden · 🟡 teilweise · 📅 schon geplant · ➕ neu aufgen
 | E-Rechnung, XRechnung, ZUGFeRD | Free/S | ✅ | mit KoSIT und Mustang geprüft |
 | Eigenes Briefpapier, ohne Fremdlogo | Free/S | 🟡 | Logo, Farbe, Fußzeile ✅; ➕ 3: Briefpapier als PDF-Hintergrund, eigenes Briefpapier für Folgeseiten |
 | Eigene Schriften, Layouts per CSS | S | ➕ | 3: Schrift-Upload (mit Einbettung für PDF/A) und CSS-Layouts in einer Sandbox (kein Netzwerkzugriff von WeasyPrint) |
-| Automatischer Lohnkostenausweis | S | ➕ | 2b: Arbeitskostenanteil je Position, Ausweis nach § 35a EStG für Privatkunden |
+| Automatischer Lohnkostenausweis | S | ✅ | Arbeitskostenanteil je Leistung/Position, Ausweis nach § 35a EStG mit USt auf Rechnungen an Privatkunden |
 | Englische Dokumente | S | ✅ | |
 | Wiederkehrende Rechnungen | S | ✅ | als Entwürfe |
-| Lieferschein aus Rechnung | S | ➕ | 2b: eigener Dokumenttyp ohne Preise, eigener Nummernkreis |
+| Lieferschein aus Rechnung | S | ✅ | aus Angebot, Auftrag oder Rechnung; ohne Preise, eigener Nummernkreis (LS-…), nur PDF |
 | Brutto- und Nettorechnungen | Free | 🟡 | Netto ✅; ➕ 2b: Bruttopreise eingeben (B2C), Rundung bleibt EN-16931-konform |
 | Rechnungen ins EU-Ausland und in Drittländer | Free | ✅ | ig. Lieferung, § 13b, Ausfuhr |
 | Rechtskonforme Stornierung | Free | ✅ | |

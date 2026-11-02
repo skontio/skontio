@@ -88,6 +88,16 @@
 {% if reference %}<p>{{ reference }}</p>{% endif %}
 {% if doc.intro_text %}<div class="intro">{{ doc.intro_text }}</div>{% endif %}
 
+{% if without_prices %}
+<table class="lines">
+  <thead><tr><th>{{ t.col_position }}</th><th>{{ t.col_text }}</th><th class="num">{{ t.col_quantity }}</th><th>{{ t.col_unit }}</th></tr></thead>
+  <tbody>
+    {% for line in lines %}
+    <tr><td>{{ line.position }}</td><td>{{ line.text }}{% if line.description %}<div class="desc">{{ line.description }}</div>{% endif %}</td><td class="num">{{ line.quantity }}</td><td>{{ line.unit }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
 <table class="lines">
   <thead>
     <tr><th>{{ t.col_position }}</th><th>{{ t.col_text }}</th><th class="num">{{ t.col_quantity }}</th><th>{{ t.col_unit }}</th><th class="num">{{ t.col_price }}</th>{% if has_discounts %}<th class="num">{{ t.col_discount }}</th>{% endif %}<th class="num">{{ t.col_amount }}</th>{% if show_rates %}<th class="num">{{ t.col_vat }}</th>{% endif %}</tr>
@@ -123,12 +133,15 @@
 </table>
 
 {% for note in tax_notes %}<div class="note">{{ note }}</div>{% endfor %}
+{% if labor_text %}<div class="note">{{ labor_text }}</div>{% endif %}
 
 {% if payment_text %}
 <div class="payment">
   {% if girocode %}<img src="{{ girocode }}" alt="GiroCode">{% endif %}
   <div>{{ payment_text }}{% if seller.iban %}<br>IBAN {{ iban_formatted }}{% if seller.bic %} · BIC {{ seller.bic }}{% endif %}{% if not draft %}<br>{{ t.payment_reference }}: {{ doc.number }}{% endif %}{% endif %}{% if pay_link %}<br>{{ t.pay_online }}: <a href="{{ pay_link }}">{{ pay_link }}</a>{% endif %}</div>
 </div>
+{% endif %}
+
 {% endif %}
 
 {% if doc.closing_text %}<div class="closing">{{ doc.closing_text }}</div>{% endif %}

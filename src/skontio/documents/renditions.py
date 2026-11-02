@@ -11,6 +11,7 @@ from decimal import Decimal
 from django.template.loader import render_to_string
 
 from skontio.archive.services import retention_end, store
+from skontio.documents.labor import compute as compute_labor
 from skontio.documents.languages import TEXTS, Lang
 from skontio.documents.layouts import layout_context, template_for
 from skontio.documents.models import INVOICE_TYPES, Document, PartySnapshot, Rendition
@@ -74,6 +75,8 @@ def _view(document: Document, *, draft: tuple[list[LineInput], dict, dict] | Non
         reference = t("partial_of", basis=t.basis(document.parent)) + "."
     if doc_type == Type.FINAL_INVOICE and document.parent:
         reference = t("final_of", basis=t.basis(document.parent)) + "."
+    if doc_type == Type.DELIVERY_NOTE and document.parent:
+        reference = t.basis(document.parent) + "."
 
     deductions = list(document.deductions.select_related("source"))
     due = totals.grand_total - sum((d.gross_amount for d in deductions), Decimal("0"))
@@ -89,6 +92,16 @@ def _view(document: Document, *, draft: tuple[list[LineInput], dict, dict] | Non
                 bic=seller.get("bic", ""),
                 amount=due,
                 reference=document.number,
+            )
+
+    labor_text = ""
+    if doc_type in INVOICE_TYPES and buyer.get("kind") == "person" and any(line.labor_percent for line in lines):
+        labor = compute_labor(lines, totals.lines, document.document_discount_percent)
+        if labor.net > 0:
+            labor_text = (
+                t("labor_with_vat", gross=t.money(labor.gross), vat=t.money(labor.vat))
+                if labor.vat
+                else t("labor_without_vat", gross=t.money(labor.gross))
             )
 
     if draft is None:
@@ -165,6 +178,8 @@ def _view(document: Document, *, draft: tuple[list[LineInput], dict, dict] | Non
         "payment_text": payment_text,
         "girocode": girocode,
         "pay_link": pay_link,
+        "without_prices": doc_type == Type.DELIVERY_NOTE,
+        "labor_text": labor_text,
     }
 
 
@@ -183,7 +198,7 @@ def _add(document: Document, kind: Rendition.Kind, data: bytes, mime: str, years
 
 def create_renditions(document: Document) -> list[Rendition]:
     pdf = render_html_pdf_a3(render_document_html(document))
-    if document.doc_type in (Type.QUOTE, Type.ORDER_CONFIRMATION):
+    if document.doc_type in (Type.QUOTE, Type.ORDER_CONFIRMATION, Type.DELIVERY_NOTE):
         return [_add(document, Rendition.Kind.PDF, pdf, "application/pdf", LETTER_RETENTION_YEARS)]
 
     invoice = invoice_from_document(document)

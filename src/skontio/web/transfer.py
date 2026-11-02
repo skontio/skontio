@@ -31,7 +31,10 @@ CUSTOMER_COLUMNS = [
     "Nummer", "Rolle", "Art", "Name", "USt-IdNr.", "E-Mail", "Telefon", "Straße", "PLZ", "Ort", "Land",
     "Sprache", "Leitweg-ID", "Zahlungsziel", "Tags", "Archiviert",
 ]  # fmt: skip
-ITEM_COLUMNS = ["Artikelnummer", "Art", "Bezeichnung", "Beschreibung", "Einheit", "Nettopreis", "Steuer", "Archiviert"]
+ITEM_COLUMNS = [
+    "Artikelnummer", "Art", "Bezeichnung", "Beschreibung", "Einheit", "Nettopreis", "Steuer", "Arbeitskosten %",
+    "Archiviert",
+]  # fmt: skip
 
 _COUNTRY = re.compile(r"^[A-Z]{2}$")
 _FORMULA_ESCAPE = re.compile(r"^'(?=[=+\-@])")
@@ -66,7 +69,7 @@ def item_rows(company):
     for i in Item.objects.filter(company=company).select_related("unit").order_by("name", "pk"):
         yield [
             i.sku, i.get_kind_display(), i.name, i.description, i.unit.code, i.net_price, i.tax_treatment,
-            i.archived_at.date() if i.archived_at else "",
+            i.labor_percent, i.archived_at.date() if i.archived_at else "",
         ]  # fmt: skip
 
 
@@ -234,6 +237,9 @@ def import_items(company, data: bytes, *, user=None) -> ImportResult:
         treatment = _choice(row.get("Steuer", ""), treatments, "standard")
         unit = units.get(row.get("Einheit", "").casefold())
         price = parse_amount(row.get("Nettopreis", ""))
+        labor = parse_amount(row.get("Arbeitskosten %", "") or "0")
+        if labor is None or labor > 100:
+            problems.append(f"Arbeitskosten „{row.get('Arbeitskosten %', '')[:20]}“ muss zwischen 0 und 100 liegen")
         if kind is None:
             problems.append(f"Art „{row['Art'][:40]}“ unbekannt (Leistung, Artikel)")
         if treatment is None:
@@ -247,6 +253,7 @@ def import_items(company, data: bytes, *, user=None) -> ImportResult:
                 "kind": kind or "", "name": row.get("Bezeichnung", ""), "sku": row.get("Artikelnummer", ""),
                 "description": row.get("Beschreibung", ""), "unit": unit or "",
                 "net_price": str(price) if price is not None else "", "tax_treatment": treatment or "",
+                "labor_percent": str(labor) if labor is not None else "",
             }
         )  # fmt: skip
         if not form.is_valid() and not problems:

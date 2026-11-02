@@ -11,6 +11,7 @@
   <a href="?typ=quote{% if q %}&amp;q={{ q|urlencode }}{% endif %}" {% if typ == "quote" %}aria-current="page"{% endif %}>Angebote</a>
   <a href="?typ=order_confirmation{% if q %}&amp;q={{ q|urlencode }}{% endif %}" {% if typ == "order_confirmation" %}aria-current="page"{% endif %}>Auftragsbestätigungen</a>
   <a href="?typ=cancellation{% if q %}&amp;q={{ q|urlencode }}{% endif %}" {% if typ == "cancellation" %}aria-current="page"{% endif %}>Stornos</a>
+  <a href="?typ=delivery_note{% if q %}&amp;q={{ q|urlencode }}{% endif %}" {% if typ == "delivery_note" %}aria-current="page"{% endif %}>Lieferscheine</a>
 </nav>
 <form method="get" role="search">
   {% if typ %}<input type="hidden" name="typ" value="{{ typ }}">{% endif %}
@@ -35,7 +36,7 @@
       <td>{{ doc.customer.name|default:"–" }}</td>
       <td class="hide-small">{{ doc.issue_date|date:"d.m.Y" }}</td>
       <td class="hide-small">{% if doc.due_date and state != "paid" and state != "cancelled" and state != "final" %}<span{% if state == "overdue" %} class="danger"{% endif %}>{{ doc.due_date|date:"d.m.Y" }}</span>{% endif %}</td>
-      <td class="num amount">{% if doc.gross_total is not None %}{{ doc.gross_total|floatformat:"2g" }} €{% endif %}</td>
+      <td class="num amount">{% if doc.gross_total is not None and doc.doc_type != "delivery_note" %}{{ doc.gross_total|floatformat:"2g" }} €{% endif %}</td>
     </tr>
   {% empty %}
     <tr><td colspan="7" class="muted">{% if q %}Nichts gefunden für „{{ q }}“.{% else %}Noch keine Dokumente. Lege oben eine Rechnung oder ein Angebot an.{% endif %}</td></tr>
