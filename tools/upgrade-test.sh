@@ -4,7 +4,7 @@
 #   festgeschriebene Rechnungen (Nummer, Betrag), archivierte PDFs/XML (Prüfsummen), Kunden, Audit-Kette,
 #   Archiv, Backup vor dem Update, Anmeldung und wichtigste Seiten.
 #
-#   tools/upgrade-test.sh                                   # von ghcr.io/skontio/skontio:0.2 auf skontio:dev
+#   tools/upgrade-test.sh                                   # von der letzten Release-Version (Git-Tag) auf skontio:dev
 #   tools/upgrade-test.sh --from ghcr.io/skontio/skontio:edge
 #   tools/upgrade-test.sh --postgres                        # mit Postgres 17
 #   tools/upgrade-test.sh --no-build                        # vorhandenes skontio:dev verwenden
@@ -12,7 +12,9 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-from=ghcr.io/skontio/skontio:0.2 postgres=0 build=1
+# the last release before this commit (on a release tag: the one before it), as published image
+last_tag="$(git describe --tags --abbrev=0 --match 'v[0-9]*' HEAD^ 2>/dev/null || echo v0.2.1)"
+from="ghcr.io/skontio/skontio:${last_tag#v}" postgres=0 build=1
 while [ $# -gt 0 ]; do
   case "$1" in
     --from) from="$2"; shift ;;

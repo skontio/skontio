@@ -1,0 +1,46 @@
+name: Funktion beauftragen
+description: Du möchtest eine Funktion bezahlt umsetzen lassen – zuerst und nach deinen Anforderungen.
+title: "[Beauftragung] "
+labels: ["enhancement", "sponsorbar"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Danke für dein Interesse! So läuft eine Beauftragung:
+
+        1. Du beschreibst hier, was du brauchst. Die Beschreibung ist öffentlich – keine Kundendaten oder Preise.
+        2. Ich melde mich mit einem **Festpreis** und einem Termin; Details klären wir über
+           [dick-technology.de](https://dick-technology.de).
+        3. Die Funktion wird gebaut, getestet und mit dir abgenommen – und danach für alle Teil von Skontio
+           (AGPL-3.0). Du bekommst sie zuerst und auf Wunsch eingerichtet.
+
+        Mehrere Interessierte können sich eine Funktion teilen: kommentiere einfach unter einer bestehenden Anfrage.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Was soll Skontio können?
+      description: Welche Aufgabe willst du erledigen, und was fehlt dir heute dafür?
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: Beispiel aus deinem Alltag
+      description: Ein konkreter Ablauf hilft mehr als eine abstrakte Beschreibung.
+  - type: dropdown
+    id: urgency
+    attributes:
+      label: Bis wann brauchst du es?
+      options:
+        - in den nächsten 4 Wochen
+        - in den nächsten 3 Monaten
+        - kein fester Termin
+    validations:
+      required: true
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Bestätigung
+      options:
+        - label: Mir ist klar, dass die fertige Funktion unter der AGPL-3.0 für alle veröffentlicht wird.
+          required: true

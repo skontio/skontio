@@ -9,6 +9,12 @@ oder Server; deine Daten verlassen dein Netz nicht. Alle Funktionen sind frei, o
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Skontio%20unterst%C3%BCtzen-ff5e5b?logo=ko-fi&logoColor=white)](https://ko-fi.com/unix0r)
 [![Lizenz: AGPL-3.0](https://img.shields.io/badge/Lizenz-AGPL--3.0-blue)](LICENSE)
 
+> 🇬🇧 **In English:** Skontio is a self-hosted invoicing and bookkeeping app for freelancers and small businesses in
+> Germany. It creates and reads e-invoices (ZUGFeRD/Factur-X, XRechnung), keeps finalized documents immutable
+> (GoBD), fetches bank transactions (PSD2) and matches payments, and prepares the EÜR, VAT returns and DATEV
+> exports. One hardened container with SQLite or Postgres – made for a home NAS. The app and documents are in
+> German (documents also in English). AGPL-3.0. Hosting and setup: [dick-technology.de](https://dick-technology.de).
+
 > ⚠️ Skontio ist **keine Steuer- oder Rechtsberatung**. Die Software unterstützt die Einhaltung von GoBD, UStG
 > und AO; die Verantwortung bleibt bei dir. Vor dem Echtbetrieb mit der eigenen Steuerberatung abstimmen.
 
