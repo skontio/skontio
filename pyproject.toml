@@ -46,6 +46,7 @@ dev = [
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "skontio.settings"
 testpaths = ["tests"]
+pythonpath = ["."]  # shared helpers are imported as tests.<module>
 addopts = "-ra --strict-markers"
 filterwarnings = ["error::django.utils.deprecation.RemovedInDjango2028Warning"]
 markers = [
