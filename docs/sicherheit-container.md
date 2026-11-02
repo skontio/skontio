@@ -64,17 +64,31 @@ Zugriff auf die eigenen Daten. Deshalb zählen die Schutzschichten davor (Login,
 Empfehlung: bei der entkernten Variante bleiben. Ein Wechsel auf Wolfi lohnt sich erst, wenn Scanner dauerhaft
 viele unbehobene Debian-Meldungen zeigen.
 
-## 5. Nächste Schritte (empfohlen, noch offen)
+## 5. Lieferkette (umgesetzt)
 
-1. **Image-Scan in der CI** (z. B. Trivy) auf hohe und kritische Lücken in Systempaketen, Abbruch nur bei
-   behebbaren Meldungen.
-2. **Basis-Image per Digest festnageln**; automatische Update-PRs (Dependabot) für Actions, Python-Pakete und das
-   Basis-Image sind eingerichtet, GitHub Actions sind bereits auf Commit-SHAs festgenagelt.
-3. **Signatur und SBOM** für veröffentlichte Images (cosign, `docker buildx --sbom`); TrueNAS zieht nur signierte
-   Tags.
-4. **Ausgehende Verbindungen begrenzen**: Skontio braucht nur Pocket ID, den SMTP-/IMAP-Server, Enable Banking und
+- Python-Pakete nur aus `uv.lock` mit SHA-256-Hashes (`uv sync --frozen`); `pip-audit` bei jedem Push und wöchentlich
+- GitHub Actions und Basis-Images per Commit-SHA bzw. Digest festgenagelt; Dependabot schlägt Updates als PR vor,
+  frühestens 7 Tage nach Erscheinen (gekaperte Versionen fallen meist vorher auf)
+- Image-Scan (Trivy) in der CI: bricht bei hohen und kritischen Lücken ab, für die es eine Behebung gibt
+- veröffentlichte Images mit signierter SBOM (SPDX) und Herkunftsnachweis (SLSA-Provenance); Prüfung vor dem Update
+  siehe `docs/betrieb.md`, Abschnitt 8
+
+**Einstellungen auf GitHub (einmal von Hand):**
+
+1. *Settings → Branches*: Schutzregel für `main` – Status-Checks `lint`, `test (sqlite)`, `test (postgres)`,
+   `docker` erforderlich, kein Force-Push, kein Löschen.
+2. *Settings → Actions → General*: „Workflow permissions“ auf **Read repository contents** stellen; „Allow GitHub
+   Actions to create and approve pull requests“ aus.
+3. *Settings → Environments*: Umgebung `release` mit dir als Prüfer anlegen, wenn jede Veröffentlichung eine
+   Freigabe braucht (dann im Workflow `environment: release` beim Job `publish` ergänzen).
+4. Konto: Zwei-Faktor mit Passkey oder Sicherheitsschlüssel; keine Personal Access Tokens mit Schreibrecht auf
+   Pakete herumliegen lassen.
+5. *Settings → Code security*: Dependabot alerts und Secret scanning einschalten.
+
+## 6. Nächste Schritte (empfohlen, noch offen)
+
+1. **Ausgehende Verbindungen begrenzen**: Skontio braucht nur Pocket ID, den SMTP-/IMAP-Server, Enable Banking und
    ggf. den KI-Anbieter. Eine Firewall-Regel am NAS (oder ein eigenes Docker-Netz mit Egress-Proxy) verhindert,
    dass eine Code-Ausführung Daten an beliebige Ziele schickt.
-5. **Postgres-Rolle ohne Sonderrechte**: der Skontio-Benutzer besitzt nur die eigene Datenbank, kein `SUPERUSER`,
-   kein `CREATEROLE`; Backups außer Haus verschlüsselt.
-6. **Nie den Docker-Socket einhängen** und Seccomp/AppArmor nicht abschalten (TrueNAS-Standard beibehalten).
+2. **Postgres-Rolle ohne Sonderrechte** (`skontio doctor db` prüft das); Backups außer Haus verschlüsselt.
+3. **Nie den Docker-Socket einhängen** und Seccomp/AppArmor nicht abschalten (TrueNAS-Standard beibehalten).

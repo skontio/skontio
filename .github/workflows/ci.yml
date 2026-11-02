@@ -83,6 +83,15 @@ jobs:
         run: tools/smoke.sh --no-build
       - name: Smoke test (Postgres)
         run: tools/smoke.sh --no-build --postgres
+      # system packages and Python libraries in the image: stop on high/critical findings that have a fix
+      - name: Scan image for known vulnerabilities
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: skontio:dev
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
 
   # Publishes ghcr.io/skontio/skontio once everything above is green:
   #   push to main → :edge      tag v0.2.0 → :0.2.0 and :0.2
@@ -93,6 +102,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write       # keyless signing of the attestations (Sigstore via GitHub OIDC)
+      attestations: write
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - name: Tag matches the version in pyproject.toml
@@ -114,10 +125,32 @@ jobs:
             type=edge,branch=main
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-      - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+      - id: push
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          provenance: mode=max
+          sbom: true
+      # Supply chain: what is inside (SBOM) and where it came from (provenance), signed and stored next to the
+      # image. Check before an update: gh attestation verify oci://ghcr.io/<repo>:<tag> --owner <owner>
+      - name: SBOM of the published image
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        with:
+          image: ghcr.io/${{ github.repository }}@${{ steps.push.outputs.digest }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+      - uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4.1.0
+        with:
+          subject-name: ghcr.io/${{ github.repository }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          sbom-path: sbom.spdx.json
+          push-to-registry: true
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ghcr.io/${{ github.repository }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true

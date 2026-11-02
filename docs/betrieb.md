@@ -260,6 +260,25 @@ Images entstehen automatisch auf GitHub (`ghcr.io/skontio/skontio`):
 Migrationen legt Skontio automatisch ein Backup `vor-update-<version>` an. Zurück geht es mit dem alten Tag;
 haben Migrationen die Datenbank umgebaut, zusätzlich dieses Backup einspielen (Abschnitt 7).
 
+**Herkunft prüfen, bevor du aktualisierst.** Jedes veröffentlichte Image trägt eine signierte Stückliste (SBOM) und
+einen Herkunftsnachweis: gebaut von genau diesem Repository, in genau dieser CI. Prüfen auf einem Rechner mit
+GitHub-CLI:
+
+```sh
+gh attestation verify oci://ghcr.io/skontio/skontio:0.2 --owner skontio
+docker buildx imagetools inspect ghcr.io/skontio/skontio:0.2 --format '{{json .Manifest.Digest}}'
+```
+
+Den ausgegebenen Digest in die Compose-Datei schreiben, dann kann niemand unter demselben Tag ein anderes Image
+nachschieben:
+
+```yaml
+    image: ghcr.io/skontio/skontio:0.2@sha256:…   # Tag zur Lesbarkeit, Digest gilt
+```
+
+Die Stückliste zeigt bei einer neuen Sicherheitsmeldung sofort, ob eine Version betroffen ist:
+`gh attestation verify … --predicate-type https://spdx.dev/Document --format json`.
+
 ## 9. Testinstanz für neue Funktionen
 
 Festgeschriebene Rechnungen lassen sich (GoBD) weder ändern noch löschen, und jede Rechnungsnummer ist vergeben.

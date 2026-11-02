@@ -1,12 +1,17 @@
-# Pinned GitHub Actions (commit SHAs) and Python dependencies get update PRs; the CI audits every change.
+# Pinned GitHub Actions (commit SHAs), Python dependencies and base-image digests get update PRs; the CI audits
+# and scans every change. The cooldown keeps freshly published versions out for a week: hijacked releases are
+# usually found and pulled within days.
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: weekly }
+    cooldown: { default-days: 7 }
   - package-ecosystem: uv
     directory: /
     schedule: { interval: weekly }
+    cooldown: { default-days: 7 }
   - package-ecosystem: docker
     directory: /
     schedule: { interval: weekly }
+    cooldown: { default-days: 7 }

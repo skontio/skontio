@@ -1,9 +1,10 @@
 # syntax=docker/dockerfile:1.7
 # Skontio – one image, two roles (web, worker). Runs as UID/GID 568 (TrueNAS "apps").
 
-FROM ghcr.io/astral-sh/uv:0.12.19 AS uv
+# Base images pinned by digest: a re-pushed tag cannot change what we build on. Dependabot proposes new digests.
+FROM ghcr.io/astral-sh/uv:0.12.19@sha256:04d046b13e60d6bcec73cbc5e1cad25d680dea90c8573340950a0ac2d1aef424 AS uv
 
-FROM python:3.13-slim-trixie AS build
+FROM python:3.13-slim-trixie@sha256:ae14d4ce8771606477a81446e7ef429edd6762305fc50c84507c1041fa8285d1 AS build
 COPY --from=uv /uv /usr/local/bin/uv
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=never
 WORKDIR /app
@@ -13,7 +14,7 @@ COPY LICENSE README.md ./
 COPY src ./src
 RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev
 
-FROM python:3.13-slim-trixie AS runtime
+FROM python:3.13-slim-trixie@sha256:ae14d4ce8771606477a81446e7ef429edd6762305fc50c84507c1041fa8285d1 AS runtime
 # pg_dump/pg_restore/psql for Postgres backups from the official PGDG repository. pg_dump must be at
 # least as new as the server; it dumps every older server version, so ship the newest major.
 ARG PG_CLIENT_MAJOR=18
