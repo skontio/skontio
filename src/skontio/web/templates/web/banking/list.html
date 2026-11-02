@@ -1,22 +1,34 @@
 {% extends "web/base.html" %}
 {% block title %}Bank{% endblock %}
 {% block content %}
-<div class="heading"><h1>Bankumsätze</h1>
-  <a class="button secondary" href="?{% if show_all %}{% else %}alle=1{% endif %}">{% if show_all %}Nur offene{% else %}Alle anzeigen{% endif %}</a></div>
+<div class="heading"><h1>Bankumsätze</h1></div>
 <form method="post" action="/bank/import/" enctype="multipart/form-data" class="form card">
   {% csrf_token %}
   <label for="statement">Kontoauszug (CAMT.053 als XML, MT940 oder CSV aus dem Online-Banking)</label>
   <input id="statement" type="file" name="statement" accept=".xml,.csv,.txt,.sta,.mt940,text/csv,application/xml" required>
+  {% if accounts|length > 1 %}<label for="import-konto">Konto</label>
+  <select id="import-konto" name="konto"><option value="">aus der Datei erkennen</option>{% for a in accounts %}<option value="{{ a.pk }}">{{ a }}</option>{% endfor %}</select>{% endif %}
   <button type="submit">Importieren</button>
   <small>Doppelt importierte Zeiträume schaden nicht – bekannte Umsätze werden übersprungen.</small>
 </form>
 <p>{{ open_count }} Umsätze ohne Zuordnung.</p>
+<form method="get" role="search" class="filters-form">
+  <label class="visually-hidden" for="bank-search">Umsätze durchsuchen</label>
+  <input id="bank-search" type="search" name="q" value="{{ q }}" placeholder="Gegenpartei, Zweck, IBAN oder Betrag" maxlength="100">
+  <label for="bank-status">Status</label>
+  <select id="bank-status" name="status">{% for value, label in states.items %}<option value="{{ value }}"{% if value == status %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+  {% if accounts|length > 1 %}<label for="bank-konto">Konto</label>
+  <select id="bank-konto" name="konto"><option value="">alle</option>{% for a in accounts %}<option value="{{ a.pk }}"{% if a.pk == konto %} selected{% endif %}>{{ a }}</option>{% endfor %}</select>{% endif %}
+  <label for="bank-von">Von</label><input id="bank-von" type="date" name="von" value="{{ von|date:'Y-m-d' }}">
+  <label for="bank-bis">Bis</label><input id="bank-bis" type="date" name="bis" value="{{ bis|date:'Y-m-d' }}">
+  <button type="submit" class="secondary">Filtern</button>
+</form>
 {% if rows %}
 <div class="table-scroll"><table class="list">
   <thead><tr><th>Datum</th><th>Gegenpartei / Zweck</th><th class="num">Betrag</th><th>Zuordnen</th></tr></thead>
   <tbody>{% for row in rows %}{% with tx=row.tx %}
     <tr{% if tx.ignored %} class="muted"{% endif %}><td>{{ tx.booked_on|date:"d.m.Y" }}</td>
-      <td>{{ tx.counterparty|default:"–" }}<br><span class="muted">{{ tx.purpose|truncatechars:120 }}</span></td>
+      <td>{{ tx.counterparty|default:"–" }}<br><span class="muted">{{ tx.purpose|truncatechars:120 }}</span>{% if accounts|length > 1 and tx.account %}<br><small class="muted">{{ tx.account.name }}</small>{% endif %}</td>
       <td class="num">{{ row.amount }} €</td>
       <td>{% if tx.payment %}<a href="/dokumente/{{ tx.payment.document.pk }}/">{{ tx.payment.document.number }}</a>
         {% elif tx.expense %}<a href="/ausgaben/{{ tx.expense.pk }}/">{{ tx.expense.number }}</a>
@@ -31,5 +43,12 @@
       </td></tr>
   {% endwith %}{% endfor %}</tbody>
 </table></div>
-{% else %}<p class="muted">Keine offenen Umsätze.</p>{% endif %}
+{% else %}<p class="muted">{% if q or von or bis or status != "offen" %}Keine Umsätze für diesen Filter.{% else %}Keine offenen Umsätze.{% endif %}</p>{% endif %}
+<details class="card"><summary>Konten ({{ accounts|length }})</summary>
+  <ul>{% for a in accounts %}<li>{{ a.name }}{% if a.iban %} · {{ a.iban }}{% endif %}</li>{% empty %}<li class="muted">Noch keins – wird beim ersten Import angelegt.</li>{% endfor %}</ul>
+  <form method="post" action="/bank/konten/" class="form">{% csrf_token %}
+    {% with form=account_form %}{% include "web/_fields.html" %}{% endwith %}
+    <button type="submit" class="secondary">Konto anlegen</button>
+  </form>
+</details>
 {% endblock %}

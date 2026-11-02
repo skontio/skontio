@@ -16,8 +16,8 @@ from decimal import Decimal
 from django.db import transaction
 
 from skontio.audit.services import record
-from skontio.banking.models import BankTransaction
-from skontio.banking.parsers import Row, StatementError, parse_statement
+from skontio.banking.models import BankAccount, BankTransaction
+from skontio.banking.parsers import Row, StatementError, own_account, parse_statement
 from skontio.documents.models import INVOICE_TYPES, Document
 from skontio.expenses.models import Expense
 from skontio.expenses.services import update_expense
@@ -36,7 +36,34 @@ def _key(row: Row, occurrence: int) -> str:
     return hashlib.sha256(f"{raw}|{occurrence}".encode()).hexdigest()
 
 
-def import_statement(company, data: bytes, *, user=None) -> tuple[int, int]:
+def account_for(company, data: bytes, account: BankAccount | None) -> BankAccount:
+    """The own account a statement belongs to: the chosen one (must match the file's IBAN), the one
+    with the file's IBAN (created if new), or – if the file names none – the only account there is."""
+    own = own_account(data)
+    if account is not None:
+        if account.company_id != company.id:
+            raise BankingError("Unbekanntes Konto.")
+        if own and account.iban and own != account.iban:
+            raise BankingError(f"Die Datei gehört zum Konto {own}, nicht zu „{account.name}“.")
+        if own and not account.iban:
+            account.iban = own
+            account.save(update_fields=["iban"])
+        return account
+    if own:
+        found, created = BankAccount.objects.get_or_create(
+            company=company, iban=own, defaults={"name": f"Konto …{own[-4:]}"}
+        )
+        return found
+    accounts = list(BankAccount.objects.filter(company=company, active=True)[:2])
+    if len(accounts) == 1:
+        return accounts[0]
+    if not accounts:
+        iban = (company.iban or "").replace(" ", "").upper()
+        return BankAccount.objects.get_or_create(company=company, iban=iban, defaults={"name": "Girokonto"})[0]
+    raise BankingError("Die Datei nennt kein Konto – bitte beim Import das Konto auswählen.")
+
+
+def import_statement(company, data: bytes, *, user=None, account: BankAccount | None = None) -> tuple[int, int]:
     """Return (new, already known). Identical lines inside one file are kept apart by their count."""
     if len(data) > MAX_BYTES:
         raise BankingError("Die Datei ist größer als 10 MB.")
@@ -44,6 +71,7 @@ def import_statement(company, data: bytes, *, user=None) -> tuple[int, int]:
         source, rows = parse_statement(data)
     except StatementError as exc:
         raise BankingError(str(exc)) from exc
+    account = account_for(company, data, account)
     seen: Counter = Counter()
     created = known = 0
     with transaction.atomic():
@@ -57,6 +85,7 @@ def import_statement(company, data: bytes, *, user=None) -> tuple[int, int]:
                 continue
             BankTransaction.objects.create(
                 company=company,
+                account=account,
                 booked_on=row.booked_on,
                 amount=row.amount,
                 currency=row.currency,
@@ -69,7 +98,10 @@ def import_statement(company, data: bytes, *, user=None) -> tuple[int, int]:
             )
             existing.add(key)
             created += 1
-        record("bank.import", actor=user, company=company, data={"source": source, "new": created, "known": known})
+        record(
+            "bank.import", actor=user, company=company,
+            data={"source": source, "new": created, "known": known, "account": account.pk},
+        )  # fmt: skip
     return created, known
 
 

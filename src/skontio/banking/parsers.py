@@ -273,6 +273,42 @@ def parse_mt940(data: bytes) -> list[Row]:
     return rows
 
 
+_IBAN = re.compile(r"[A-Z]{2}\d{2}[A-Z0-9]{10,30}")
+OWN_ACCOUNT_COLUMNS = ["auftragskonto", "iban auftragskonto", "eigene iban", "konto", "kontonummer", "account"]
+
+
+def own_account(data: bytes) -> str:
+    """The IBAN of the statement's own account, if the file names one ('' otherwise)."""
+    try:
+        if data.lstrip()[:1] == b"<":
+            parser = etree.XMLParser(resolve_entities=False, no_network=True, huge_tree=False)
+            root = etree.fromstring(data, parser)
+            found = root.xpath(
+                "//*[local-name()='Stmt' or local-name()='Rpt']/*[local-name()='Acct']"
+                "/*[local-name()='Id']/*[local-name()='IBAN']/text()"
+            )
+            candidate = str(found[0]) if found else ""
+        elif is_mt940(data):
+            match = re.search(r"^:25:(.*)$", _decode(data), re.MULTILINE)
+            candidate = match.group(1) if match else ""
+        else:
+            text = _decode(data)
+            records = list(
+                csv.reader(io.StringIO(text[:200_000], newline=""), delimiter=";" if ";" in text[:2000] else ",")
+            )
+            candidate = ""
+            for index, header in enumerate(records[:30]):
+                column = _find(header, OWN_ACCOUNT_COLUMNS)
+                if column is not None and index + 1 < len(records) and column < len(records[index + 1]):
+                    candidate = records[index + 1][column]
+                    break
+    except (etree.XMLSyntaxError, StatementError, csv.Error, ValueError):
+        return ""
+    candidate = candidate.replace(" ", "").upper()
+    match = _IBAN.search(candidate)
+    return match.group(0)[:34] if match else ""
+
+
 def parse_statement(data: bytes) -> tuple[str, list[Row]]:
     if data.lstrip()[:1] == b"<":
         return "camt053", parse_camt053(data)

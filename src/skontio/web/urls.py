@@ -75,6 +75,7 @@ urlpatterns = [
     path("wiederkehrend/<int:pk>/umschalten/", recurring.recurring_toggle, name="recurring_toggle"),
     path("bank/", banking.bank_list, name="bank_list"),
     path("bank/import/", banking.bank_import, name="bank_import"),
+    path("bank/konten/", banking.bank_account_create, name="bank_account_create"),
     path("bank/<int:pk>/zuordnen/", banking.bank_match, name="bank_match"),
     path("bank/<int:pk>/ignorieren/", banking.bank_ignore, name="bank_ignore"),
     path("assistent/", assistant.assistant, name="assistant"),
