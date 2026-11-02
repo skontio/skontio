@@ -97,6 +97,7 @@ def create_from_invoice(
             template=invoice.template,
             intro_text=invoice.intro_text,
             closing_text=invoice.closing_text,
+            source=invoice,
             created_by=user,
         )
         for line in invoice.lines.all():

@@ -101,3 +101,17 @@ def recurring_run(request, pk: int):
         messages.info(request, f"„{recurring.name}“ ist noch nicht fällig.")
         return redirect("recurring_list")
     return redirect(f"/dokumente/{drafts[-1].pk}/")
+
+
+@require_POST
+@company_view
+@full_access
+def recurring_forget_payer(request, pk: int):
+    """Stop matching payments of this IBAN automatically (e.g. the customer changed banks)."""
+    recurring = get_object_or_404(RecurringInvoice, pk=pk, company=request.company)
+    old, recurring.payer_iban = recurring.payer_iban, ""
+    recurring.save(update_fields=["payer_iban"])
+    record("recurring.payer_forgotten", actor=request.user, company=request.company, entity="recurring_invoice",
+           entity_id=recurring.pk, data={"iban": old})  # fmt: skip
+    messages.success(request, f"Zahler für „{recurring.name}“ vergessen – die nächste Zahlung ordnest du selbst zu.")
+    return redirect("recurring_list")

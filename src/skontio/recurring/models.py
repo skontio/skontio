@@ -29,6 +29,11 @@ class RecurringInvoice(models.Model):
     template = models.ForeignKey(
         "documents.DocumentTemplate", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
     )
+    # Dauerauftrag: learned from the first assigned payment; then payments from this IBAN are matched
+    # automatically to the oldest open invoice of this series (banking.services.auto_match)
+    payer_iban = models.CharField("IBAN des Zahlers", max_length=34, blank=True, default="")
+    # the invoice this series was created from – often the first period, so it belongs to the series
+    source = models.ForeignKey("documents.Document", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     intro_text = models.TextField("Einleitung", blank=True, default="")
     closing_text = models.TextField("Schlusstext", blank=True, default="")
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT)

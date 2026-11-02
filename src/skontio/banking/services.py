@@ -7,6 +7,7 @@ open amount, and by customer name; outgoing money to unpaid expenses with the sa
 
 from __future__ import annotations
 
+import datetime as dt
 import hashlib
 import re
 from collections import Counter
@@ -14,6 +15,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from skontio.audit.services import record
@@ -24,6 +26,7 @@ from skontio.expenses.models import Expense
 from skontio.expenses.services import update_expense
 from skontio.payments.models import Payment
 from skontio.payments.services import open_amount, record_payment, reverse_payment
+from skontio.recurring.models import RecurringInvoice, RecurringRun
 
 MAX_BYTES = 10 * 1024 * 1024
 
@@ -145,7 +148,8 @@ def suggestions(tx: BankTransaction, limit: int = 3) -> list[Suggestion]:
                 reasons.append("Kundenname")
             if score >= 5 and tx.amount <= due:
                 found.append(Suggestion(invoice, due, ", ".join(reasons), score))
-        return sorted(found, key=lambda s: -s.score)[:limit]
+        # the oldest open invoice first: standing orders usually pay the oldest month
+        return sorted(found, key=lambda s: (-s.score, _age(s.target)))[:limit]
     expenses = Expense.objects.filter(
         company=tx.company, paid_on__isnull=True, cancelled_at__isnull=True, gross_amount=-tx.amount
     ).order_by("receipt_date")
@@ -168,6 +172,7 @@ def book_payment(tx: BankTransaction, invoice: Document, *, user=None) -> Paymen
         )
         tx.payment = payment
         tx.save(update_fields=["payment"])
+        _learn_payer(tx, invoice, user=user)
         record(
             "bank.match",
             actor=user,
@@ -188,9 +193,43 @@ def _number_in(number: str, purpose: str) -> bool:
     return re.search(rf"(?<![0-9A-Z]){pattern}(?![0-9])", purpose.upper()) is not None
 
 
+def normalise_iban(value: str) -> str:
+    return re.sub(r"\s", "", value or "").upper()
+
+
+def series_of(invoice: Document) -> RecurringInvoice | None:
+    """The recurring invoice (Abo, Dauerauftrag) an invoice was generated from, if any."""
+    run = RecurringRun.objects.filter(document=invoice).select_related("recurring").first()
+    if run:
+        return run.recurring
+    return RecurringInvoice.objects.filter(source=invoice).order_by("pk").first()
+
+
+def _age(invoice: Document) -> tuple:
+    """Which month an invoice is for: caught-up recurring invoices share their issue date, not their period."""
+    day = invoice.service_period_start or invoice.service_date or invoice.issue_date or dt.date.max
+    return day, invoice.number or ""
+
+
+def _oldest_open_of_payer(company, iban: str) -> Document | None:
+    """Dauerauftrag: the oldest open invoice of the series this IBAN pays."""
+    series = RecurringInvoice.objects.filter(company=company, payer_iban=iban)
+    candidates = Document.objects.filter(
+        Q(pk__in=RecurringRun.objects.filter(recurring__in=series).values("document"))
+        | Q(pk__in=series.exclude(source=None).values("source")),
+        status=Document.Status.FINALIZED,
+    ).exclude(children__doc_type=Document.Type.CANCELLATION)
+    return next((invoice for invoice in sorted(candidates, key=_age) if open_amount(invoice) > 0), None)
+
+
 def auto_match(company, *, transactions=None) -> int:
-    """Book incoming payments that are unambiguous: number in the purpose, amount equal to what is open,
-    exactly one such invoice. Only when the company switched it on; everything else stays a suggestion."""
+    """Book incoming payments that are unambiguous; everything else stays a suggestion. Two rules:
+
+    1. Invoice number in the purpose, amount equal to what is open, exactly one such invoice.
+    2. Dauerauftrag: no invoice number in the purpose, the payer's IBAN is known for a recurring invoice,
+       and the amount equals what is open on the **oldest** open invoice of that series.
+
+    Only when the company switched it on."""
     if not company.auto_match_payments:
         return 0
     open_tx = BankTransaction.objects.filter(
@@ -205,16 +244,22 @@ def auto_match(company, *, transactions=None) -> int:
     )
     booked = 0
     for tx in open_tx.order_by("booked_on", "pk"):
-        matches = [inv for inv in invoices if _number_in(inv.number, tx.purpose) and open_amount(inv) == tx.amount]
-        if len(matches) != 1:
+        numbered = [inv for inv in invoices if _number_in(inv.number, tx.purpose)]
+        if numbered:  # the payer named an invoice: only that rule applies
+            matches = [inv for inv in numbered if open_amount(inv) == tx.amount]
+            target, rule = (matches[0], "number") if len(matches) == 1 else (None, "")
+        else:
+            oldest = _oldest_open_of_payer(company, normalise_iban(tx.iban)) if tx.iban else None
+            target, rule = (oldest, "standing_order") if oldest and open_amount(oldest) == tx.amount else (None, "")
+        if target is None:
             continue
         with transaction.atomic():
-            book_payment(tx, matches[0], user=None)
+            book_payment(tx, target, user=None)
             tx.auto_matched = True
             tx.save(update_fields=["auto_matched"])
             record(
-                "bank.auto_match", company=company, entity="document", entity_id=matches[0].pk,
-                data={"transaction": tx.pk, "amount": str(tx.amount)},
+                "bank.auto_match", company=company, entity="document", entity_id=target.pk,
+                data={"transaction": tx.pk, "amount": str(tx.amount), "rule": rule},
             )  # fmt: skip
         booked += 1
     return booked
@@ -234,6 +279,18 @@ def unmatch(tx: BankTransaction, *, user=None) -> None:
             "bank.unmatch", actor=user, company=tx.company, entity="document", entity_id=payment.document_id,
             data={"transaction": tx.pk, "amount": str(tx.amount)},
         )  # fmt: skip
+
+
+def _learn_payer(tx: BankTransaction, invoice: Document, *, user=None) -> None:
+    """First payment for a recurring invoice: remember who pays it (Dauerauftrag)."""
+    iban = normalise_iban(tx.iban)
+    series = series_of(invoice)
+    if not iban or series is None or series.payer_iban:
+        return
+    series.payer_iban = iban
+    series.save(update_fields=["payer_iban"])
+    record("recurring.payer_learned", actor=user, company=tx.company, entity="recurring_invoice",
+           entity_id=series.pk, data={"iban": iban})  # fmt: skip
 
 
 def link_expense(tx: BankTransaction, expense: Expense, *, user=None) -> Expense:

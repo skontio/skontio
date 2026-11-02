@@ -418,7 +418,7 @@ Legende: ✅ vorhanden · 🟡 teilweise · 📅 schon geplant · ➕ neu aufgen
 | Mehrere Konten | Free | ✅ | Bankkonto als eigene Entität, aus der IBAN der Datei erkannt (CAMT, MT940, CSV) oder beim Import gewählt |
 | Import MT940/CAMT | S | ✅ | CAMT.053, MT940 (auch strukturierter Verwendungszweck, Stornokennzeichen) und CSV |
 | Umsätze mit Belegen und Rechnungen abgleichen, Dokument aus Umsatz anlegen | S | ✅ | Vorschläge und Zuordnung |
-| Zahlungseingang automatisch zuordnen | S | ✅ | nur eindeutige Fälle (Nummer im Zweck, Betrag genau, ein Kandidat), standardmäßig aus, mit Hinweis und Gegenbuchung |
+| Zahlungseingang automatisch zuordnen | S | ✅ | eindeutige Fälle: Rechnungsnummer im Zweck und Betrag genau; Dauerauftrag: gelernte IBAN der wiederkehrenden Rechnung, Betrag genau, älteste offene Rechnung der Serie; standardmäßig aus, zurücknehmbar |
 | Gegenkonten und Regeln | S | ✅ | Regeln (Gegenpartei/Verwendungszweck, Richtung → Ausgabe mit Kategorie oder privat/ignorieren), nur als Vorschlag |
 | Suche in Kontobewegungen | S | ✅ | Gegenpartei, Zweck, IBAN, Betrag; Filter nach Konto, Status, Zeitraum |
 | Alle Daten als CSV exportieren | Free | ✅ | Gesamtexport als ZIP (CSV und geprüfte Originale); ➕ 3: GoBD-Datenexport mit Beschreibungsstandard (index.xml) für die Betriebsprüfung |

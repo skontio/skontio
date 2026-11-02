@@ -76,6 +76,7 @@ urlpatterns = [
     path("wiederkehrend/aus-rechnung/<int:pk>/", recurring.recurring_from_invoice, name="recurring_from_invoice"),
     path("wiederkehrend/<int:pk>/erzeugen/", recurring.recurring_run, name="recurring_run"),
     path("wiederkehrend/<int:pk>/umschalten/", recurring.recurring_toggle, name="recurring_toggle"),
+    path("wiederkehrend/<int:pk>/zahler-vergessen/", recurring.recurring_forget_payer, name="recurring_forget_payer"),
     path("bank/", banking.bank_list, name="bank_list"),
     path("bank/import/", banking.bank_import, name="bank_import"),
     path("bank/konten/", banking.bank_account_create, name="bank_account_create"),
