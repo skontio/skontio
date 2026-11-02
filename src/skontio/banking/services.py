@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 
 from django.db import transaction
+from django.utils import timezone
 
 from skontio.audit.services import record
 from skontio.banking.models import BankAccount, BankRule, BankTransaction
@@ -22,7 +23,7 @@ from skontio.documents.models import INVOICE_TYPES, Document
 from skontio.expenses.models import Expense
 from skontio.expenses.services import update_expense
 from skontio.payments.models import Payment
-from skontio.payments.services import open_amount, record_payment
+from skontio.payments.services import open_amount, record_payment, reverse_payment
 
 MAX_BYTES = 10 * 1024 * 1024
 
@@ -176,6 +177,63 @@ def book_payment(tx: BankTransaction, invoice: Document, *, user=None) -> Paymen
             data={"transaction": tx.pk, "amount": str(tx.amount)},
         )
     return payment
+
+
+def _number_in(number: str, purpose: str) -> bool:
+    """The invoice number as a whole in the purpose: RE-2026-1 must not match RE-2026-10."""
+    chars = [c for c in number.upper() if c.isalnum()]
+    if not chars:
+        return False
+    pattern = r"[\s\-_/.]*".join(re.escape(c) for c in chars)  # banks and payers add or drop separators
+    return re.search(rf"(?<![0-9A-Z]){pattern}(?![0-9])", purpose.upper()) is not None
+
+
+def auto_match(company, *, transactions=None) -> int:
+    """Book incoming payments that are unambiguous: number in the purpose, amount equal to what is open,
+    exactly one such invoice. Only when the company switched it on; everything else stays a suggestion."""
+    if not company.auto_match_payments:
+        return 0
+    open_tx = BankTransaction.objects.filter(
+        company=company, amount__gt=0, ignored=False, payment__isnull=True, expense__isnull=True
+    )
+    if transactions is not None:
+        open_tx = open_tx.filter(pk__in=[tx.pk for tx in transactions])
+    invoices = list(
+        Document.objects.filter(company=company, doc_type__in=INVOICE_TYPES, status=Document.Status.FINALIZED)
+        .exclude(children__doc_type=Document.Type.CANCELLATION)
+        .exclude(number="")
+    )
+    booked = 0
+    for tx in open_tx.order_by("booked_on", "pk"):
+        matches = [inv for inv in invoices if _number_in(inv.number, tx.purpose) and open_amount(inv) == tx.amount]
+        if len(matches) != 1:
+            continue
+        with transaction.atomic():
+            book_payment(tx, matches[0], user=None)
+            tx.auto_matched = True
+            tx.save(update_fields=["auto_matched"])
+            record(
+                "bank.auto_match", company=company, entity="document", entity_id=matches[0].pk,
+                data={"transaction": tx.pk, "amount": str(tx.amount)},
+            )  # fmt: skip
+        booked += 1
+    return booked
+
+
+def unmatch(tx: BankTransaction, *, user=None) -> None:
+    """Take back an assignment to an invoice: counter-booking (GoBD), the transaction is open again."""
+    if tx.payment_id is None:
+        raise BankingError("Dieser Umsatz ist keiner Rechnung zugeordnet.")
+    with transaction.atomic():
+        payment = tx.payment
+        reverse_payment(payment, reason="Zuordnung des Bankumsatzes zurückgenommen", on=timezone.localdate(),
+                        created_by=user)  # fmt: skip
+        tx.payment, tx.auto_matched = None, False
+        tx.save(update_fields=["payment", "auto_matched"])
+        record(
+            "bank.unmatch", actor=user, company=tx.company, entity="document", entity_id=payment.document_id,
+            data={"transaction": tx.pk, "amount": str(tx.amount)},
+        )  # fmt: skip
 
 
 def link_expense(tx: BankTransaction, expense: Expense, *, user=None) -> Expense:

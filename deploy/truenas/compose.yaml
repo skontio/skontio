@@ -35,6 +35,9 @@ services:
       SKONTIO_SMTP_SECURITY: starttls          # starttls | ssl | none
       SKONTIO_SMTP_USER: rechnung@example.org
       SKONTIO_SMTP_PASSWORD_FILE: /secrets/smtp_password
+      # Kontoabruf über Enable Banking (optional, web and worker): app ID and private key from enablebanking.com
+      # SKONTIO_ENABLEBANKING_APP_ID: 00000000-0000-0000-0000-000000000000
+      # SKONTIO_ENABLEBANKING_KEY_FILE: /secrets/enablebanking.pem
       # Beleg-Postfach (optional): address shown in the Belegeingang; the worker reads the mailbox
       # SKONTIO_RECEIPT_IMAP_ADDRESS: belege@example.org
       SKONTIO_MAIL_FROM: "Skontio <rechnung@example.org>"
@@ -67,6 +70,10 @@ services:
       SKONTIO_BACKUP_AT: "02:30"       # HH:MM local time, "off" disables
       SKONTIO_BACKUP_KEEP: "14"
       SKONTIO_RECURRING_AT: "06:00"    # recurring invoices become drafts
+      # Kontoabruf über Enable Banking (optional, web and worker): app ID and private key from enablebanking.com
+      # SKONTIO_ENABLEBANKING_APP_ID: 00000000-0000-0000-0000-000000000000
+      # SKONTIO_ENABLEBANKING_KEY_FILE: /secrets/enablebanking.pem
+      # SKONTIO_ENABLEBANKING_EVERY_HOURS: "6"       # at least 6: PSD2 allows 4 fetches a day
       # Beleg-Postfach (optional): forward invoices to an own mailbox, the worker files the attachments
       # SKONTIO_RECEIPT_IMAP_HOST: imap.example.org
       # SKONTIO_RECEIPT_IMAP_PORT: "993"

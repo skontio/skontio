@@ -21,6 +21,7 @@ openssl rand -base64 48 | tr -d '\n' > secret_key        # Django-Schlüssel
 printf '%s' 'CLIENT-SECRET-AUS-POCKET-ID' > oidc_client_secret
 printf '%s' 'SMTP-PASSWORT' > smtp_password
 printf '%s' 'IMAP-PASSWORT' > imap_password            # nur für das Beleg-Postfach (optional)
+# cp ~/Downloads/<app-id>.pem enablebanking.pem          # nur für den Kontoabruf (optional)
 chmod 0400 *
 ```
 
@@ -161,6 +162,45 @@ docker exec -it <worker-container> skontio doctor worker   # letzter Abruf
 
 Jeder kann an die Adresse schreiben. Mit `SKONTIO_RECEIPT_IMAP_ALLOWED_SENDERS` (Adressen oder Domains,
 kommagetrennt) übernimmt Skontio nur Mails dieser Absender; die übrigen werden nur protokolliert.
+
+## 5c-2. Kontoabruf über PSD2 (Enable Banking)
+
+Skontio holt Kontoumsätze selbst ab – ohne Datei-Export. Dafür einmalig:
+
+1. Bei [enablebanking.com](https://enablebanking.com/) ein Konto anlegen und eine **Anwendung** registrieren
+   (für eigene Konten kostenlos). Als Redirect-URL `https://<deine-domain>/bank/verbinden/rueckkehr/` eintragen.
+2. Den privaten Schlüssel der Anwendung als `enablebanking.pem` in `skontio-secrets` legen (`chmod 0400`).
+3. `SKONTIO_ENABLEBANKING_APP_ID` und `SKONTIO_ENABLEBANKING_KEY_FILE` am **Web-Container und am Worker** setzen.
+4. In Skontio *Bank → Bank verbinden*: Bank wählen, bei der Bank anmelden, Lesezugriff freigeben.
+
+Der Worker ruft alle 6 Stunden ab (PSD2 erlaubt vier Abrufe ohne dich pro Tag und Konto), sonst *Jetzt abrufen*.
+Die Freigabe gilt höchstens 180 Tage; 14 Tage vorher erinnert Skontio auf der Bankseite. Die Sitzung liegt
+verschlüsselt in der Datenbank (mit `secret_key`). Ist die automatische Zuordnung eingeschaltet, werden eindeutige
+Zahlungseingänge direkt nach dem Abruf gebucht.
+
+Der erste Abruf reicht 90 Tage zurück. Umsätze, die schon per Datei importiert wurden (gleiches Konto, Tag und
+Betrag), übernimmt er nicht noch einmal.
+
+## 5c-3. Eigenes Aussehen (Theme)
+
+Farben, Schriften und Abstände stehen als CSS-Variablen in `web/theme.css`; die übrige Oberfläche nutzt nur diese
+Variablen. Für ein eigenes Aussehen ohne Code-Änderung einen Ordner einhängen und `SKONTIO_THEME_DIR` setzen:
+
+```
+/mnt/POOL/apps/skontio-theme/
+  theme.css            # wird nach dem Standard geladen, z. B. :root { --blue: #0b7a75; --font-text: system-ui; }
+  templates/web/...    # optional: einzelne Templates mit gleichem Pfad überschreiben
+```
+
+```yaml
+    volumes:
+      - /mnt/POOL/apps/skontio-theme:/theme:ro
+    environment:
+      SKONTIO_THEME_DIR: /theme
+```
+
+Eigene Templates sind ein Eingriff in die Oberfläche: nach Updates prüfen, ob sie noch passen. Fachliche Regeln
+(Pflichtangaben, Beträge, Festschreibung) liegen nicht in den Templates und bleiben davon unberührt.
 
 ## 5d. KI-Assistent in Skontio
 

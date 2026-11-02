@@ -11,6 +11,18 @@ DOCUMENT_LANGUAGES = [("de", "Deutsch"), ("en", "Englisch")]
 class Company(models.Model):
     """A legal entity issuing documents. Every business table is scoped to one company."""
 
+    class LegalForm(models.TextChoices):
+        SOLE = "sole", "Einzelunternehmen"
+        FREELANCE = "freelance", "Freiberufler/in"
+        EK = "ek", "e. K. (eingetragene/r Kaufmann/-frau)"
+        GBR = "gbr", "GbR"
+        PARTG = "partg", "Partnerschaftsgesellschaft (PartG)"
+        OHG = "ohg", "OHG"
+        KG = "kg", "KG"
+        UG = "ug", "UG (haftungsbeschränkt)"
+        GMBH = "gmbh", "GmbH"
+        OTHER = "other", "Sonstige"
+
     class Activity(models.TextChoices):
         TRADE = "trade", "Gewerbe"
         FREELANCE = "freelance", "Freiberuflich"
@@ -58,6 +70,17 @@ class Company(models.Model):
         help_text="z. B. https://paypal.me/name/{betrag}EUR – Platzhalter {betrag} und {nummer}; erscheint auf "
         "Rechnungen und in der Mail. Skontio wickelt keine Zahlung ab.",
     )
+    legal_form = models.CharField("Rechtsform", max_length=10, choices=LegalForm.choices, blank=True, default="")
+    # Pflichtangaben auf Geschäftsbriefen (§ 37a HGB, § 35a GmbHG, § 7 PartGG)
+    register_court = models.CharField("Registergericht", max_length=100, blank=True, default="")
+    register_number = models.CharField("Registernummer", max_length=40, blank=True, default="")
+    managing_directors = models.CharField(
+        "Geschäftsführung", max_length=300, blank=True, default="", help_text="alle Namen, durch Komma getrennt"
+    )
+    # Einrichtungsassistent: step → "done" | "skipped" (core.onboarding)
+    onboarding = models.JSONField(default=dict, blank=True)
+    # Bank: book incoming payments without a click when the match is unambiguous (banking.services.auto_match)
+    auto_match_payments = models.BooleanField("Zahlungseingänge automatisch zuordnen", default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

@@ -1,0 +1,21 @@
+{% extends "web/base.html" %}
+{% block title %}Einrichtung: Bankverbindung{% endblock %}
+{% block content %}
+<div class="heading"><h1>Bankverbindung</h1></div>
+{% include "web/onboarding/_steps.html" %}
+<form method="post" class="card form grid2">
+  {% csrf_token %}
+  {% include "web/_fields.html" %}
+  <div class="actions"><button type="submit">Speichern und weiter</button></div>
+</form>
+<section class="card">
+  <h2>Umsätze automatisch abrufen (optional)</h2>
+  {% if connections %}<p>Verbunden: {% for c in connections %}{{ c.bank_name }}{% if not forloop.last %}, {% endif %}{% endfor %}.</p>
+  {% elif psd2 %}<p>Skontio kann deine Kontoumsätze über PSD2 abrufen – du meldest dich dafür einmal bei deiner Bank an.
+    Zahlungseingänge werden dann vorgeschlagen oder automatisch zugeordnet.</p>
+    <p><a class="button secondary" href="/bank/verbinden/">Bank verbinden</a></p>
+  {% else %}<p>Der automatische Kontoabruf (Enable Banking) ist auf diesem Server noch nicht eingerichtet – siehe
+    Betriebsdoku. Bis dahin importierst du Kontoauszüge als Datei unter <a href="/bank/">Bank</a>.</p>{% endif %}
+</section>
+{% include "web/onboarding/_skip.html" %}
+{% endblock %}

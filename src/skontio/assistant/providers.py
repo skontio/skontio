@@ -12,6 +12,7 @@ Conversation format (provider-neutral):
 
 from __future__ import annotations
 
+import base64
 import json
 import time
 import urllib.parse
@@ -57,6 +58,10 @@ class Provider(Protocol):
     name: str
 
     def complete(self, system: str, messages: list[dict], tools: list[ToolSpec]) -> Turn: ...
+
+    def read(self, system: str, text: str, attachment: tuple[str, bytes] | None = None) -> str:
+        """One question about a file (image, or PDF where supported), answer as text – no tools."""
+        ...
 
     def models(self) -> list[str]: ...
 
@@ -170,6 +175,24 @@ class OpenAICompatible:
             return Turn(text="", tool_calls=inline)
         return Turn(text=text, tool_calls=calls)
 
+    def read(self, system: str, text: str, attachment: tuple[str, bytes] | None = None) -> str:
+        content: list[dict] = [{"type": "text", "text": text}]
+        if attachment is not None:
+            mime, data = attachment
+            if not mime.startswith("image/"):
+                raise ProviderError("Dieses Modell liest nur Bilder; PDFs ohne Text bitte als Foto erfassen.")
+            url = f"data:{mime};base64,{base64.b64encode(data).decode()}"
+            content.append({"type": "image_url", "image_url": {"url": url}})
+        payload = {"model": self.model, "messages": [{"role": "system", "content": system},
+                                                     {"role": "user", "content": content}]}  # fmt: skip
+        data = _request(
+            "POST", f"{self.base_url}/chat/completions", timeout=self.timeout, headers=self._headers(), payload=payload
+        )
+        try:
+            return data["choices"][0]["message"].get("content") or ""
+        except (KeyError, IndexError, TypeError, AttributeError) as exc:
+            raise ProviderError("Unerwartete Antwort des KI-Anbieters.") from exc
+
     def models(self) -> list[str]:
         data = _request("GET", f"{self.base_url}/models", timeout=min(self.timeout, 15), headers=self._headers())
         return sorted(m.get("id", "") for m in data.get("data", []))
@@ -228,6 +251,21 @@ class Anthropic:
                 calls.append(ToolCall(block["id"], block["name"], block.get("input") or {}))
         return Turn(text="\n".join(text).strip(), tool_calls=calls)
 
+    def read(self, system: str, text: str, attachment: tuple[str, bytes] | None = None) -> str:
+        content: list[dict] = []
+        if attachment is not None:
+            mime, data = attachment
+            kind = "document" if mime == "application/pdf" else "image"
+            source = {"type": "base64", "media_type": mime, "data": base64.b64encode(data).decode()}
+            content.append({"type": kind, "source": source})
+        content.append({"type": "text", "text": text})
+        payload = {"model": self.model, "max_tokens": 1024, "system": system,
+                   "messages": [{"role": "user", "content": content}]}  # fmt: skip
+        data = _request(
+            "POST", f"{self.base_url}/v1/messages", timeout=self.timeout, headers=self._headers(), payload=payload
+        )
+        return "\n".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text").strip()
+
     def models(self) -> list[str]:
         data = _request("GET", f"{self.base_url}/v1/models", timeout=15, headers=self._headers())
         return sorted(m.get("id", "") for m in data.get("data", []))
@@ -247,6 +285,10 @@ class Fake:
             {"system": system, "messages": [dict(m) for m in messages], "tools": [t.name for t in tools]}
         )
         return self.turns.pop(0) if self.turns else Turn(text="(keine weitere Antwort)")
+
+    def read(self, system: str, text: str, attachment: tuple[str, bytes] | None = None) -> str:
+        self.requests.append({"system": system, "text": text, "attachment": attachment[0] if attachment else None})
+        return self.turns.pop(0).text if self.turns else ""
 
     def models(self) -> list[str]:
         return ["fake"]

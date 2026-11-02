@@ -1,0 +1,24 @@
+{% extends "web/base.html" %}
+{% block title %}Einrichtung{% endblock %}
+{% block content %}
+<div class="heading"><h1>Einrichtung</h1></div>
+{% include "web/onboarding/_steps.html" %}
+{% if following %}
+<section class="card">
+  <h2>{{ done }} von {{ total }} Schritten erledigt</h2>
+  <p>Als Nächstes: <strong>{{ following.title }}</strong> – {{ following.summary }}.</p>
+  <p><a class="button" href="{{ following.url }}{% if following.key == 'unternehmen' %}?assistent=1{% endif %}">Weiter</a>
+    <a href="/">Zur Übersicht</a></p>
+</section>
+{% else %}
+<section class="card">
+  <h2>Alles eingerichtet</h2>
+  <p>Du kannst jede Angabe später unter <a href="/einrichtung/">Einstellungen</a> ändern.</p>
+  <p><a class="button" href="/dokumente/neu/?typ=invoice">Erste Rechnung schreiben</a> <a href="/">Zur Übersicht</a></p>
+</section>
+{% endif %}
+<ul class="plain">{% for step in steps %}
+  <li><a href="{{ step.url }}{% if step.key == 'unternehmen' %}?assistent=1{% endif %}">{{ step.title }}</a> – <span class="muted">{{ step.summary }}</span>
+    · {% if step.state == "done" %}erledigt{% elif step.state == "skipped" %}übersprungen{% else %}offen{% endif %}</li>
+{% endfor %}</ul>
+{% endblock %}

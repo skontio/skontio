@@ -17,6 +17,7 @@
   <li><a href="/ausgaben/belege/{{ p.pk }}/datei/" target="_blank" rel="noopener">{{ p.filename }}</a>
     <span class="muted">· {{ p.uploaded_at|date:"d.m.Y H:i" }}{% if p.note %} · {{ p.note }}{% endif %}</span><br>
     <a class="button" href="/ausgaben/neu/?beleg={{ p.pk }}">Als Ausgabe erfassen</a>
+    {% if ai_available and not p.recognized %}<form method="post" action="/ausgaben/belege/{{ p.pk }}/auslesen/" class="inline-form">{% csrf_token %}<button type="submit" class="secondary">Mit KI auslesen</button></form>{% endif %}
     <form method="post" action="/ausgaben/belege/{{ p.pk }}/verwerfen/" class="inline-form">{% csrf_token %}<button type="submit" class="link">verwerfen</button></form></li>
 {% endfor %}</ul>
 {% else %}<p class="muted">Keine offenen Belege.</p>{% endif %}

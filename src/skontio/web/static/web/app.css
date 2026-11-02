@@ -3,33 +3,7 @@
    Fonts (SIL OFL 1.1, see fonts/*-LICENSE.txt): Barlow Semi Condensed for headings and amounts,
    Atkinson Hyperlegible Next for text and forms. No inline styles (CSP). */
 
-@font-face { font-family: "Barlow SC"; src: url("fonts/barlow-semi-condensed-500.woff2") format("woff2"); font-weight: 500; font-display: swap; }
-@font-face { font-family: "Barlow SC"; src: url("fonts/barlow-semi-condensed-600.woff2") format("woff2"); font-weight: 600; font-display: swap; }
-@font-face { font-family: "Barlow SC"; src: url("fonts/barlow-semi-condensed-700.woff2") format("woff2"); font-weight: 700; font-display: swap; }
-@font-face { font-family: "Atkinson"; src: url("fonts/atkinson-hyperlegible-next-400.woff2") format("woff2"); font-weight: 400; font-display: swap; }
-@font-face { font-family: "Atkinson"; src: url("fonts/atkinson-hyperlegible-next-600.woff2") format("woff2"); font-weight: 600; font-display: swap; }
-@font-face { font-family: "Atkinson"; src: url("fonts/atkinson-hyperlegible-next-700.woff2") format("woff2"); font-weight: 700; font-display: swap; }
-
-:root {
-  --ink: #1b2a41; --muted: #56647a; --ground: #edf0f3; --paper: #ffffff; --rule: #d5dbe2; --rule-strong: #aab4c1;
-  --blue: #2f4fb5; --blue-deep: #233c8c; --on-blue: #ffffff; --blue-wash: #e7ecfa;
-  --red: #b8322b; --red-wash: #fbe9e7; --green: #2d7350; --green-wash: #e3f1e9;
-  --marker: #f3d34a; --marker-wash: #fcf3c4;
-  --sheet-shadow: 0 1px 0 var(--rule), 0 8px 24px -12px rgba(27, 42, 65, .25);
-  --font-text: "Atkinson", system-ui, sans-serif; --font-head: "Barlow SC", "Atkinson", system-ui, sans-serif;
-  --gap: 16px; --side: 232px; --tabbar: 64px;
-  color-scheme: light;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --ink: #e4e8ee; --muted: #9aa6b5; --ground: #12161d; --paper: #1a2029; --rule: #2c3441; --rule-strong: #47536a;
-    --blue: #8ea6f0; --blue-deep: #b3c3f6; --on-blue: #0e1730; --blue-wash: #1f2a4a;
-    --red: #f08a82; --red-wash: #3a1d1c; --green: #7cc49b; --green-wash: #16302a;
-    --marker: #e9c53a; --marker-wash: #3a3214;
-    --sheet-shadow: 0 0 0 1px var(--rule);
-    color-scheme: dark;
-  }
-}
+/* Fonts, colours and spacing: theme.css */
 
 /* ---- base ------------------------------------------------------------------------------------ */
 * { box-sizing: border-box; }
@@ -341,3 +315,13 @@ progress { width: 100%; height: 10px; accent-color: var(--blue); }
 /* Positionsgruppen im Editor */
 table.list tr.group-heading th { background: var(--paper); color: var(--ink); font-size: .95rem; padding-top: 18px; }
 table.list tr.group-subtotal td { font-weight: 600; border-bottom: 1px solid var(--rule-strong); }
+
+/* Einrichtungsassistent */
+.wizard-steps ol { list-style: none; margin: 0 0 var(--gap); padding: 0; display: flex; flex-wrap: wrap; gap: 8px 20px; }
+.wizard-steps li { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+.wizard-steps li a { color: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+.wizard-steps li.current { color: var(--ink); font-weight: 600; }
+.wizard-steps .wizard-mark { display: inline-grid; place-items: center; width: 1.6em; height: 1.6em; border-radius: 50%;
+  border: 1px solid var(--rule-strong); font-size: .85rem; }
+.wizard-steps li.current .wizard-mark { background: var(--blue); border-color: var(--blue); color: var(--on-blue); }
+.wizard-steps li.done .wizard-mark { background: var(--green-wash); border-color: var(--green); color: var(--green); }

@@ -7,6 +7,10 @@
      <a class="button secondary" href="/dokumente/neu/?typ=quote">Neues Angebot</a>
      <a class="button secondary" href="/ausgaben/neu/">Ausgabe erfassen</a></p>
 </div>
+{% if setup_next %}<p class="note setup-hint">Einrichtung: {{ setup_progress.0 }} von {{ setup_progress.1 }} Schritten erledigt.
+  Als Nächstes: <a href="/einrichtung/assistent/">{{ setup_next.title }}</a></p>{% endif %}
+{% for c in bank_expiring %}<p class="warn" role="status">Die Bankfreigabe für {{ c.bank_name }} endet am {{ c.valid_until|date:"d.m.Y" }}.
+  <a href="/bank/verbinden/">Jetzt erneuern</a></p>{% endfor %}
 
 <div class="desk">
   <section class="card">

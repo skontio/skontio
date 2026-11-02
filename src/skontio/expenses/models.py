@@ -81,6 +81,8 @@ class PendingReceipt(models.Model):
     expense = models.OneToOneField(
         Expense, null=True, blank=True, on_delete=models.PROTECT, related_name="pending_receipt"
     )
+    # Belegerkennung: checked fields suggested by the language model (expenses.recognition), never saved unseen
+    recognized = models.JSONField(default=dict, blank=True)
 
     class Meta:
         ordering = ["-uploaded_at", "-pk"]

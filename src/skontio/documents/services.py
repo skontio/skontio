@@ -497,9 +497,10 @@ def _canonical_sha256(data: dict) -> str:
 def _seller_data(company) -> dict:
     fields = (
         "name street postcode city country tax_number vat_id seller_identifier "
-        "email phone contact_name iban bic account_holder"
+        "email phone contact_name iban bic account_holder register_court register_number managing_directors"
     ).split()
     data = {f: getattr(company, f) for f in fields}
+    data["legal_form"] = company.get_legal_form_display() if company.legal_form else ""
     if not data["vat_id"] and not data["seller_identifier"]:
         # BR-CO-26 needs BT-29/30/31; without USt-IdNr. the Steuernummer serves as seller identifier (ADR 0001)
         data["seller_identifier"] = data["tax_number"]

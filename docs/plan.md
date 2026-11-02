@@ -304,8 +304,32 @@ Abdeckung mindestens 80 %; 100 % der Zweige in `tax`, `numbering`, `documents.lo
 | **1b** | MCP über das Internet (OAuth-Autorisierungsserver, Feldfilter, Pseudonyme, Audit), stdio-Bridge, Korrektur-Assistent, Auftragsbestätigung, Abschlags- und Schlussrechnung, Vorlagen, Mehrsprachigkeit, UBL-Import, Aktivitäten, Wiedervorlagen, Dokumentenablage, 2FA, Verfahrensdokumentation, PDF teilen | 10–12 |
 | **2** | Ausgaben mit Belegen (PWA-Kamera, Share Target, Offline-Warteschlange), § 13b, EÜR, Umsatzsteuer-Voranmeldung, Belegarchiv, DATEV/CSV, Mahnwesen, wiederkehrende Rechnungen, Bank-CSV, Web Push, **Schnellerfassung**, **LLM-Schnittstelle und Assistent**, MCP-Auswertungs-Tools, mehrere Firmen | 17–21 |
 | **2b Alltagsparität** (aus §13) | Rolle „nur Entwürfe“, Lieferanten als Kontakte, CSV-Import und -Export (Kontakte, Leistungen, Angebote, Rechnungen, Belege, Gesamtexport), Rechnungsimport aus Papierkram/sevdesk, Positionsgruppen und Gesamtrabatt, Bruttopreise, Firmenstandard für das Zahlungsziel, Lieferschein, Anhänge beim Versand, Zahlungslink (PayPal o. Ä.), Lohnkostenausweis § 35a EStG, sonstige Einnahmen ohne Rechnung, wiederkehrende Ausgaben, Beleg-Postfach (IMAP), mehrere Bankkonten mit Zuordnungsregeln und Suche, SKR03/SKR04, Nummernkreise in der Oberfläche, Postausgang, Schnellsuche, filterbare Übersichten, Umsatzsteuer-Jahresansicht, Zusammenfassende Meldung, frei wählbare Berichtszeiträume | 8–11 |
-| **3** | PSD2 (Enable Banking) und FinTS, PayPal-Abruf, Abgleich, **Rücklagen**, Anlagen und AfA, Kassenbuch, Portal, Projekte (Budget, Aufgaben, Weiterberechnung), Zeiterfassung, REST-API, Webhooks, Steuerberaterzugang, BWA und Cashflow, Belegerkennung über den LLM-Port, Briefpapier-PDF und Folgeseiten, eigene Schriften und CSS-Layouts, eigene Datenfelder, GoBD-Datenexport für die Betriebsprüfung, SEPA-Lastschrift; ERiC optional | 20–26 |
+| **3a Einrichtung, Bank, Belege** (2026-11, ✅) | Zahlungseingänge automatisch zuordnen (nur eindeutige Fälle), Kontoabruf über Enable Banking (PSD2), Belegerkennung über den LLM-Port, Einrichtungsassistent (Firma, Rechtsform, Logo, Besteuerung, Bank, Nummern, Versand), Theme-Datei | 4–6 |
+| **3** | FinTS (später, gleiche Schnittstelle wie PSD2), PayPal-Abruf, Abgleich, **Rücklagen**, Anlagen und AfA, Kassenbuch, Portal, Projekte (Budget, Aufgaben, Weiterberechnung), Zeiterfassung, REST-API, Webhooks, Steuerberaterzugang, BWA und Cashflow, Belegerkennung über den LLM-Port, Briefpapier-PDF und Folgeseiten, eigene Schriften und CSS-Layouts, eigene Datenfelder, GoBD-Datenexport für die Betriebsprüfung, SEPA-Lastschrift; ERiC optional | 20–26 |
 | Später | Hosting für Dritte, TWA/APK, Peppol/B2G | – |
+
+### 12.1 Phase 3a im Detail
+
+1. **Automatische Zuordnung** – nur eindeutige Zahlungseingänge: Rechnungsnummer im Verwendungszweck, Betrag
+   genau gleich dem offenen Betrag, genau ein Kandidat. Standardmäßig aus (Firmeneinstellung). Jede automatische
+   Buchung im Audit-Log, in der Umsatzliste als „automatisch“ markiert und mit einem Klick rückgängig zu machen.
+2. **Enable Banking (PSD2)** – Anbieter-Schnittstelle `banking/providers`, damit FinTS später danebenpasst.
+   App-ID und Schlüssel per Umgebungsvariable bzw. Secret-Datei. Ablauf: Bank wählen → Login bei der Bank →
+   Rückkehr zu Skontio → Konten zuordnen. Der Worker ruft die Umsätze mehrmals täglich ab; Dubletten werden wie
+   beim Datei-Import über den Import-Schlüssel erkannt. Die Freigabe läuft nach höchstens 180 Tagen ab –
+   Skontio erinnert 14 Tage vorher. Danach greift die automatische Zuordnung.
+3. **Belegerkennung** – über den vorhandenen LLM-Port (Ollama mit Bildmodell oder ein anderer Anbieter):
+   Lieferant, Datum, Beträge, Steuersatz, Rechnungsnummer als **Vorschlag** im Ausgabenformular, nie ohne
+   Bestätigung gespeichert. E-Rechnungen werden weiter exakt ausgelesen (ohne KI).
+4. **Einrichtungsassistent** – ersetzt die lange Einrichtungsseite durch Schritte, jeder einzeln speicherbar und
+   später wieder aufrufbar: Firma (mit **Rechtsform**, Registerangaben bei GmbH/UG), Besteuerung, Logo und Farbe,
+   Bankverbindung (IBAN für Rechnungen, optional PSD2-Abruf), Nummernkreise, E-Mail-Versand prüfen. Eine
+   Fortschrittsanzeige auf der Übersicht zeigt, was noch fehlt.
+5. **Trennung Oberfläche/Logik** – serverseitig mit Django-Templates und htmx: Fachlogik nur in Services
+   (Views lesen Formulare, rufen Services, rendern); der Assistent bekommt seinen Zustand aus einem Service
+   (`core/onboarding.py`), nicht aus dem Template. Farben, Schriften und Abstände als Variablen in einer eigenen
+   `theme.css`; ein Theme lässt sich per Datei austauschen. Templates bleiben überschreibbar. Ein separates
+   Frontend wäre später über die REST-API (Phase 3) möglich.
 
 ---
 
@@ -359,7 +383,7 @@ Legende: ✅ vorhanden · 🟡 teilweise · 📅 schon geplant · ➕ neu aufgen
 | E-Rechnungen empfangen | Free | ✅ | CII, UBL, ZUGFeRD |
 | Persönliches E-Mail-Postfach für Belege | Free | ✅ | eigenes Postfach per IMAP im Worker (alle 15 Min.): PDFs und Fotos in den Belegeingang, E-Rechnungen zu den Eingangsrechnungen; Absenderliste, nie doppelt |
 | Einnahmenbelege | Free | ✅ | sonstige Einnahmen ohne Rechnung mit Beleg, in EÜR, UStVA, DATEV und § 19-Grenze (Anlageverkauf, Erstattung, Zuschuss zählen nicht) |
-| Automatische Inhaltserkennung | S | 🟡 | E-Rechnungen werden ausgelesen ✅; ➕ 3: Belegerkennung (OCR und LLM) über den vorhandenen LLM-Port, standardmäßig lokal (Ollama) |
+| Automatische Inhaltserkennung | S | ✅ | E-Rechnungen exakt; andere Belege per Klick über den LLM-Port (Ollama mit Bildmodell oder Anthropic), nur als geprüfter Vorschlag |
 | Wiederkehrende Belege | S | ➕ | 2b: wiederkehrende Ausgaben (Miete, Abos) als Vorschlag |
 | Belege an Kunden oder Projekte weiterberechnen | S | ➕ | 3, zusammen mit Projekten |
 | Anlagegüter | Free | 📅 | 3 (Anlagen und AfA) |
@@ -388,13 +412,13 @@ Legende: ✅ vorhanden · 🟡 teilweise · 📅 schon geplant · ➕ neu aufgen
 | DATEV-Export | S | ✅ | EXTF-Buchungsstapel (700/21/13): Zahlungseingänge je Steuersatz und bezahlte Ausgaben; § 13b-Ausgaben zur Prüfung markiert |
 | DATEV-Datenservices (Belege online zu DATEV) | S | ➖ | erfordert eine DATEV-Partnerschaft; DATEV-Export mit Belegen genügt |
 | ELSTER-XML (UStVA) | S | 🟡 | Kopier-Knöpfe für Mein ELSTER ✅; ERiC optional später |
-| Kontoabruf PSD2 | S | 📅 | 3 (Enable Banking, FinTS) |
+| Kontoabruf PSD2 | S | ✅ | Enable Banking (PSD2), Abruf alle 6 Std. im Worker, Erinnerung vor Ablauf der Freigabe; FinTS in 3 |
 | Kontoabruf PayPal | S | ➕ | 3: PayPal-Transaktionen über die PayPal-API oder den CSV-Export |
 | REST-API | M | 📅 | 3 |
 | Mehrere Konten | Free | ✅ | Bankkonto als eigene Entität, aus der IBAN der Datei erkannt (CAMT, MT940, CSV) oder beim Import gewählt |
 | Import MT940/CAMT | S | ✅ | CAMT.053, MT940 (auch strukturierter Verwendungszweck, Stornokennzeichen) und CSV |
 | Umsätze mit Belegen und Rechnungen abgleichen, Dokument aus Umsatz anlegen | S | ✅ | Vorschläge und Zuordnung |
-| Zahlungseingang automatisch zuordnen | S | ➕ | 3: nur eindeutige Fälle (Nummer im Zweck, Betrag genau, ein Kandidat), standardmäßig aus, mit Hinweis und Gegenbuchung |
+| Zahlungseingang automatisch zuordnen | S | ✅ | nur eindeutige Fälle (Nummer im Zweck, Betrag genau, ein Kandidat), standardmäßig aus, mit Hinweis und Gegenbuchung |
 | Gegenkonten und Regeln | S | ✅ | Regeln (Gegenpartei/Verwendungszweck, Richtung → Ausgabe mit Kategorie oder privat/ignorieren), nur als Vorschlag |
 | Suche in Kontobewegungen | S | ✅ | Gegenpartei, Zweck, IBAN, Betrag; Filter nach Konto, Status, Zeitraum |
 | Alle Daten als CSV exportieren | Free | ✅ | Gesamtexport als ZIP (CSV und geprüfte Originale); ➕ 3: GoBD-Datenexport mit Beschreibungsstandard (index.xml) für die Betriebsprüfung |

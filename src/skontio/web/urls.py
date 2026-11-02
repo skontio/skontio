@@ -7,12 +7,13 @@ from skontio.web import dunning_views as dunning
 from skontio.web import expense_views as expenses
 from skontio.web import inbox_views as inbox
 from skontio.web import income_views as income
-from skontio.web import outbox_views, pwa, search_views, views
+from skontio.web import onboarding_views, outbox_views, pwa, search_views, theme, views
 from skontio.web import recurring_views as recurring
 from skontio.web import transfer_views as transfer
 
 urlpatterns = [
     path("manifest.webmanifest", pwa.manifest, name="manifest"),
+    path("theme.css", theme.theme_css, name="theme_css"),
     path("sw.js", pwa.service_worker, name="service_worker"),
     path("eingang/", inbox.inbox_list, name="inbox_list"),
     path("eingang/<int:pk>/", inbox.inbox_detail, name="inbox_detail"),
@@ -45,6 +46,7 @@ urlpatterns = [
     path("ausgaben/", expenses.expense_list, name="expense_list"),
     path("ausgaben/neu/", expenses.expense_create, name="expense_create"),
     path("ausgaben/belege/", expenses.receipt_inbox, name="receipt_inbox"),
+    path("ausgaben/belege/<int:pk>/auslesen/", expenses.receipt_recognize, name="receipt_recognize"),
     path("ausgaben/teilen/", expenses.receipt_share, name="receipt_share"),
     path("ausgaben/belege/<int:pk>/datei/", expenses.receipt_file, name="receipt_file"),
     path("ausgaben/belege/<int:pk>/verwerfen/", expenses.receipt_discard, name="receipt_discard"),
@@ -82,12 +84,24 @@ urlpatterns = [
     path("bank/regeln/<int:pk>/loeschen/", banking.bank_rule_delete, name="bank_rule_delete"),
     path("bank/<int:pk>/zuordnen/", banking.bank_match, name="bank_match"),
     path("bank/<int:pk>/ignorieren/", banking.bank_ignore, name="bank_ignore"),
+    path("bank/<int:pk>/rueckgaengig/", banking.bank_unmatch, name="bank_unmatch"),
+    path("bank/automatik/", banking.bank_auto_match_setting, name="bank_auto_match_setting"),
+    path("bank/verbinden/", banking.bank_connect, name="bank_connect"),
+    path("bank/verbinden/rueckkehr/", banking.bank_connect_return, name="bank_connect_return"),
+    path("bank/verbindungen/<int:pk>/abrufen/", banking.bank_connection_fetch, name="bank_connection_fetch"),
+    path("bank/verbindungen/<int:pk>/trennen/", banking.bank_connection_remove, name="bank_connection_remove"),
     path("assistent/", assistant.assistant, name="assistant"),
     path("assistent/<int:pk>/", assistant.assistant_run, name="assistant_run"),
     path("suche/", search_views.quick_search, name="quick_search"),
     path("postausgang/", outbox_views.outbox, name="outbox"),
     path("", views.dashboard, name="dashboard"),
     path("einrichtung/", views.setup, name="setup"),
+    path("einrichtung/assistent/", onboarding_views.overview, name="onboarding"),
+    path("einrichtung/assistent/aussehen/", onboarding_views.appearance, name="onboarding_appearance"),
+    path("einrichtung/assistent/bank/", onboarding_views.bank, name="onboarding_bank"),
+    path("einrichtung/assistent/nummern/", onboarding_views.numbers, name="onboarding_numbers"),
+    path("einrichtung/assistent/versand/", onboarding_views.shipping, name="onboarding_shipping"),
+    path("einrichtung/assistent/<slug:key>/ueberspringen/", onboarding_views.skip, name="onboarding_skip"),
     path("kunden/", views.customer_list, name="customer_list"),
     path("kunden/neu/", views.customer_create, name="customer_create"),
     path("kunden/export.csv", transfer.customers_csv, name="customers_csv"),

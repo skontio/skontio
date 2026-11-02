@@ -1,0 +1,15 @@
+{% extends "web/base.html" %}
+{% block title %}Einrichtung: Logo und Farbe{% endblock %}
+{% block content %}
+<div class="heading"><h1>Logo und Farbe</h1></div>
+{% include "web/onboarding/_steps.html" %}
+<p>So sehen deine Angebote und Rechnungen aus. Weitere Vorlagen (z. B. auf Englisch) unter
+  <a href="/einstellungen/vorlagen/">Vorlagen</a>.</p>
+<form method="post" enctype="multipart/form-data" class="card form grid2">
+  {% csrf_token %}
+  {% if template.logo_id %}<p class="muted">Ein Logo ist schon hinterlegt – eine neue Datei ersetzt es.</p>{% endif %}
+  {% include "web/_fields.html" %}
+  <div class="actions"><button type="submit">Speichern und weiter</button></div>
+</form>
+{% include "web/onboarding/_skip.html" %}
+{% endblock %}

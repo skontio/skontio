@@ -61,6 +61,7 @@
   <div>{% if seller.email %}{{ seller.email }}<br>{% endif %}{% if seller.phone %}{{ seller.phone }}{% endif %}</div>
   <div>{% if seller.tax_number %}{{ t.tax_number }}: {{ seller.tax_number }}<br>{% endif %}{% if seller.vat_id %}{{ t.vat_id }}: {{ seller.vat_id }}{% endif %}</div>
   <div>{% if seller.iban %}IBAN: {{ iban_formatted }}<br>{% endif %}{% if seller.bic %}BIC: {{ seller.bic }}{% endif %}</div>
+  {% if seller.register_number or seller.managing_directors %}<div>{% if seller.register_number %}{{ seller.register_court }} {{ seller.register_number }}<br>{% endif %}{% if seller.managing_directors %}{{ t.managing_directors }}: {{ seller.managing_directors }}{% endif %}</div>{% endif %}
   {% if footer_text %}<div class="footer-note">{{ footer_text }}</div>{% endif %}
 </footer>
 

@@ -1,0 +1,13 @@
+{# Schrittanzeige des Einrichtungsassistenten; Zustand kommt aus core.onboarding #}
+<nav class="wizard-steps" aria-label="Einrichtung">
+  <ol>
+    {% if not steps %}<li class="current" aria-current="step"><span class="wizard-mark">1</span> Unternehmen</li>
+      <li><span class="wizard-mark">2</span> Logo und Farbe</li><li><span class="wizard-mark">3</span> Bankverbindung</li>
+      <li><span class="wizard-mark">4</span> Nummern</li><li><span class="wizard-mark">5</span> Versand und Zahlung</li>
+    {% else %}{% for step in steps %}
+    <li class="{{ step.state }}{% if step.key == current %} current{% endif %}"{% if step.key == current %} aria-current="step"{% endif %}>
+      <a href="{{ step.url }}{% if step.key == 'unternehmen' %}?assistent=1{% endif %}"><span class="wizard-mark">{% if step.state == "done" %}✓{% elif step.state == "skipped" %}–{% else %}{{ forloop.counter }}{% endif %}</span>
+        {{ step.title }}</a>{% if step.state == "skipped" %} <small class="muted">übersprungen</small>{% endif %}</li>
+    {% endfor %}{% endif %}
+  </ol>
+</nav>

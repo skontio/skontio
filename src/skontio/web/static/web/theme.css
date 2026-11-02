@@ -1,0 +1,31 @@
+/* Skontio theme: fonts, colours, spacing – everything a different look needs to change.
+   app.css only uses these variables. To change the look without touching the code, put your own
+   theme.css into SKONTIO_THEME_DIR (see docs/betrieb.md); it is loaded after this file. */
+
+@font-face { font-family: "Barlow SC"; src: url("fonts/barlow-semi-condensed-500.woff2") format("woff2"); font-weight: 500; font-display: swap; }
+@font-face { font-family: "Barlow SC"; src: url("fonts/barlow-semi-condensed-600.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "Barlow SC"; src: url("fonts/barlow-semi-condensed-700.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Atkinson"; src: url("fonts/atkinson-hyperlegible-next-400.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Atkinson"; src: url("fonts/atkinson-hyperlegible-next-600.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "Atkinson"; src: url("fonts/atkinson-hyperlegible-next-700.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+
+:root {
+  --ink: #1b2a41; --muted: #56647a; --ground: #edf0f3; --paper: #ffffff; --rule: #d5dbe2; --rule-strong: #aab4c1;
+  --blue: #2f4fb5; --blue-deep: #233c8c; --on-blue: #ffffff; --blue-wash: #e7ecfa;
+  --red: #b8322b; --red-wash: #fbe9e7; --green: #2d7350; --green-wash: #e3f1e9;
+  --marker: #f3d34a; --marker-wash: #fcf3c4;
+  --sheet-shadow: 0 1px 0 var(--rule), 0 8px 24px -12px rgba(27, 42, 65, .25);
+  --font-text: "Atkinson", system-ui, sans-serif; --font-head: "Barlow SC", "Atkinson", system-ui, sans-serif;
+  --gap: 16px; --side: 232px; --tabbar: 64px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e4e8ee; --muted: #9aa6b5; --ground: #12161d; --paper: #1a2029; --rule: #2c3441; --rule-strong: #47536a;
+    --blue: #8ea6f0; --blue-deep: #b3c3f6; --on-blue: #0e1730; --blue-wash: #1f2a4a;
+    --red: #f08a82; --red-wash: #3a1d1c; --green: #7cc49b; --green-wash: #16302a;
+    --marker: #e9c53a; --marker-wash: #3a3214;
+    --sheet-shadow: 0 0 0 1px var(--rule);
+    color-scheme: dark;
+  }
+}

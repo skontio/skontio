@@ -140,10 +140,16 @@ MIDDLEWARE = [
 ROOT_URLCONF = "skontio.urls"
 ASGI_APPLICATION = "skontio.asgi.application"
 
+# Own look (docs/betrieb.md): theme.css and template overrides from this directory
+THEME_DIR = Path(os.environ["SKONTIO_THEME_DIR"]) if os.environ.get("SKONTIO_THEME_DIR") else None
+
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / "templates"],
+        "DIRS": [
+            *([THEME_DIR / "templates"] if THEME_DIR and (THEME_DIR / "templates").is_dir() else []),
+            BASE_DIR / "templates",
+        ],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -227,6 +233,25 @@ def receipt_mailbox_from_env() -> dict | None:
 
 
 RECEIPT_MAILBOX = receipt_mailbox_from_env()  # read by the worker
+
+
+def enable_banking_from_env() -> dict | None:
+    """Kontoabruf über Enable Banking (PSD2): application ID and its private key (PEM file)."""
+    app_id = os.environ.get("SKONTIO_ENABLEBANKING_APP_ID", "").strip()
+    if not app_id:
+        return None
+    key_file = os.environ.get("SKONTIO_ENABLEBANKING_KEY_FILE", "")
+    return {
+        "app_id": app_id,
+        "key_file": key_file,
+        "api": os.environ.get("SKONTIO_ENABLEBANKING_API", "https://api.enablebanking.com").rstrip("/"),
+        # PSD2 allows four unattended fetches per account and day
+        "every_hours": max(6, int(os.environ.get("SKONTIO_ENABLEBANKING_EVERY_HOURS", "6"))),
+        "days": min(180, max(1, int(os.environ.get("SKONTIO_ENABLEBANKING_DAYS", "180")))),
+    }
+
+
+ENABLE_BANKING = enable_banking_from_env()
 # shown in the Belegeingang; the web container needs only this, not the IMAP access
 RECEIPT_MAILBOX_ADDRESS = os.environ.get("SKONTIO_RECEIPT_IMAP_ADDRESS", "").strip()
 DEFAULT_FROM_EMAIL = os.environ.get("SKONTIO_MAIL_FROM", "skontio@localhost")

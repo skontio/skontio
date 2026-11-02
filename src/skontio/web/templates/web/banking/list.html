@@ -1,7 +1,22 @@
 {% extends "web/base.html" %}
 {% block title %}Bank{% endblock %}
 {% block content %}
-<div class="heading"><h1>Bankumsätze</h1></div>
+<div class="heading"><h1>Bankumsätze</h1>{% if user.is_staff %}<a class="button secondary" href="/bank/verbinden/">Bank verbinden</a>{% endif %}</div>
+{% for c in expiring %}<p class="warn" role="status">Die Freigabe für {{ c.bank_name }} endet am {{ c.valid_until|date:"d.m.Y" }}.
+  <a href="/bank/verbinden/">Jetzt erneuern</a> (einmal bei der Bank anmelden).</p>{% endfor %}
+{% if connections %}
+<section class="card">
+  <h2>Automatischer Kontoabruf</h2>
+  <ul class="plain">{% for c in connections %}
+    <li><strong>{{ c.bank_name }}</strong> · {{ c.get_status_display }}{% if c.valid_until and c.status == "active" %} · Freigabe bis {{ c.valid_until|date:"d.m.Y" }}{% endif %}
+      {% if c.last_sync_at %}<br><small class="muted">zuletzt abgerufen {{ c.last_sync_at|date:"d.m.Y H:i" }}</small>{% endif %}
+      {% if c.last_error %}<br><small class="danger">{{ c.last_error }}</small>{% endif %}
+      {% if c.status == "active" %}<br><form method="post" action="/bank/verbindungen/{{ c.pk }}/abrufen/" class="inline-form">{% csrf_token %}<button type="submit" class="secondary">Jetzt abrufen</button></form>
+      {% if user.is_staff %}<form method="post" action="/bank/verbindungen/{{ c.pk }}/trennen/" class="inline-form">{% csrf_token %}<button type="submit" class="link">trennen</button></form>{% endif %}{% endif %}
+    </li>
+  {% endfor %}</ul>
+</section>
+{% endif %}
 <form method="post" action="/bank/import/" enctype="multipart/form-data" class="form card">
   {% csrf_token %}
   <label for="statement">Kontoauszug (CAMT.053 als XML, MT940 oder CSV aus dem Online-Banking)</label>
@@ -11,7 +26,16 @@
   <button type="submit">Importieren</button>
   <small>Doppelt importierte Zeiträume schaden nicht – bekannte Umsätze werden übersprungen.</small>
 </form>
-<p>{{ open_count }} Umsätze ohne Zuordnung.</p>
+<p>{{ open_count }} Umsätze ohne Zuordnung.
+  {% if company.auto_match_payments %}Eindeutige Zahlungseingänge werden automatisch zugeordnet.{% endif %}</p>
+{% if user.is_staff %}
+<form method="post" action="/bank/automatik/" class="inline-form">{% csrf_token %}
+  <input type="hidden" name="aktiv" value="{% if company.auto_match_payments %}0{% else %}1{% endif %}">
+  <button type="submit" class="secondary">Automatische Zuordnung {% if company.auto_match_payments %}ausschalten{% else %}einschalten{% endif %}</button>
+  <small class="muted">Nur eindeutige Fälle: Rechnungsnummer im Verwendungszweck, Betrag gleich dem offenen Betrag,
+    genau eine passende Rechnung. Jede Zuordnung lässt sich zurücknehmen.</small>
+</form>
+{% endif %}
 <form method="get" role="search" class="filters-form">
   <label class="visually-hidden" for="bank-search">Umsätze durchsuchen</label>
   <input id="bank-search" type="search" name="q" value="{{ q }}" placeholder="Gegenpartei, Zweck, IBAN oder Betrag" maxlength="100">
@@ -31,6 +55,8 @@
       <td>{{ tx.counterparty|default:"–" }}<br><span class="muted">{{ tx.purpose|truncatechars:120 }}</span>{% if accounts|length > 1 and tx.account %}<br><small class="muted">{{ tx.account.name }}</small>{% endif %}</td>
       <td class="num">{{ row.amount }} €</td>
       <td>{% if tx.payment %}<a href="/dokumente/{{ tx.payment.document.pk }}/">{{ tx.payment.document.number }}</a>
+        {% if tx.auto_matched %}<small class="muted">automatisch</small>{% endif %}
+        <form method="post" action="/bank/{{ tx.pk }}/rueckgaengig/" class="inline-form">{% csrf_token %}<button type="submit" class="link">zurücknehmen</button></form>
         {% elif tx.expense %}<a href="/ausgaben/{{ tx.expense.pk }}/">{{ tx.expense.number }}</a>
         {% elif not tx.ignored %}
           {% for s in row.suggestions %}<form method="post" action="/bank/{{ tx.pk }}/zuordnen/" class="inline-form">{% csrf_token %}

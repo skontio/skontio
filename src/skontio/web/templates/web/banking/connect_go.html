@@ -1,0 +1,11 @@
+{% extends "web/base.html" %}
+{% block title %}Weiter zur Bank{% endblock %}
+{% block content %}
+<div class="heading"><h1>Weiter zur Bank</h1></div>
+<section class="card">
+  <p>Melde dich jetzt bei <strong>{{ bank }}</strong> an und gib den Lesezugriff auf deine Konten frei.
+    Danach kommst du automatisch zu Skontio zurück.</p>
+  <p><a class="button" href="{{ url }}" rel="noopener noreferrer">Zum Login bei {{ bank }}</a></p>
+  <p class="muted"><a href="/bank/">Abbrechen</a></p>
+</section>
+{% endblock %}

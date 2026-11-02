@@ -2,6 +2,38 @@ from django.conf import settings
 from django.db import models
 
 
+class BankConnection(models.Model):
+    """Kontoabruf über PSD2 (Enable Banking): one consent at one bank, valid for at most 180 days."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "wartet auf Bank-Login"
+        ACTIVE = "active", "aktiv"
+        EXPIRED = "expired", "abgelaufen"
+        REVOKED = "revoked", "getrennt"
+        FAILED = "failed", "fehlgeschlagen"
+
+    company = models.ForeignKey("core.Company", on_delete=models.PROTECT, related_name="bank_connections")
+    provider = models.CharField(max_length=20, default="enablebanking")
+    bank_name = models.CharField(max_length=200)
+    bank_country = models.CharField(max_length=2, default="DE")
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
+    state = models.CharField(max_length=64, unique=True)  # ties the bank's redirect to this attempt
+    session = models.TextField(blank=True, default="")  # sealed session ID (core.crypto)
+    valid_until = models.DateTimeField(null=True, blank=True)
+    last_sync_at = models.DateTimeField(null=True, blank=True)
+    last_error = models.CharField(max_length=500, blank=True, default="")
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "Bankverbindung (PSD2)"
+        verbose_name_plural = "Bankverbindungen (PSD2)"
+
+    def __str__(self) -> str:
+        return f"{self.bank_name} ({self.get_status_display()})"
+
+
 class BankAccount(models.Model):
     """An own account (Girokonto, Tagesgeld, Kreditkarte …). Statements are assigned by their IBAN."""
 
@@ -9,6 +41,10 @@ class BankAccount(models.Model):
     name = models.CharField("Bezeichnung", max_length=100)
     iban = models.CharField("IBAN", max_length=34, blank=True, default="")
     active = models.BooleanField(default=True)
+    connection = models.ForeignKey(
+        BankConnection, null=True, blank=True, on_delete=models.SET_NULL, related_name="accounts"
+    )
+    provider_uid = models.CharField(max_length=100, blank=True, default="")  # account ID at the PSD2 provider
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -47,6 +83,7 @@ class BankTransaction(models.Model):
         "expenses.Expense", null=True, blank=True, on_delete=models.PROTECT, related_name="bank_transactions"
     )
     ignored = models.BooleanField(default=False)
+    auto_matched = models.BooleanField(default=False)  # booked by auto_match, not by a click
     imported_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT)
     imported_at = models.DateTimeField(auto_now_add=True)
 

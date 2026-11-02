@@ -1,0 +1,19 @@
+{% extends "web/base.html" %}
+{% block title %}Einrichtung: Versand und Zahlung{% endblock %}
+{% block content %}
+<div class="heading"><h1>Versand und Zahlung</h1></div>
+{% include "web/onboarding/_steps.html" %}
+<section class="card">
+  <h2>E-Mail-Versand</h2>
+  {% if smtp %}<p>Ein SMTP-Server ist eingerichtet. Prüfe ihn mit einer Testmail an dich.</p>
+    <form method="post">{% csrf_token %}<input type="hidden" name="aktion" value="testmail"><button type="submit" class="secondary">Testmail senden</button></form>
+  {% else %}<p class="warn">Es ist noch kein SMTP-Server eingerichtet – Rechnungen kannst du als PDF herunterladen,
+    aber nicht aus Skontio verschicken. Die Zugangsdaten gehören in die Compose-Datei (siehe Betriebsdoku).</p>{% endif %}
+</section>
+<form method="post" class="card form grid2">
+  {% csrf_token %}
+  {% include "web/_fields.html" %}
+  <div class="actions"><button type="submit">Speichern und abschließen</button></div>
+</form>
+{% include "web/onboarding/_skip.html" %}
+{% endblock %}

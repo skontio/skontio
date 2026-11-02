@@ -1,0 +1,14 @@
+{% extends "web/base.html" %}
+{% block title %}Einrichtung: Nummern{% endblock %}
+{% block content %}
+<div class="heading"><h1>Nummern</h1></div>
+{% include "web/onboarding/_steps.html" %}
+<section class="card">
+  <p>So heißen deine nächsten Belege. Rechnungsnummern müssen fortlaufend und eindeutig sein – Skontio vergibt sie
+    lückenlos beim Festschreiben.</p>
+  <table class="list"><tbody>{% for label, number in previews %}<tr><td>{{ label }}</td><td><strong>{{ number }}</strong></td></tr>{% endfor %}</tbody></table>
+  <p class="muted">Du kommst von einem anderen Programm? Dann setze die nächste Nummer passend unter
+    <a href="/einstellungen/nummernkreise/">Nummernkreise</a>, damit keine Nummer doppelt vorkommt.</p>
+  <form method="post">{% csrf_token %}<button type="submit">Passt so, weiter</button></form>
+</section>
+{% endblock %}

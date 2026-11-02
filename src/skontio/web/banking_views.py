@@ -7,15 +7,18 @@ import re
 from django import forms
 from django.contrib import messages
 from django.db.models import Q
+from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from skontio.audit.services import record
-from skontio.banking.models import BankAccount, BankRule, BankTransaction
+from skontio.banking import psd2
+from skontio.banking.models import BankAccount, BankConnection, BankRule, BankTransaction
 from skontio.banking.parsers import StatementError, parse_amount
 from skontio.banking.services import (
     BankingError,
     apply_ignore_rules,
+    auto_match,
     book_payment,
     create_rule,
     ignore,
@@ -23,6 +26,7 @@ from skontio.banking.services import (
     link_expense,
     rule_for,
     suggestions,
+    unmatch,
 )
 from skontio.documents.models import Document
 from skontio.documents.renditions import de_amount
@@ -111,6 +115,12 @@ def bank_list(request):
     ).count()
     context = {
         "rows": rows,
+        "company": request.company,
+        "connections": BankConnection.objects.filter(company=request.company).exclude(
+            status__in=[BankConnection.Status.PENDING, BankConnection.Status.FAILED]
+        ),
+        "expiring": psd2.expiring(request.company),
+        "psd2_configured": psd2.configured(),
         "open_count": open_count,
         "accounts": accounts,
         "states": STATES,
@@ -209,7 +219,9 @@ def bank_import(request):
     except BankingError as exc:
         messages.error(request, f"Import nicht möglich: {exc}")
     else:
-        messages.success(request, f"{created} neue Umsätze importiert, {known} waren schon bekannt.")
+        auto = auto_match(request.company)
+        text = f"{created} neue Umsätze importiert, {known} waren schon bekannt."
+        messages.success(request, text + (f" {auto} Zahlung(en) automatisch zugeordnet." if auto else ""))
     return redirect("bank_list")
 
 
@@ -239,6 +251,134 @@ def bank_match(request, pk: int):
 @require_POST
 @company_view
 @full_access
+def bank_unmatch(request, pk: int):
+    try:
+        unmatch(_transaction(request, pk), user=request.user)
+        messages.success(request, "Zuordnung zurückgenommen (Stornobuchung), der Umsatz ist wieder offen.")
+    except (BankingError, PaymentError) as exc:
+        messages.error(request, str(exc))
+    return redirect("bank_list")
+
+
+@require_POST
+@company_view
+@full_access
+def bank_auto_match_setting(request):
+    """Switch automatic matching on or off (admins); switching on books what is unambiguous right away."""
+    if not request.user.is_staff:
+        return HttpResponseForbidden("Nur für Administratoren.")
+    company = request.company
+    company.auto_match_payments = request.POST.get("aktiv") == "1"
+    company.save(update_fields=["auto_match_payments"])
+    record("bank.auto_match_setting", actor=request.user, company=company,
+           data={"enabled": company.auto_match_payments})  # fmt: skip
+    if company.auto_match_payments:
+        booked = auto_match(company)
+        messages.success(request, f"Automatische Zuordnung ist an. {booked} Zahlung(en) jetzt zugeordnet.")
+    else:
+        messages.success(request, "Automatische Zuordnung ist aus.")
+    return redirect("bank_list")
+
+
+@require_POST
+@company_view
+@full_access
 def bank_ignore(request, pk: int):
     ignore(_transaction(request, pk), user=request.user)
+    return redirect("bank_list")
+
+
+# --- Kontoabruf über PSD2 (Enable Banking) ----------------------------------------------------------
+
+
+@company_view
+@full_access
+def bank_connect(request):
+    """Choose a bank (GET) and go to its login (POST). Admins only: this grants access to the account."""
+    if not request.user.is_staff:
+        return HttpResponseForbidden("Nur für Administratoren.")
+    if not psd2.configured():
+        return render(request, "web/banking/connect.html", {"configured": False})
+    if request.method == "POST":
+        try:
+            url = psd2.start_connection(
+                request.company, bank_name=request.POST.get("bank", ""), country=request.POST.get("land", "DE"),
+                business=request.POST.get("geschaeftlich") == "1", user=request.user, api=psd2.client(),
+            )  # fmt: skip
+        except BankingError as exc:
+            messages.error(request, str(exc))
+            return redirect("bank_connect")
+        # a link instead of a redirect: CSP form-action would block a redirect to the bank after a form post
+        return render(request, "web/banking/connect_go.html", {"url": url, "bank": request.POST.get("bank", "")})
+    country = (request.GET.get("land") or "DE").upper()[:2]
+    q = " ".join(request.GET.get("q", "").split())[:100]
+    banks, error = [], ""
+    if country.isalpha():
+        try:
+            banks = psd2.client().banks(country)
+        except (BankingError, psd2.EnableBankingError) as exc:
+            error = str(exc)
+    if q:
+        banks = [bank for bank in banks if q.lower() in bank.name.lower()]
+    context = {"configured": True, "banks": banks[:100], "country": country, "q": q, "error": error,
+               "callback": psd2.callback_url()}  # fmt: skip
+    return render(request, "web/banking/connect.html", context)
+
+
+@company_view
+@full_access
+def bank_connect_return(request):
+    """The bank sends the user back here after the login (``redirect_url``)."""
+    if not request.user.is_staff:
+        return HttpResponseForbidden("Nur für Administratoren.")
+    if request.GET.get("error"):
+        messages.error(request, "Die Bank hat den Zugriff nicht freigegeben.")
+        BankConnection.objects.filter(
+            company=request.company, state=request.GET.get("state", "")[:64], status=BankConnection.Status.PENDING
+        ).update(status=BankConnection.Status.FAILED, last_error=str(request.GET.get("error"))[:500])
+        return redirect("bank_list")
+    try:
+        connection = psd2.finish_connection(
+            request.company, state=request.GET.get("state", "")[:64], code=request.GET.get("code", "")[:500],
+            user=request.user, api=psd2.client(),
+        )  # fmt: skip
+    except BankingError as exc:
+        messages.error(request, str(exc))
+        return redirect("bank_list")
+    count = connection.accounts.count()
+    messages.success(request, f"{connection.bank_name} verbunden: {count} Konto/Konten, Umsätze werden abgerufen.")
+    return redirect("bank_list")
+
+
+def _connection(request, pk: int) -> BankConnection:
+    return get_object_or_404(BankConnection, pk=pk, company=request.company)
+
+
+@require_POST
+@company_view
+@full_access
+def bank_connection_fetch(request, pk: int):
+    connection = _connection(request, pk)
+    try:
+        created = psd2.sync_connection(connection, api=psd2.client())
+    except BankingError as exc:
+        messages.error(request, f"Abruf fehlgeschlagen: {exc}")
+    else:
+        messages.success(request, f"{created} neue Umsätze von {connection.bank_name}.")
+    return redirect("bank_list")
+
+
+@require_POST
+@company_view
+@full_access
+def bank_connection_remove(request, pk: int):
+    if not request.user.is_staff:
+        return HttpResponseForbidden("Nur für Administratoren.")
+    connection = _connection(request, pk)
+    try:
+        api = psd2.client()
+    except BankingError:
+        api = None
+    psd2.disconnect(connection, user=request.user, api=api)
+    messages.success(request, f"Verbindung zu {connection.bank_name} getrennt. Abgerufene Umsätze bleiben erhalten.")
     return redirect("bank_list")

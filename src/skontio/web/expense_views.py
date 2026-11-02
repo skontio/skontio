@@ -18,6 +18,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from skontio.archive.services import load
+from skontio.assistant.providers import ProviderError
+from skontio.assistant.services import current_config, get_provider
 from skontio.attachments.services import MAX_BYTES
 from skontio.audit.models import AuditEvent
 from skontio.audit.services import record
@@ -26,6 +28,7 @@ from skontio.banking.services import link_expense
 from skontio.crm.models import Customer
 from skontio.crm.services import SUPPLIER_ROLES
 from skontio.documents.renditions import de_amount
+from skontio.expenses import recognition
 from skontio.expenses import recurring as recurring_expenses
 from skontio.expenses.models import Expense, PendingReceipt, ReceiptMail, RecurringExpense
 from skontio.expenses.services import (
@@ -225,8 +228,12 @@ def expense_create(request):
                 "method": Expense.Method.BANK,
             }
             initial |= _rule_prefill(request, tx)
+        pending = _pending(request)
+        if pending is not None and pending.recognized and tx is None and template is None:
+            initial |= recognition.initial_from(pending.recognized)
         form = ExpenseForm(initial=initial, company=request.company)
-    context = {"form": form, "expense": None, "bank": tx, "pending": _pending(request), "template": template}
+    context = {"form": form, "expense": None, "bank": tx, "pending": _pending(request), "template": template,
+               "ai_available": _ai_available()}  # fmt: skip
     return render(request, "web/expenses/form.html", context)
 
 
@@ -392,6 +399,32 @@ def euer_csv(request):
 # --- Belegeingang ------------------------------------------------------------------------------
 
 
+def _ai_available() -> bool:
+    return current_config()["kind"] not in ("", "none")
+
+
+@require_POST
+@company_view
+def receipt_recognize(request, pk: int):
+    """Belegerkennung: let the language model suggest the fields, then open the prefilled form."""
+    pending = get_object_or_404(PendingReceipt, pk=pk, company=request.company, expense__isnull=True)
+    try:
+        provider = get_provider()
+    except ProviderError as exc:
+        messages.error(request, f"KI-Anbieter nicht nutzbar: {exc}")
+        provider = False
+    if provider is not False:
+        try:
+            result = recognition.recognize(pending, provider=provider)
+        except ExpenseError as exc:
+            messages.error(request, str(exc))
+        else:
+            for warning in result["warnings"]:
+                messages.warning(request, warning)
+            messages.info(request, "Vorschlag der KI übernommen – bitte alle Felder prüfen, bevor du speicherst.")
+    return redirect(f"/ausgaben/neu/?beleg={pending.pk}")
+
+
 @company_view
 def receipt_inbox(request):
     if request.method == "POST":
@@ -407,6 +440,7 @@ def receipt_inbox(request):
         "pending": pending,
         "mailbox_address": settings.RECEIPT_MAILBOX_ADDRESS,
         "mails": ReceiptMail.objects.filter(company=request.company)[:20],
+        "ai_available": _ai_available(),
     }
     return render(request, "web/expenses/inbox.html", context)
 

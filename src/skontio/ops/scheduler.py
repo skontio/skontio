@@ -73,38 +73,53 @@ def jobs() -> list[Job]:
 
 
 MAILBOX_JOB = "receipt_mail"
+BANK_JOB = "bank_fetch"
 
 
-def poll_mailbox(now: dt.datetime | None = None) -> JobRun | None:
-    """Beleg-Postfach: read the mailbox every few minutes (not once a day like the other jobs).
-
-    One ``JobRun`` row per day holds the latest poll – enough for ``skontio doctor worker``."""
-    config = settings.RECEIPT_MAILBOX
-    if not config:
-        return None
-    from skontio.expenses.mailbox import poll
-
+def _interval(name: str, every: dt.timedelta, run: Callable[[], str], now: dt.datetime | None) -> JobRun | None:
+    """Jobs that run every few minutes or hours (not once a day). One ``JobRun`` row per day holds the
+    latest run – enough for ``skontio doctor worker``."""
     now = now or timezone.now()
-    last = JobRun.objects.filter(job=MAILBOX_JOB).order_by("-day").first()
-    if last and now - last.started_at < dt.timedelta(minutes=config["every_minutes"]):
+    last = JobRun.objects.filter(job=name).order_by("-day").first()
+    if last and now - last.started_at < every:
         return None
     try:
-        row, _ = JobRun.objects.get_or_create(
-            job=MAILBOX_JOB, day=timezone.localtime(now).date(), defaults={"started_at": now}
-        )
-    except IntegrityError:  # another worker started the same poll
+        day = timezone.localtime(now).date()
+        row, _ = JobRun.objects.get_or_create(job=name, day=day, defaults={"started_at": now})
+    except IntegrityError:  # another worker started the same run
         return None
     row.status, row.started_at, row.finished_at = JobRun.Status.RUNNING, now, None
     row.attempts = min(row.attempts + 1, 32767)
     row.save()
     try:
-        row.message, row.status = poll(config), JobRun.Status.OK
-    except Exception as exc:  # noqa: BLE001 – e.g. mail server unreachable; next poll tries again
+        row.message, row.status = run(), JobRun.Status.OK
+    except Exception as exc:  # noqa: BLE001 – e.g. server unreachable; the next run tries again
         row.status, row.message = JobRun.Status.FAILED, f"{type(exc).__name__}: {exc}"[:4000]
-        log.error("Beleg-Postfach: %s", row.message)
+        log.error("%s: %s", name, row.message)
     row.finished_at = timezone.now()
     row.save(update_fields=["status", "message", "finished_at"])
     return row
+
+
+def poll_mailbox(now: dt.datetime | None = None) -> JobRun | None:
+    """Beleg-Postfach: read the mailbox every few minutes."""
+    config = settings.RECEIPT_MAILBOX
+    if not config:
+        return None
+    from skontio.expenses import mailbox
+
+    every = dt.timedelta(minutes=config["every_minutes"])
+    return _interval(MAILBOX_JOB, every, lambda: mailbox.poll(config), now)
+
+
+def fetch_banks(now: dt.datetime | None = None) -> JobRun | None:
+    """Kontoabruf über PSD2: at most four unattended fetches per account and day."""
+    config = settings.ENABLE_BANKING
+    if not config:
+        return None
+    from skontio.banking import psd2
+
+    return _interval(BANK_JOB, dt.timedelta(hours=config["every_hours"]), lambda: psd2.sync_all(), now)
 
 
 def migrations_pending() -> bool:
@@ -161,6 +176,8 @@ def serve(stop: threading.Event, tick: float = TICK_SECONDS) -> None:
     names = ", ".join(f"{job.label} {job.at:%H:%M}" for job in jobs()) or "keine Aufgaben"
     if settings.RECEIPT_MAILBOX:
         names += f", Beleg-Postfach alle {settings.RECEIPT_MAILBOX['every_minutes']} Minuten"
+    if settings.ENABLE_BANKING:
+        names += f", Kontoabruf alle {settings.ENABLE_BANKING['every_hours']} Stunden"
     log.info("Worker gestartet (%s)", names)
     waiting = False
     while not stop.is_set():
@@ -174,6 +191,7 @@ def serve(stop: threading.Event, tick: float = TICK_SECONDS) -> None:
                 waiting = False
                 run_due()
                 poll_mailbox()
+                fetch_banks()
         except Exception:  # noqa: BLE001 – e.g. database briefly unreachable; try again next tick
             log.exception("Worker-Durchlauf fehlgeschlagen")
         stop.wait(tick)
@@ -186,4 +204,6 @@ def status() -> list[tuple[Job, JobRun | None]]:
     configured = jobs()
     if settings.RECEIPT_MAILBOX:
         configured.append(Job(MAILBOX_JOB, "Beleg-Postfach", dt.time(0, 0), lambda: ""))
+    if settings.ENABLE_BANKING:
+        configured.append(Job(BANK_JOB, "Kontoabruf", dt.time(0, 0), lambda: ""))
     return [(job, JobRun.objects.filter(job=job.name).order_by("-day").first()) for job in configured]

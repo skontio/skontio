@@ -8,6 +8,7 @@ from django import forms
 
 from skontio.attachments.models import Attachment
 from skontio.catalog.models import Item, Unit
+from skontio.core import onboarding
 from skontio.core.models import DOCUMENT_LANGUAGES, Company
 from skontio.crm.models import Activity, Customer
 from skontio.crm.services import normalise_vat_id
@@ -56,6 +57,10 @@ class CompanyForm(forms.ModelForm):
         model = Company
         fields = [
             "name",
+            "legal_form",
+            "register_court",
+            "register_number",
+            "managing_directors",
             "street",
             "postcode",
             "city",
@@ -86,7 +91,8 @@ class CompanyForm(forms.ModelForm):
         }
 
     FIELDSETS = (
-        ("Firma", ("name", "street", "postcode", "city", "country", "activity", "side_business")),
+        ("Firma", ("name", "legal_form", "street", "postcode", "city", "country", "activity", "side_business")),
+        ("Handelsregister", ("register_court", "register_number", "managing_directors")),
         ("Kontakt", ("contact_name", "email", "phone")),
         ("Steuer", ("tax_number", "vat_id", "seller_identifier", "regime", "regime_since")),
         ("Bankverbindung", ("account_holder", "iban", "bic")),
@@ -128,6 +134,12 @@ class CompanyForm(forms.ModelForm):
         data = super().clean()
         if not (data.get("tax_number") or data.get("vat_id")):
             raise forms.ValidationError("Steuernummer oder USt-IdNr. ist für Rechnungen Pflicht (§ 14 UStG).")
+        problems = onboarding.legal_problems(
+            data.get("legal_form") or "", register_court=data.get("register_court") or "",
+            register_number=data.get("register_number") or "", managing_directors=data.get("managing_directors") or "",
+        )  # fmt: skip
+        for field, message in problems.items():
+            self.add_error(field, message)
         return data
 
 
@@ -422,3 +434,36 @@ class ActivityForm(forms.Form):
 class FollowUpForm(forms.Form):
     title = forms.CharField(label="Wiedervorlage", max_length=200)
     due_on = forms.DateField(label="Fällig am", widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"))
+
+
+# --- Einrichtungsassistent (the steps only show and save; state and rules live in core.onboarding) ---
+
+
+class AppearanceStepForm(forms.Form):
+    logo = forms.FileField(label="Logo (PNG oder JPEG, höchstens 1 MB)", required=False)
+    accent_color = forms.CharField(
+        label="Akzentfarbe", max_length=7, initial="#1f5f8b", widget=forms.TextInput(attrs={"type": "color"})
+    )
+    layout = forms.ChoiceField(label="Layout", choices=DocumentTemplate.Layout.choices)
+
+
+class BankStepForm(forms.ModelForm):
+    class Meta:
+        model = Company
+        fields = ["account_holder", "iban", "bic", "auto_match_payments"]
+        labels = {"account_holder": "Kontoinhaber"}
+        help_texts = {
+            "iban": "erscheint auf Rechnungen und im GiroCode",
+            "auto_match_payments": "eindeutige Zahlungseingänge (Rechnungsnummer im Verwendungszweck, Betrag passt) "
+            "ohne Klick zuordnen – jederzeit zurücknehmbar",
+        }
+
+    def clean_iban(self):
+        return normalise_iban(self.cleaned_data["iban"])
+
+
+class ShippingStepForm(forms.ModelForm):
+    class Meta:
+        model = Company
+        fields = ["email", "default_payment_terms_days", "payment_link"]
+        labels = {"email": "Absender- und Antwortadresse auf Rechnungen"}

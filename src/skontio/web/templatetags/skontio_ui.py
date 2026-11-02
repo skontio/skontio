@@ -62,3 +62,15 @@ def asset(path: str) -> str:
     url = static(path)
     digest = _content_hash(path)
     return f"{url}?v={digest}" if digest else url
+
+
+@register.simple_tag
+def custom_theme() -> str:
+    """Link to the own theme.css from SKONTIO_THEME_DIR (loaded after the bundled styles), if there is one."""
+    from skontio.web.theme import custom_css
+
+    data = custom_css()
+    if data is None:
+        return ""
+    digest = hashlib.sha256(data).hexdigest()[:12]
+    return format_html('\n<link rel="stylesheet" href="/theme.css?v={}">', digest)

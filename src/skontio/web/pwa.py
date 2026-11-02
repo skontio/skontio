@@ -19,6 +19,7 @@ from skontio import __version__
 THEME_COLOR = "#1f5f8b"
 
 SHELL = [
+    "web/theme.css",
     "web/app.css",
     "web/app.js",
     "web/vendor/htmx.min.js",

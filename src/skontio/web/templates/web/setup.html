@@ -2,7 +2,7 @@
 {% block title %}{% if is_new %}Einrichtung{% else %}Einstellungen{% endif %}{% endblock %}
 {% block content %}
 <div class="heading"><h1>{% if is_new %}Willkommen bei Skontio{% else %}Firmendaten{% endif %}</h1></div>
-{% if not is_new %}{% include "web/_settings_nav.html" %}{% endif %}
+{% if wizard %}{% include "web/onboarding/_steps.html" %}{% else %}{% include "web/_settings_nav.html" %}{% endif %}
 {% if is_new %}<p>Diese Angaben erscheinen auf deinen Rechnungen. Die Besteuerung kannst du später nur über einen dokumentierten Wechsel ändern.</p>{% endif %}
 <p class="note">Ohne USt-IdNr. verwendet Skontio die Steuernummer als Verkäuferkennung in der E-Rechnung. Empfohlen: USt-IdNr. beim BZSt beantragen – das geht auch als Kleinunternehmer.</p>
 <form method="post">
@@ -13,6 +13,6 @@
     <div class="form grid2">{% for field in fields %}{% include "web/_field.html" %}{% endfor %}</div>
   </section>
   {% endfor %}
-  <div class="actions"><button type="submit">{% if is_new %}Einrichtung abschließen{% else %}Speichern{% endif %}</button></div>
+  <div class="actions"><button type="submit">{% if wizard %}Speichern und weiter{% else %}Speichern{% endif %}</button></div>
 </form>
 {% endblock %}

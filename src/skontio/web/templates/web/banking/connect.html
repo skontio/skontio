@@ -1,0 +1,38 @@
+{% extends "web/base.html" %}
+{% block title %}Bank verbinden{% endblock %}
+{% block content %}
+<div class="heading"><h1>Bank verbinden</h1><a class="button secondary" href="/bank/">Bankumsätze</a></div>
+{% if not configured %}
+<section class="card">
+  <h2>Kontoabruf ist noch nicht eingerichtet</h2>
+  <p>Skontio ruft Umsätze über <strong>Enable Banking</strong> ab (PSD2, für eigene Konten kostenlos). Einmalig:</p>
+  <ol>
+    <li>Bei <a href="https://enablebanking.com/" rel="noopener" target="_blank">enablebanking.com</a> ein Konto anlegen und eine Anwendung registrieren.</li>
+    <li>Als Weiterleitungsadresse <code>{{ request.scheme }}://{{ request.get_host }}/bank/verbinden/rueckkehr/</code> eintragen.</li>
+    <li>Den privaten Schlüssel als Datei zu den Secrets legen und <code>SKONTIO_ENABLEBANKING_APP_ID</code> sowie
+      <code>SKONTIO_ENABLEBANKING_KEY_FILE</code> setzen (Web-Container und Worker), dann neu starten.</li>
+  </ol>
+  <p class="muted">Bis dahin funktioniert der Import von Kontoauszügen (CAMT, MT940, CSV) wie gewohnt.</p>
+</section>
+{% else %}
+<p>Wähle deine Bank. Du meldest dich danach <strong>bei deiner Bank</strong> an und gibst den Lesezugriff frei –
+  Skontio sieht nie deine Zugangsdaten. Die Freigabe gilt bis zu 180 Tage, dann erinnert Skontio dich.</p>
+<form method="get" role="search" class="filters-form">
+  <label for="bank-land">Land</label>
+  <input id="bank-land" name="land" value="{{ country }}" maxlength="2" size="3" pattern="[A-Za-z]{2}">
+  <label class="visually-hidden" for="bank-q">Bank suchen</label>
+  <input id="bank-q" type="search" name="q" value="{{ q }}" placeholder="Bank suchen, z. B. Sparkasse" maxlength="100" autofocus>
+  <button type="submit" class="secondary">Suchen</button>
+</form>
+{% if error %}<p class="danger" role="alert">{{ error }}</p>{% endif %}
+{% if banks %}
+<ul class="plain bank-choice">{% for bank in banks %}
+  <li><form method="post" class="inline-form">{% csrf_token %}
+    <input type="hidden" name="bank" value="{{ bank.name }}"><input type="hidden" name="land" value="{{ bank.country }}">
+    <button type="submit" class="secondary">{{ bank.name }}</button>
+    <label><input type="checkbox" name="geschaeftlich" value="1"> Geschäftskonto</label>
+  </form></li>
+{% endfor %}</ul>
+{% elif not error %}<p class="muted">Keine Bank gefunden.</p>{% endif %}
+{% endif %}
+{% endblock %}

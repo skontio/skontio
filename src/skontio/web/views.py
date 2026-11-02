@@ -9,8 +9,10 @@ from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
+from skontio.banking import psd2
 from skontio.catalog.models import Item
 from skontio.catalog.services import archive_item, search_items
+from skontio.core import onboarding
 from skontio.crm.activities import ActivityError, complete_follow_up, create_follow_up, due_follow_ups, log_activity
 from skontio.crm.models import Customer, FollowUp
 from skontio.crm.services import CUSTOMER_ROLES, SUPPLIER_ROLES, create_customer, search_customers
@@ -61,6 +63,9 @@ def dashboard(request):
             "drafts": drafts.count(),
             "draft_list": drafts.order_by("-pk")[:5],
             "today": today,
+            "setup_progress": onboarding.progress(company) if request.user.is_staff else None,
+            "setup_next": onboarding.next_step(company) if request.user.is_staff else None,
+            "bank_expiring": psd2.expiring(company),
         },
     )
 
@@ -98,8 +103,14 @@ def setup(request):
                     form.cleaned_data["regime_since"],
                     confirmed_by=request.user,
                 )
+        if company is None or request.GET.get("assistent"):
+            following = onboarding.next_step(saved, after="unternehmen")
+            return redirect(following.url if following else "/einrichtung/assistent/")
         return redirect("/")
-    return render(request, "web/setup.html", {"form": form, "is_new": company is None})
+    wizard = company is None or bool(request.GET.get("assistent"))
+    context = {"form": form, "is_new": company is None, "wizard": wizard,
+               "steps": onboarding.steps(company) if company else [], "current": "unternehmen"}  # fmt: skip
+    return render(request, "web/setup.html", context)
 
 
 # --- customers --------------------------------------------------------------------------------
