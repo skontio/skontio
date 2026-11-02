@@ -14,6 +14,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from skontio.archive.services import load
+from skontio.attachments.models import Attachment
 from skontio.documents.models import BASIS_TYPES, INVOICE_TYPES, Document, DocumentLine, Rendition
 from skontio.documents.renditions import UNIT_LABELS, de_amount, de_percent, de_quantity
 from skontio.documents.services import (
@@ -545,7 +546,14 @@ def document_convert(request, pk: int):
 def _send_form(doc: Document, data=None) -> SendForm:
     subject, body = default_message(doc)
     recipient = doc.customer.email if doc.customer else ""
-    return SendForm(data, initial={"to": recipient, "subject": subject, "body": body})
+    files = Attachment.objects.filter(company=doc.company).filter(
+        Q(document=doc) | Q(customer_id=doc.customer_id, customer__isnull=False)
+    )
+    return SendForm(
+        data,
+        initial={"to": recipient, "subject": subject, "body": body},
+        attachments=files.select_related("blob").order_by("-uploaded_at"),
+    )
 
 
 @require_POST
@@ -566,6 +574,7 @@ def document_send(request, pk: int):
                 subject=data["subject"],
                 body=data["body"],
                 sent_by=request.user,
+                extra=data.get("extra") or (),
             )
             return redirect(f"/dokumente/{doc.pk}/")
         except MailError as exc:

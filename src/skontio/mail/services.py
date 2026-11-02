@@ -61,6 +61,26 @@ def default_message(document: Document) -> tuple[str, str]:
     return subject, "\n".join(lines)
 
 
+MAX_MAIL_BYTES = 20 * 1024 * 1024
+
+
+def _extra_files(document: Document, extra) -> list[tuple[str, bytes, str]]:
+    """Files from the Dokumentenablage; only those of this document or its customer, each once."""
+    files, seen = [], set()
+    for attachment in extra:
+        if attachment.pk in seen:
+            continue
+        seen.add(attachment.pk)
+        own = attachment.company_id == document.company_id and (
+            attachment.document_id == document.pk
+            or (attachment.customer_id is not None and attachment.customer_id == document.customer_id)
+        )
+        if not own:
+            raise MailError("Diese Datei gehört nicht zu diesem Dokument oder Kunden.")
+        files.append((attachment.filename, load(attachment.blob), attachment.mime))
+    return files
+
+
 def _clean_addresses(addresses: list[str]) -> list[str]:
     cleaned = []
     for address in addresses:
@@ -84,10 +104,12 @@ def send_document(
     cc: list[str] | None = None,
     sent_by=None,
     attachments: list[tuple[str, bytes, str]] | None = None,
+    extra=(),
     activity_text: str = "",
 ) -> MailLog:
     """Send a finalized document. ``attachments`` (name, content, mime) replace its own files – e.g. a
-    reminder letter plus the invoice PDF; ``activity_text`` replaces the customer-history entry."""
+    reminder letter plus the invoice PDF; ``extra`` are files from the Dokumentenablage (of this
+    document or its customer) sent along; ``activity_text`` replaces the customer-history entry."""
     if document.status != Document.Status.FINALIZED:
         raise MailError("Nur festgeschriebene Dokumente können versendet werden")
     if not smtp_configured():
@@ -106,6 +128,9 @@ def send_document(
             if rendition is None or (kind == Rendition.Kind.PDF and Rendition.Kind.ZUGFERD_PDF in renditions):
                 continue
             attachments.append((f"{document.number}{suffix}", load(rendition.blob), rendition.blob.mime))
+    attachments = [*attachments, *_extra_files(document, extra)]
+    if sum(len(content) for _, content, _ in attachments) > MAX_MAIL_BYTES:
+        raise MailError("Die Anhänge sind zusammen größer als 20 MB – das nehmen viele Mailserver nicht an.")
 
     sender_domain = settings.DEFAULT_FROM_EMAIL.rsplit("@", 1)[-1].strip(">") or None
     message_id = make_msgid(domain=sender_domain)

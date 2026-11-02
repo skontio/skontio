@@ -6,6 +6,7 @@ from decimal import Decimal
 
 from django import forms
 
+from skontio.attachments.models import Attachment
 from skontio.catalog.models import Item, Unit
 from skontio.core.models import DOCUMENT_LANGUAGES, Company
 from skontio.crm.models import Activity, Customer
@@ -299,11 +300,42 @@ class PaymentForm(forms.Form):
     note = forms.CharField(label="Notiz", required=False)
 
 
+MAX_DB_ID = 2**63 - 1
+
+
+class IdMultipleChoiceField(forms.ModelMultipleChoiceField):
+    """Rejects ids the database cannot even compare (SQLite overflows on huge integers) before querying."""
+
+    def _check_values(self, value):
+        for pk in value:
+            text = str(pk)
+            if not (text.isascii() and text.isdigit() and 0 < int(text) <= MAX_DB_ID):
+                raise forms.ValidationError(
+                    self.error_messages["invalid_pk_value"], code="invalid_pk_value", params={"pk": text[:20]}
+                )
+        return super()._check_values(value)
+
+
 class SendForm(forms.Form):
     to = forms.CharField(label="An", help_text="Mehrere Adressen mit Komma trennen")
     cc = forms.CharField(label="Kopie an", required=False)
     subject = forms.CharField(label="Betreff", max_length=300)
     body = forms.CharField(label="Nachricht", widget=forms.Textarea(attrs={"rows": 8}))
+    extra = IdMultipleChoiceField(
+        queryset=Attachment.objects.none(),
+        label="Weitere Dateien anhängen",
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        help_text="aus der Dokumentenablage dieses Dokuments und des Kunden",
+    )
+
+    def __init__(self, *args, attachments=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if attachments is None or not attachments.exists():
+            del self.fields["extra"]
+        else:
+            self.fields["extra"].queryset = attachments
+            self.fields["extra"].label_from_instance = lambda a: f"{a.filename} ({a.blob.size // 1024 + 1} KB)"
 
     @staticmethod
     def split(value: str) -> list[str]:

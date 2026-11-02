@@ -59,8 +59,11 @@ FIELDS = (
     "intro_text closing_text language template text quantity unit_code unit_price discount_percent "
     "tax_treatment amount received_on method note to cc subject body reason percent net_amount kind sku "
     "description unit net_price title due_on regime regime_since since interval start_date code "
-    "partial base_url model api_key provider level days fee confirm next"
+    "partial base_url model api_key provider level days fee confirm next extra payment_link role "
+    "payment_terms_days default_payment_terms_days supplier_contact"
 ).split()
+# query parameters of lists, filters and reports (sent with GET)
+QUERY = "q jahr von bis zeitraum status typ kunde rolle csv seite".split()
 PASSWORD = "richtig-und-lang-genug"
 
 
@@ -181,10 +184,12 @@ class TestGarbageSweep:
         before = _snapshot(world.invoice)
         ids = [world.invoice.pk, world.draft.pk, world.line.pk, 999_999]
         payloads = [dict.fromkeys(FIELDS, value) for value in NASTY] + [{}]
+        queries = [dict.fromkeys(QUERY, value) for value in NASTY]
         crashes = []
         for route in _routes():
             for url in _fill(route, ids):
-                for method, payload in [("get", {})] + [("post", p) for p in payloads]:
+                attempts = [("get", {})] + [("get", q) for q in queries] + [("post", p) for p in payloads]
+                for method, payload in attempts:
                     try:
                         status = getattr(client, method)(url, payload).status_code
                     except Exception as exc:  # noqa: BLE001 – collect every crash, then fail once

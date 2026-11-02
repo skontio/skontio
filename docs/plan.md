@@ -321,7 +321,7 @@ Legende: ✅ vorhanden · 🟡 teilweise · 📅 schon geplant · ➕ neu aufgen
 | Funktion (Papierkram) | Tarif | Skontio | Phase / Anmerkung |
 |---|---|---|---|
 | Angebote und Rechnungen, beliebig viele Positionen, PDF-Download, Versand | Free | ✅ | Versand per SMTP mit Protokoll |
-| Versand zusätzlicher Dokumente | M | ➕ | 2b: Anhänge aus der Dokumentenablage an die Mail hängen |
+| Versand zusätzlicher Dokumente | M | ✅ | Dateien aus der Ablage des Dokuments oder Kunden an die Mail hängen (geprüft, höchstens 20 MB) |
 | Versand über ein Kundenportal | M | 📅 | 3 (Portal) |
 | Abschlagsrechnungen | M | ✅ | inkl. Schlussrechnung nach § 14 Abs. 5 UStG |
 | Rabatte | S | ✅ | je Position und auf die Gesamtsumme (EN 16931 BG-20 je Steuerkategorie) |
