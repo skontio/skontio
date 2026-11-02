@@ -229,7 +229,8 @@ ist oder fehlgeschlagen ist. Von Hand: `docker exec <skontio-container> skontio 
 Behält standardmäßig die letzten 14 Backups (`SKONTIO_BACKUP_KEEP`). Zusätzlich empfohlen:
 periodische ZFS-Snapshots von `tank/apps/skontio` und eine Replikation bzw. Cloud-Sync-Aufgabe nach extern.
 
-Vor jedem Update mit Migrationen legt Skontio automatisch ein Backup `vor-update-<version>` an.
+Vor jedem Update mit Migrationen legt Skontio automatisch ein Backup `skontio-<datum>-vor-update-<version>.tar` an; anders als die
+nächtlichen Backups wird es nicht automatisch gelöscht.
 
 ## 7. Wiederherstellen
 
@@ -257,7 +258,8 @@ Images entstehen automatisch auf GitHub (`ghcr.io/skontio/skontio`):
 | `:edge` | aktueller Stand von `main` | Testinstanz |
 
 **Produktiv:** Image-Tag in der Compose-Datei erhöhen (z. B. `0.2` → `0.3`), App aktualisieren. Vor den
-Migrationen legt Skontio automatisch ein Backup `vor-update-<version>` an. Zurück geht es mit dem alten Tag;
+Migrationen legt Skontio automatisch ein Backup `skontio-<datum>-vor-update-<version>.tar` an (wird nicht
+automatisch gelöscht). Zurück geht es mit dem alten Tag;
 haben Migrationen die Datenbank umgebaut, zusätzlich dieses Backup einspielen (Abschnitt 7).
 
 **Herkunft prüfen, bevor du aktualisierst.** Jedes veröffentlichte Image trägt eine signierte Stückliste (SBOM) und

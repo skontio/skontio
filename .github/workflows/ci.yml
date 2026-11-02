@@ -83,6 +83,11 @@ jobs:
         run: tools/smoke.sh --no-build
       - name: Smoke test (Postgres)
         run: tools/smoke.sh --no-build --postgres
+      # the path every running installation takes: last release with data → this build; nothing may change
+      - name: Update test from the last release (SQLite)
+        run: tools/upgrade-test.sh --no-build --from ghcr.io/${{ github.repository }}:0.2
+      - name: Update test from the last release (Postgres)
+        run: tools/upgrade-test.sh --no-build --postgres --from ghcr.io/${{ github.repository }}:0.2
       # system packages and Python libraries in the image: stop on high/critical findings that have a fix
       - name: Scan image for known vulnerabilities
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0

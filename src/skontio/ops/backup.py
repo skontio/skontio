@@ -162,10 +162,17 @@ def audit_head() -> dict:
     return head()
 
 
+ROTATING_REASONS = {"manual", "nightly"}
+
+
 def create_backup(target_dir: Path, *, reason: str = "manual") -> Path:
     target_dir = Path(target_dir)
     target_dir.mkdir(parents=True, exist_ok=True)
-    name = f"skontio-{timezone.now():%Y%m%d-%H%M%S}.tar"
+    # nightly and manual backups rotate (BACKUP_NAME); others – e.g. "vor-update-0.3.0" – carry their reason in
+    # the name and are kept, so the copy taken before an update is still there weeks later
+    label = re.sub(r"[^a-z0-9.-]+", "-", reason.lower()).strip("-.")[:40]
+    suffix = "" if reason in ROTATING_REASONS or not label else f"-{label}"
+    name = f"skontio-{timezone.now():%Y%m%d-%H%M%S}{suffix}.tar"
     archive_root = Path(settings.ARCHIVE_DIR)
     with tempfile.TemporaryDirectory(dir=target_dir, prefix=".work-") as work:
         engine, db_file, db_info = _dump_database(Path(work))

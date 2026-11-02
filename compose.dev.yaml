@@ -12,7 +12,7 @@
 # festes Dev-Secret, Mails nur ins Container-Log, Passwort-Login ohne 2FA, kein OIDC.
 
 x-skontio: &skontio
-  image: skontio:dev
+  image: ${SKONTIO_IMAGE:-skontio:dev}   # tools/upgrade-test.sh starts an older release first
   user: "568:568"
   read_only: true
   tmpfs: ["/tmp:rw,noexec,nosuid,nodev,size=256m"]

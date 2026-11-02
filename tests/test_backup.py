@@ -140,3 +140,14 @@ def test_prune_keeps_newest(tmp_path):
         "skontio-20261005-020000.tar",
         "unrelated.txt",
     ]
+
+
+def test_backups_before_an_update_carry_their_reason_and_are_not_rotated(tmp_path, db):
+    from skontio.ops.backup import create_backup, prune_backups
+
+    update = create_backup(tmp_path, reason="vor-update-0.3.0")
+    nightly = [create_backup(tmp_path, reason="nightly") for _ in range(2)]
+    assert update.name.endswith("-vor-update-0.3.0.tar")
+    assert create_backup(tmp_path, reason="../../böse Absicht").parent == tmp_path  # no path tricks in the name
+    removed = prune_backups(tmp_path, keep=1)
+    assert update.exists() and nightly[-1].exists() and update not in removed

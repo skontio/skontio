@@ -338,7 +338,7 @@ abgeleitet aus dem Vergleich mit sevdesk und Invoice Ninja. Aufwand in Personent
 
 | # | Erweiterung | Nutzen | Aufwand | Vorbereitung im Code |
 |---|---|---|---|---|
-| 0 | **Update-Sicherheitsnetz**: CI startet die zuletzt veröffentlichte Version mit Beispieldaten, aktualisiert auf die neue und prüft Rechnungen, PDFs, Audit-Kette und Archiv | jedes folgende Update bricht dein laufendes System nicht | 1–2 | `skontio upgrade` sichert vor dem Migrieren; Smoke-Test vorhanden – Upgrade-Pfad fehlt |
+| 0 | ✅ **Update-Sicherheitsnetz**: `tools/upgrade-test.sh` in der CI (SQLite und Postgres) startet die letzte Release-Version mit Daten, aktualisiert auf den neuen Build und prüft Rechnungen, Archivdateien, Kunden, Audit-Kette, Backup vor dem Update und die wichtigsten Seiten | jedes folgende Update bricht dein laufendes System nicht | erledigt | Backups vor einem Update heißen jetzt `…-vor-update-<version>.tar` und werden nicht mehr nach 14 Tagen weggeräumt |
 | 1 | **UStVA direkt an ELSTER** (ERiC) | monatliches/vierteljährliches Abtippen entfällt | 8–10 + Lizenz | Kennzahlen je Zeitraum fertig (`reports/ustva`); ERiC als austauschbare Bibliothek zur Laufzeit einhängen, nicht ins Image backen (Lizenz) |
 | 2 | **Anlagen und AfA** | Pflicht für die EÜR bei Anschaffungen über 800 € netto | 4–5 | Ausgaben-Kategorien, EÜR-Zeilen, GWG vorhanden; neues Modul `assets` neben `expenses` |
 | 3 | **USt-IdNr. online prüfen** (BZSt/VIES, qualifizierte Bestätigung) | Nachweis für steuerfreie EU-Leistungen (Reverse Charge, ig. Lieferung) | 2–3 | Syntaxprüfung da (`normalise_vat_id`), Hinweis „Online-Prüfung folgt“ steht schon im Code |
