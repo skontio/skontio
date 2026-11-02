@@ -327,7 +327,7 @@ Legende: ✅ vorhanden · 🟡 teilweise · 📅 schon geplant · ➕ neu aufgen
 | Rabatte | S | ✅ | je Position und auf die Gesamtsumme (EN 16931 BG-20 je Steuerkategorie) |
 | Positionen gruppieren | S | ➕ | 2b: Gruppen mit Zwischensumme (nur Darstellung, Steuer weiter je Position) |
 | GiroCode | M | ✅ | |
-| PayPal-Link | M | ➕ | 2b: frei konfigurierbarer Zahlungslink (PayPal.me o. Ä.), keine Zahlungsabwicklung durch Skontio (ZAG) |
+| PayPal-Link | M | ✅ | frei konfigurierbarer Zahlungslink (PayPal.me o. Ä.) mit {betrag}/{nummer} auf Rechnung und in der Mail; keine Zahlungsabwicklung durch Skontio (ZAG) |
 | E-Rechnung, XRechnung, ZUGFeRD | Free/S | ✅ | mit KoSIT und Mustang geprüft |
 | Eigenes Briefpapier, ohne Fremdlogo | Free/S | 🟡 | Logo, Farbe, Fußzeile ✅; ➕ 3: Briefpapier als PDF-Hintergrund, eigenes Briefpapier für Folgeseiten |
 | Eigene Schriften, Layouts per CSS | S | ➕ | 3: Schrift-Upload (mit Einbettung für PDF/A) und CSS-Layouts in einer Sandbox (kein Netzwerkzugriff von WeasyPrint) |

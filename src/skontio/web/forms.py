@@ -74,6 +74,7 @@ class CompanyForm(forms.ModelForm):
             "vat_basis",
             "vat_extension",
             "default_payment_terms_days",
+            "payment_link",
         ]
         labels = {
             **ADDRESS_LABELS,
@@ -88,7 +89,7 @@ class CompanyForm(forms.ModelForm):
         ("Kontakt", ("contact_name", "email", "phone")),
         ("Steuer", ("tax_number", "vat_id", "seller_identifier", "regime", "regime_since")),
         ("Bankverbindung", ("account_holder", "iban", "bic")),
-        ("Rechnungen", ("default_payment_terms_days",)),
+        ("Rechnungen", ("default_payment_terms_days", "payment_link")),
         ("Umsatzsteuer-Voranmeldung", ("vat_period", "vat_basis", "vat_extension")),
     )
 

@@ -127,7 +127,7 @@
 {% if payment_text %}
 <div class="payment">
   {% if girocode %}<img src="{{ girocode }}" alt="GiroCode">{% endif %}
-  <div>{{ payment_text }}{% if seller.iban %}<br>IBAN {{ iban_formatted }}{% if seller.bic %} · BIC {{ seller.bic }}{% endif %}{% if not draft %}<br>{{ t.payment_reference }}: {{ doc.number }}{% endif %}{% endif %}</div>
+  <div>{{ payment_text }}{% if seller.iban %}<br>IBAN {{ iban_formatted }}{% if seller.bic %} · BIC {{ seller.bic }}{% endif %}{% if not draft %}<br>{{ t.payment_reference }}: {{ doc.number }}{% endif %}{% endif %}{% if pay_link %}<br>{{ t.pay_online }}: <a href="{{ pay_link }}">{{ pay_link }}</a>{% endif %}</div>
 </div>
 {% endif %}
 

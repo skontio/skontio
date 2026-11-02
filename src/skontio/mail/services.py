@@ -19,6 +19,8 @@ from skontio.documents.models import INVOICE_TYPES, Document, Rendition
 from skontio.documents.renditions import TITLES
 from skontio.documents.services import amount_due
 from skontio.mail.models import MailLog
+from skontio.payments.link import build as build_payment_link
+from skontio.payments.services import open_amount
 
 ATTACHMENT_ORDER = [
     (Rendition.Kind.ZUGFERD_PDF, ".pdf"),
@@ -48,7 +50,12 @@ def default_message(document: Document) -> tuple[str, str]:
     in_sentence = title if t.code == "de" else title.lower()
     lines = [t("mail_greeting"), "", t("mail_attached", title=in_sentence, number=document.number)]
     if document.doc_type in INVOICE_TYPES and document.due_date:
-        lines.append(t("mail_pay", amount=t.money(amount_due(document)), date=t.date(document.due_date)))
+        due = amount_due(document)
+        lines.append(t("mail_pay", amount=t.money(due), date=t.date(document.due_date)))
+        still_open = open_amount(document)
+        link = build_payment_link(document.company.payment_link, amount=still_open, number=document.number)
+        if still_open > 0 and link:
+            lines.append(t("mail_pay_link", url=link))
         lines.append(t("mail_einvoice"))
     lines += ["", t("mail_regards"), document.company.contact_name or company]
     return subject, "\n".join(lines)

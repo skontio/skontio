@@ -17,6 +17,7 @@ from skontio.documents.models import INVOICE_TYPES, Document, PartySnapshot, Ren
 from skontio.einvoice.cii import EInvoiceDataError, Profile, build_cii
 from skontio.einvoice.hybrid import embed_xml
 from skontio.einvoice.mapping import invoice_from_document
+from skontio.payments.link import build as build_payment_link
 from skontio.rendering.girocode import girocode_svg_data_uri
 from skontio.rendering.pdf import render_html_pdf_a3
 from skontio.tax.engine import LineInput, ResolvedTax, calculate
@@ -76,8 +77,10 @@ def _view(document: Document, *, draft: tuple[list[LineInput], dict, dict] | Non
 
     deductions = list(document.deductions.select_related("source"))
     due = totals.grand_total - sum((d.gross_amount for d in deductions), Decimal("0"))
-    payment_text, girocode = "", ""
+    payment_text, girocode, pay_link = "", "", ""
     if doc_type in INVOICE_TYPES and due > 0 and document.due_date:
+        if draft is None:
+            pay_link = build_payment_link(document.company.payment_link, amount=due, number=document.number)
         payment_text = document.payment_terms_text or t("pay_by", amount=t.money(due), date=t.date(document.due_date))
         if seller.get("iban") and document.currency == "EUR" and draft is None:
             girocode = girocode_svg_data_uri(
@@ -161,6 +164,7 @@ def _view(document: Document, *, draft: tuple[list[LineInput], dict, dict] | Non
         "due_label": t("credit_due") if doc_type == Type.CANCELLATION else t("amount_due"),
         "payment_text": payment_text,
         "girocode": girocode,
+        "pay_link": pay_link,
     }
 
 

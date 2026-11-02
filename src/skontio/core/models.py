@@ -2,6 +2,8 @@ from django.conf import settings
 from django.core.validators import MaxValueValidator
 from django.db import models
 
+from skontio.payments.link import validate_template as validate_payment_link
+
 # Languages of what customers receive (PDF, e-invoice notes, e-mail); the UI stays German
 DOCUMENT_LANGUAGES = [("de", "Deutsch"), ("en", "Englisch")]
 
@@ -46,6 +48,15 @@ class Company(models.Model):
     # Used for customers without their own payment terms (BR-CO-25: invoices need a due date or terms)
     default_payment_terms_days = models.PositiveSmallIntegerField(
         "Zahlungsziel (Tage)", default=14, validators=[MaxValueValidator(365)]
+    )
+    payment_link = models.CharField(
+        "Zahlungslink",
+        max_length=300,
+        blank=True,
+        default="",
+        validators=[validate_payment_link],
+        help_text="z. B. https://paypal.me/name/{betrag}EUR – Platzhalter {betrag} und {nummer}; erscheint auf "
+        "Rechnungen und in der Mail. Skontio wickelt keine Zahlung ab.",
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
