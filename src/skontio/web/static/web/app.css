@@ -335,3 +335,9 @@ table.list tr.group-subtotal td { font-weight: 600; border-bottom: 1px solid var
 .layout-option:focus-within { outline: 2px solid var(--blue); outline-offset: 2px; }
 .layout-preview { width: 100%; height: auto; display: block; }
 input[type="color"] { max-width: 120px; min-height: 44px; padding: 4px; }
+
+/* Filterleisten über Listen (Dokumente, Bank, Postausgang): eine Zeile, die bei Bedarf umbricht */
+main form[role="search"] { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin-bottom: var(--gap); }
+main form[role="search"] input[type="search"] { flex: 1 1 240px; width: auto; min-width: 0; }
+main form[role="search"] select, main form[role="search"] input[type="date"] { width: auto; flex: 0 1 auto; }
+main form[role="search"] label:not(.visually-hidden) { margin: 0; font-size: .9rem; color: var(--muted); }

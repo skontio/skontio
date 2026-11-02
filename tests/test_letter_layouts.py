@@ -109,3 +109,15 @@ def test_wizard_preview_button_saves_without_finishing_the_step(client, shop):
     assert (template.layout, template.accent_color) == ("minimal", "#7a3e12")
     response = client.post("/einrichtung/assistent/aussehen/", {"accent_color": "#7a3e12", "layout": "unbekannt"})
     assert response.status_code == 200
+
+
+@pytest.mark.parametrize("layout", LAYOUTS)
+def test_letter_css_renders_without_warnings(shop, layout, caplog):
+    """Broken CSS (e.g. a multi-line {# #} comment leaking into <style>) only shows up as a renderer warning."""
+    import logging
+
+    save_template(shop.company, name="Standard", layout=layout, accent_color="#2d6a4f", is_default=True)
+    with caplog.at_level(logging.WARNING, logger="weasyprint"):
+        doc = invoice(shop)
+        create_notice(doc, issued_on=dt.date(2026, 4, 30))
+    assert [r.getMessage() for r in caplog.records if r.name.startswith("weasyprint")] == []

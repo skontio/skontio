@@ -1,93 +1,133 @@
 # Skontio
 
-**Open-Source-Rechnungen und CRM für Selbstständige** – selbst hostbar, E-Rechnung inklusive,
-alle Funktionen frei (auch eigenes Logo, mehrere Vorlagen und Hosting für Dritte).
+**Rechnungen, Buchhaltung und CRM für Selbstständige in Deutschland – selbst gehostet, E-Rechnung inklusive.**
 
-> ⚠️ **Frühe Entwicklungsphase (Phase 1a).** Vor dem Echtbetrieb bitte mit der eigenen Steuerberatung prüfen.
-> Skontio ist **keine Steuer- oder Rechtsberatung**. Die Software unterstützt die
-> Einhaltung von GoBD, UStG und AO; die Verantwortung bleibt bei dir.
+Skontio schreibt Angebote und Rechnungen nach deutschem Recht, liest E-Rechnungen ein, holt Kontoumsätze ab,
+ordnet Zahlungen zu und erstellt EÜR und Umsatzsteuer-Voranmeldung. Es läuft als ein Container auf deinem NAS
+oder Server; deine Daten verlassen dein Netz nicht. Alle Funktionen sind frei, ohne Abo und ohne Sperren.
 
-## Ziele
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-Skontio%20unterst%C3%BCtzen-ff5e5b?logo=ko-fi&logoColor=white)](https://ko-fi.com/unix0r)
+[![Lizenz: AGPL-3.0](https://img.shields.io/badge/Lizenz-AGPL--3.0-blue)](LICENSE)
 
-- Kunden, Angebote, Rechnungen, Zahlungseingänge – für Kleinunternehmer (§ 19 UStG) und Regelbesteuerung
-- E-Rechnung nach EN 16931: **ZUGFeRD/Factur-X** (PDF/A-3) und **XRechnung**, erzeugen und einlesen
-- Festschreibung, lückenlose Nummernkreise, Änderungsprotokoll, revisionssichere Ablage
-- OIDC-Login (z. B. Pocket ID, Authentik, Keycloak), MCP-Server für KI-Assistenten, PWA für Android
-- Ein Container, SQLite oder Postgres – läuft auf einem NAS
+> ⚠️ Skontio ist **keine Steuer- oder Rechtsberatung**. Die Software unterstützt die Einhaltung von GoBD, UStG
+> und AO; die Verantwortung bleibt bei dir. Vor dem Echtbetrieb mit der eigenen Steuerberatung abstimmen.
 
-Der vollständige Plan steht in [`docs/plan.md`](docs/plan.md), Architekturentscheidungen in [`docs/adr/`](docs/adr/).
+![Übersicht](docs/screenshots/uebersicht.png)
 
-## Stand Phase 1a
+## Funktionen
 
-| Baustein | Status |
+**Angebote und Rechnungen**
+- Angebot → Auftragsbestätigung → Rechnung, Abschlags- und Schlussrechnung, Storno, Lieferschein
+- E-Rechnung nach EN 16931: **ZUGFeRD/Factur-X** (PDF/A-3) und **XRechnung**, geprüft mit KoSIT und Mustang
+- Kleinunternehmer (§ 19) und Regelbesteuerung mit dokumentiertem Wechsel und Grenzwert-Überwachung;
+  § 13b, innergemeinschaftliche Lieferung, Ausfuhr, Arbeitskosten nach § 35a
+- Netto- oder Bruttopreise, Positionsgruppen mit Zwischensumme, Rabatte, Deutsch und Englisch
+- vier Briefbogen-Designs nach DIN 5008 mit Logo – Pflichtangaben je Rechtsform setzt Skontio selbst
+- Versand per E-Mail mit AGB und Datenschutzerklärung als Standardanhang, Mahnwesen, wiederkehrende Rechnungen
+- GiroCode und Zahlungslink auf der Rechnung
+
+**Geld und Belege**
+- Kontoabruf über PSD2 (Enable Banking) oder Import von CAMT, MT940 und CSV
+- automatische Zuordnung eindeutiger Zahlungen – auch Daueraufträge ohne Rechnungsnummer
+- Belege per Foto, „Teilen an Skontio“ oder **eigenem Beleg-Postfach**; Belegerkennung mit KI auf Wunsch
+- E-Rechnungs-Eingang, Ausgaben, sonstige Einnahmen, wiederkehrende Ausgaben
+
+**Steuern und Auswertungen**
+- EÜR, Umsatzsteuer-Voranmeldung (Kennzahlen für Mein ELSTER), Zusammenfassende Meldung
+- DATEV-Export (SKR03/SKR04), Gesamtexport als ZIP, frei wählbare Zeiträume
+
+**GoBD und Sicherheit**
+- Festschreibung in der Datenbank selbst, lückenlose Nummernkreise, revisionssicheres Archiv
+- Änderungsprotokoll als Hash-Kette mit Schlüssel, Anker in jedem Backup; Verfahrensdokumentation auf Knopfdruck
+- Login über OIDC (Pocket ID, Authentik, Keycloak) mit Passkeys; Notfall-Login nur aus dem LAN mit 2FA
+- gehärteter Container: kein root, keine Shell, schreibgeschützt; signierte Images mit SBOM
+- Details: [Container](docs/sicherheit-container.md) · [Angriffsanalyse](docs/sicherheit-angriffe.md)
+
+**KI, wenn du willst**
+- KI-Assistent in der App (lokal mit Ollama oder per API) und MCP-Zugang für Claude
+- die KI liest und legt **nur Entwürfe** an – festschreiben, versenden und buchen bleibt bei dir
+
+**Bedienung**
+- Einrichtungsassistent mit Logo, Design, Bankverbindung und Testmail
+- mobil nutzbar, als App installierbar (PWA), hell und dunkel
+
+## Bilder
+
+| | |
 |---|---|
-| Steuer-Engine DE (19/7/0 %, § 19, § 13b, ig. Lieferung, Ausfuhr), Summen nach EN 16931 | ✅ |
-| Steuerstatus Kleinunternehmer ↔ Regelbesteuerung mit Stichtag, Grenzwert-Überwachung | ✅ |
-| Kunden, Leistungskatalog, Angebot → Rechnung, Storno, lückenlose Nummernkreise | ✅ |
-| Dokumentenablage je Kunde/Dokument (Typprüfung am Inhalt, Aufbewahrung 6 Jahre optional) | ✅ 1b |
-| CRM: Aktivitäten, Wiedervorlagen (Übersicht, Angebot nachfassen), Versand automatisch protokolliert | ✅ 1b |
-| Abschlags- und Schlussrechnungen (§ 14 Abs. 5 UStG, BT-113/BT-115), geprüft mit KoSIT/Mustang | ✅ 1b |
-| Festschreibung (ORM + Datenbank-Trigger), Schwärzen statt Löschen nach Fristablauf | ✅ |
-| ZUGFeRD/XRechnung erzeugen – geprüft mit **KoSIT** und **Mustang/veraPDF** | ✅ |
-| E-Rechnungs-Eingang (CII, UBL, ZUGFeRD-PDF), revisionssicheres Archiv | ✅ |
-| Zahlungen, offene Posten, GiroCode, Versand per SMTP mit Protokoll | ✅ |
-| Login über OIDC (Pocket ID), Notfall-Login nur aus dem LAN mit TOTP-2FA, Argon2id | ✅ |
-| Oberfläche (Mobile-first), installierbare PWA, PDF teilen (Web Share API) | ✅ |
-| Backup/Restore (SQLite und Postgres) mit Prüfsummen, atomar, Sicherung vor Updates | ✅ |
-| MCP-Server (2026-07-28 + Legacy), 19 Tools nur für Entwürfe und Auswertungen, Pseudonyme, hashverkettetes Audit-Log | ✅ 1b |
-| Zugangstokens und stdio-Bridge `skontio-mcp` für Claude Desktop und Claude Code | ✅ 1b |
-| Auftragsbestätigung, Abschlags- und Schlussrechnung (§ 14 Abs. 5 UStG) | ✅ 1b |
-| CRM: Aktivitäten, Wiedervorlagen, Dateiablage mit Aufbewahrungsfrist | ✅ 1b |
-| Dokumente auf Deutsch oder Englisch (PDF, E-Rechnung, Mailtext) | ✅ 1b |
-| Vorlagen (Logo, Farbe, zwei Layouts, Fußzeile), Textbausteine, PDF-Vorschau für Entwürfe | ✅ 1b |
-| Steuerstatus-Wechsel mit Bestätigung, Korrektur-Assistent bei rückwirkend überschrittener Grenze | ✅ 1b |
-| Verfahrensdokumentation (GoBD) aus der Konfiguration, versioniert und archiviert | ✅ 1b |
-| Ausgaben mit Belegfoto, Belegeingang und „Teilen an Skontio“ (Web Share Target), EÜR (Zufluss/Abfluss, Wechsel im Jahr, § 13b-Hinweis), CSV-Journal | ✅ 2 |
-| Mahnwesen: einstellbare Stufen, Mahnschreiben als PDF/A mit GiroCode, Versand mit Rechnung | ✅ 2 |
-| Wiederkehrende Rechnungen als Entwürfe (Nachholen ohne Doppelte, täglich im Worker) | ✅ 2 |
-| Bankumsätze aus CAMT.053/CSV, Vorschläge und Zuordnung zu Rechnungen und Ausgaben | ✅ 2 |
-| USt-Voranmeldung (Ist): Kennzahlen mit Kopier-Knöpfen für Mein ELSTER, Frist, § 13b, Übermittlung vermerken | ✅ 2 |
-| KI-Assistent in der App (Ollama lokal, OpenAI-kompatibel, Anthropic) mit denselben Entwurfs-Werkzeugen wie MCP | ✅ 2 |
-| DATEV, Web Push, mehrere Firmen, PSD2/FinTS | Phase 2–3 |
+| ![Rechnung bearbeiten](docs/screenshots/rechnung.png) | ![Rechnung als PDF](docs/screenshots/rechnung-pdf.png) |
+| Rechnung mit Positionsgruppen | fertiges PDF mit E-Rechnung im Briefbogen „Klassisch“ |
+| ![Bankumsätze](docs/screenshots/bank.png) | ![Einrichtungsassistent](docs/screenshots/assistent.png) |
+| Bankumsätze mit Zuordnungsvorschlägen | Design und Logo im Einrichtungsassistenten |
 
-Betrieb auf TrueNAS: [`docs/betrieb.md`](docs/betrieb.md).
+## Skontio im Vergleich
+
+| | Skontio | sevdesk | Lexware Office | Papierkram | Invoice Ninja |
+|---|---|---|---|---|---|
+| Betrieb | selbst gehostet | Cloud | Cloud | Cloud | selbst gehostet oder Cloud |
+| Kosten | frei | Abo, eingeschränkter Gratistarif | Abo, je nach Tarif | Abo, eingeschränkter Gratistarif | selbst gehostet frei, Cloud und White-Label kostenpflichtig |
+| Quelltext | offen (AGPL-3.0) | geschlossen | geschlossen | geschlossen | einsehbar (Elastic License 2.0) |
+| Deine Daten liegen | bei dir | beim Anbieter | beim Anbieter | beim Anbieter | bei dir oder beim Anbieter |
+| E-Rechnung (ZUGFeRD/XRechnung) erzeugen | ja | ja | ja, je nach Tarif | ja | ja |
+| Ausrichtung | deutsches Steuerrecht | deutsches Steuerrecht | deutsches Steuerrecht | deutsches Steuerrecht | international |
+
+Stand November 2026 nach Angaben der Hersteller ([sevdesk](https://sevdesk.de/funktionen),
+[Lexware Office](https://help.lexware.de/de-form/articles/10199856-so-erstellen-sie-eine-e-rechnung-in-lexware-office),
+[Papierkram](https://www.papierkram.de/e-rechnung-einfach-sicher-gesetzeskonform/),
+[Invoice Ninja](https://github.com/invoiceninja/invoiceninja)). Tarife und Funktionen ändern sich – maßgeblich sind die
+Seiten der Anbieter. Die Cloud-Dienste nehmen dir Betrieb, Updates und Support ab; genau das gibt es für Skontio
+auf Wunsch auch:
+
+## Skontio betreiben lassen – von dick-technology
+
+Skontio ist kostenlos. Wenn du dich nicht selbst um Server, Updates und Backups kümmern willst, übernehme ich das
+für dich – als Entwickler von Skontio:
+
+- **Gehostete Instanz**: Skontio für dich betrieben, mit Updates, Backups und Überwachung
+- **Einrichtung bei dir**: Installation auf deinem NAS oder Server, inklusive Login, Backup, E-Mail und Bank
+- **Anpassungen**: eigene Vorlagen, Funktionen und Schnittstellen auf Auftrag
+- **Support-Vertrag**: Hilfe bei Fragen und Updates zur monatlichen Pauschale
+
+**Anfrage über [dick-technology.de](https://dick-technology.de)**
+
+Skontio hilft dir und du willst einfach Danke sagen? Über **[Ko-fi](https://ko-fi.com/unix0r)** finanzierst du die
+Weiterentwicklung mit.
+
+## Loslegen
+
+Docker-Image: `ghcr.io/skontio/skontio`. Die Schritt-für-Schritt-Anleitung für TrueNAS mit Caddy und Pocket ID
+steht in [`docs/betrieb.md`](docs/betrieb.md), Vorlagen liegen in [`deploy/`](deploy/).
+
+Ausprobieren in zwei Minuten (Docker mit Compose v2, ohne OIDC und SMTP):
+
+```bash
+tools/smoke.sh --keep              # baut, startet, legt Beispieldaten an
+# → http://localhost:8099/auth/local/   Login demo/demo
+```
+
+Nützliche Prüfungen im Betrieb:
+
+```bash
+skontio doctor oidc|smtp|imap|backup|worker|db
+skontio verify_audit --backup <backup.tar>   # Änderungsprotokoll gegen eine Sicherung prüfen
+skontio verify_archive                       # Archivdateien unverändert?
+```
 
 ## Entwickeln
 
 ```bash
 uv sync
-uv run pytest                      # Tests (SQLite)
+uv run pytest                      # Tests (SQLite); Postgres: SKONTIO_DATABASE_URL=postgres://… uv run pytest
 tools/validators/fetch.sh          # offizielle E-Rechnungs-Validatoren laden (Java nötig)
 uv run pytest -m einvoice          # E-Rechnung gegen KoSIT und Mustang prüfen
-SKONTIO_DATABASE_URL=postgres://user:pw@localhost:5432/skontio uv run pytest   # Postgres (Backup-Tests brauchen postgresql-client ≥ Server)
+tools/smoke.sh                     # Image bauen und Ende-zu-Ende prüfen (auch die Härtung)
+tools/upgrade-test.sh              # Update von der letzten Release-Version mit Daten prüfen
 ```
 
-### Lokal im Container testen
-
-Docker mit Compose v2 genügt, OIDC und SMTP sind nicht nötig.
-
-```bash
-tools/smoke.sh                     # Image bauen, Web + Worker starten, Beispieldaten, Login, Seiten, PDF/ZUGFeRD, Backup prüfen
-tools/smoke.sh --postgres          # dasselbe mit Postgres 17
-tools/smoke.sh --keep              # danach weiterlaufen lassen: http://localhost:8099/auth/local/ (demo/demo)
-
-# von Hand
-docker compose -f compose.dev.yaml up -d --build
-docker compose -f compose.dev.yaml exec skontio skontio demo   # Beispieldaten, Login demo/demo
-# → http://localhost:8000/auth/local/   (Mails erscheinen in `docker compose -f compose.dev.yaml logs`)
-docker compose -f compose.dev.yaml down -v                     # stoppen und Daten löschen
-```
-
-## Betrieb
-
-Docker-Image `ghcr.io/skontio/skontio`. Vorlagen für TrueNAS und Caddy liegen in [`deploy/`](deploy/).
-
-```bash
-skontio doctor oidc                # prüft die Verbindung zum Identity Provider
-skontio doctor smtp                # prüft die SMTP-Anmeldung
-skontio doctor backup              # prüft Backup-Verzeichnis und pg_dump
-```
+Plan und Roadmap: [`docs/plan.md`](docs/plan.md) · Architekturentscheidungen: [`docs/adr/`](docs/adr/) ·
+Mitwirken: [`CONTRIBUTING.md`](CONTRIBUTING.md)
 
 ## Lizenz
 
-[AGPL-3.0-or-later](LICENSE). Beiträge nach dem [Developer Certificate of Origin](CONTRIBUTING.md).
+[AGPL-3.0-or-later](LICENSE). Du darfst Skontio frei nutzen, anpassen und auch für andere betreiben. Wer eine
+geänderte Fassung als Dienst anbietet, muss den geänderten Quelltext den Nutzern zugänglich machen.
