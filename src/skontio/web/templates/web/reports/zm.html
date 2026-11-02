@@ -1,0 +1,20 @@
+{% extends "web/base.html" %}
+{% block title %}Zusammenfassende Meldung {{ period.label }}{% endblock %}
+{% block content %}
+<div class="heading"><h1>Zusammenfassende Meldung {{ period.label }}</h1><a class="button secondary" href="/auswertungen/ustva/?jahr={{ period.year }}">Umsatzsteuer</a></div>
+<p class="filters">{% for y in years %}<a href="?jahr={{ y }}"{% if y == period.year %} aria-current="page"{% endif %}>{{ y }}</a> {% endfor %}</p>
+<p class="filters">{% for p in choices %}<a href="?jahr={{ p.year }}&zeitraum={{ p.code }}"{% if p == period %} aria-current="page"{% endif %}>{{ p.code }}</a> {% endfor %}
+  · {% for p in months %}<a href="?jahr={{ p.year }}&zeitraum={{ p.code }}"{% if p == period %} aria-current="page"{% endif %}>{{ p.code|slice:"1:" }}</a> {% endfor %}</p>
+{% if no_vat_id %}<p class="warn">In den Firmendaten fehlt die eigene USt-IdNr. – ohne sie ist keine Zusammenfassende Meldung möglich.</p>{% endif %}
+{% if rows %}
+<p>Abgabe bis <strong>{{ report.deadline|date:"d.m.Y" }}</strong> im BZStOnline-Portal (Feiertage nicht berücksichtigt).</p>
+<div class="table-scroll"><table class="list">
+  <thead><tr><th>Land</th><th>USt-IdNr.</th><th class="num">Summe (€)</th><th>Art</th><th></th></tr></thead>
+  <tbody>{% for row, label in rows %}
+    <tr><td>{{ row.country }}</td><td>{{ row.vat_id }}</td><td class="num">{{ row.amount }}</td><td>{{ row.kind }} – {{ label }}</td>
+      <td><button type="button" class="link copy" data-copy="{{ row.vat_id }}">USt-IdNr. kopieren</button> <button type="button" class="link copy" data-copy="{{ row.amount }}">Betrag kopieren</button></td></tr>
+  {% endfor %}</tbody>
+</table></div>
+{% else %}<p class="muted">Keine meldepflichtigen Umsätze in diesem Zeitraum.</p>{% endif %}
+{% for note in report.notes %}<p class="muted">{{ note }}</p>{% endfor %}
+{% endblock %}

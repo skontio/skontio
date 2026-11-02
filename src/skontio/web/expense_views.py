@@ -38,6 +38,8 @@ from skontio.expenses.services import (
 )
 from skontio.reports import ustva
 from skontio.reports.euer import euer, journal
+from skontio.reports.zm import KINDS as ZM_KINDS
+from skontio.reports.zm import zm_report
 from skontio.taxstatus.models import VatReturn
 from skontio.taxstatus.services import TaxStatusError, regime_for
 from skontio.web.csvexport import csv_safe
@@ -494,6 +496,32 @@ def ustva_report(request):
         "differences": ustva.differences(report, vat_return) if vat_return else {},
     }
     return render(request, "web/reports/ustva.html", context)
+
+
+@company_view
+def zm(request):
+    """Zusammenfassende Meldung: quarters by default, months on request (?zeitraum=M01…)."""
+    year = _year(request)
+    code = request.GET.get("zeitraum", "")
+    choices = ustva.periods(year, "quarterly")
+    try:
+        period = ustva.parse_period(year, code) if code and code != "J" else None
+    except ValueError:
+        period = None
+    if period is None:
+        today = timezone.localdate()
+        period = ([p for p in choices if p.end < today] or choices[:1])[-1]
+    report = zm_report(request.company, period)
+    context = {
+        "report": report,
+        "period": period,
+        "choices": choices,
+        "months": ustva.periods(year, "monthly"),
+        "years": _years(),
+        "rows": [(row, ZM_KINDS[row.kind]) for row in report.rows],
+        "no_vat_id": not request.company.vat_id,
+    }
+    return render(request, "web/reports/zm.html", context)
 
 
 def _prepayments(company, period):

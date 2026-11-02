@@ -62,6 +62,7 @@ urlpatterns = [
     path("auswertungen/euer.csv", expenses.euer_csv, name="euer_csv"),
     path("auswertungen/ustva/", expenses.ustva_report, name="ustva_report"),
     path("auswertungen/ustva/uebermittelt/", expenses.ustva_submit, name="ustva_submit"),
+    path("auswertungen/zm/", expenses.zm, name="zm_report"),
     path("mahnwesen/", dunning.dunning_overview, name="dunning_overview"),
     path("mahnwesen/stufen/", dunning.dunning_levels, name="dunning_levels"),
     path("mahnwesen/rechnung/<int:pk>/", dunning.dunning_create, name="dunning_create"),

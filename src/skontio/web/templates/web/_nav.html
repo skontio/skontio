@@ -20,6 +20,7 @@
   <h2>Steuern</h2>
   <a class="navlink" href="/auswertungen/euer/" {% nav_current "/auswertungen/euer" %}>EÜR</a>
   <a class="navlink" href="/auswertungen/ustva/" {% nav_current "/auswertungen/ustva/" %}>Umsatzsteuer</a>
+  <a class="navlink" href="/auswertungen/zm/" {% nav_current "/auswertungen/zm/" %}>Zusammenfassende Meldung</a>
   {% if can_finalize %}<a class="navlink" href="/auswertungen/datev/" {% nav_current "/auswertungen/datev/" %}>DATEV-Export</a>{% endif %}
   {% if user.is_staff %}<a class="navlink" href="/einstellungen/steuerstatus/" {% nav_current "/einstellungen/steuerstatus/" %}>Steuerstatus</a>{% endif %}
 </div>
