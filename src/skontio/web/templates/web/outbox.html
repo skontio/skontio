@@ -1,0 +1,34 @@
+{% extends "web/base.html" %}
+{% block title %}Postausgang{% endblock %}
+{% block content %}
+<div class="heading"><h1>Postausgang</h1></div>
+{% if failed %}<p class="danger">Fehlgeschlagene Mails: {{ failed }}. <a href="?status=fehlgeschlagen">Anzeigen</a></p>{% endif %}
+<nav class="filters" aria-label="Filter">
+  <a href="/postausgang/" {% if not status %}aria-current="page"{% endif %}>Alle</a>
+  <a href="?status=versendet" {% if status == "versendet" %}aria-current="page"{% endif %}>Versendet</a>
+  <a href="?status=fehlgeschlagen" {% if status == "fehlgeschlagen" %}aria-current="page"{% endif %}>Fehlgeschlagen</a>
+</nav>
+<form method="get" role="search">
+  {% if status %}<input type="hidden" name="status" value="{{ status }}">{% endif %}
+  <label class="visually-hidden" for="outbox-search">Postausgang durchsuchen</label>
+  <input id="outbox-search" type="search" name="q" value="{{ q }}" placeholder="Empfänger, Betreff oder Nummer" maxlength="100">
+  <label for="outbox-von">Von</label><input id="outbox-von" type="date" name="von" value="{{ von|date:'Y-m-d' }}">
+  <label for="outbox-bis">Bis</label><input id="outbox-bis" type="date" name="bis" value="{{ bis|date:'Y-m-d' }}">
+  <button type="submit" class="secondary">Filtern</button>
+  <a class="button secondary" href="?{{ csv_query }}">Als CSV</a>
+</form>
+<div class="table-scroll"><table class="list">
+  <thead><tr><th>Zeitpunkt</th><th>An</th><th>Betreff</th><th class="hide-small">Dokument</th><th>Status</th></tr></thead>
+  <tbody>{% for log in logs %}
+    <tr>
+      <td>{{ log.sent_at|date:"d.m.Y H:i" }}</td>
+      <td>{{ log.to|join:", " }}{% if log.cc %}<br><span class="muted">Kopie: {{ log.cc|join:", " }}</span>{% endif %}</td>
+      <td>{{ log.subject }}{% if log.attachments %}<br><span class="muted">{% for a in log.attachments %}{{ a.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</span>{% endif %}</td>
+      <td class="hide-small"><a href="/dokumente/{{ log.document_id }}/">{{ log.document.number|default:"Entwurf" }}</a></td>
+      <td>{% if log.status == "failed" %}<span class="badge danger" title="{{ log.error }}">fehlgeschlagen</span>{% else %}versendet{% endif %}{% if log.sent_by %}<br><span class="muted">{{ log.sent_by.get_full_name|default:log.sent_by.username }}</span>{% endif %}</td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="5" class="muted">{% if q or status or von or bis %}Keine Mails für diesen Filter.{% else %}Noch keine Mails versendet.{% endif %}</td></tr>
+  {% endfor %}</tbody>
+</table></div>
+{% endblock %}

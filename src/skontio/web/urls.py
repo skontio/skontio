@@ -6,7 +6,7 @@ from skontio.web import document_views as docs
 from skontio.web import dunning_views as dunning
 from skontio.web import expense_views as expenses
 from skontio.web import inbox_views as inbox
-from skontio.web import pwa, search_views, views
+from skontio.web import outbox_views, pwa, search_views, views
 from skontio.web import recurring_views as recurring
 
 urlpatterns = [
@@ -69,6 +69,7 @@ urlpatterns = [
     path("assistent/", assistant.assistant, name="assistant"),
     path("assistent/<int:pk>/", assistant.assistant_run, name="assistant_run"),
     path("suche/", search_views.quick_search, name="quick_search"),
+    path("postausgang/", outbox_views.outbox, name="outbox"),
     path("", views.dashboard, name="dashboard"),
     path("einrichtung/", views.setup, name="setup"),
     path("kunden/", views.customer_list, name="customer_list"),

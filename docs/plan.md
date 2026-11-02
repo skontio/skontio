@@ -416,7 +416,7 @@ Legende: ✅ vorhanden · 🟡 teilweise · 📅 schon geplant · ➕ neu aufgen
 | Individuelle Berichtszeiträume | M | ➕ | 2b: Von-bis für EÜR, Umsatz und CSV-Journal |
 | Cashflow | S | ➕ | 3: zusammen mit den Rücklagen |
 | Steuerberaterzugang | S | ➕ | 3: Rolle „nur lesen“ plus Exporte; braucht Rollen je Benutzer |
-| Postausgang | M | 🟡 | Versandprotokoll gespeichert; ➕ 2b: Übersicht aller versendeten Mails |
+| Postausgang | M | ✅ | alle Mails (Dokumente und Mahnungen) mit Status, Empfänger, Anhängen; Filter, Suche, CSV |
 | Mobile App | S | ✅ | PWA |
 | GoBD-zertifiziert | S | ➖ | keine Zertifizierung geplant; Festschreibung, Audit-Log und Verfahrensdokumentation ✅ |
 | Dashboard | Free | ✅ | |
