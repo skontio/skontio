@@ -325,6 +325,7 @@ OAUTH2_PROVIDER = {
     # Client ID Metadata Documents (MCP's recommended registration) only from allowlisted hosts;
     # Dynamic Client Registration stays off, other clients are registered with `skontio mcp_client`.
     "CIMD_ENABLED": env_bool("SKONTIO_MCP_CIMD", True),
+    "CIMD_METADATA_FETCHER": "skontio.mcp.cimd.SkontioMetadataFetcher",
     "CIMD_REGISTRATION_PERMISSION_CLASSES": ("oauth2_provider.cimd.HostAllowlistCIMDPermission",),
     "CIMD_ALLOWED_HOSTS": env_list("SKONTIO_MCP_CIMD_HOSTS", "claude.ai,.claude.ai,claude.com,.claude.com"),
 }
