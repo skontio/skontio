@@ -3,7 +3,9 @@
 ## Unveröffentlicht
 
 - **Wiederkehrende Rechnungen automatisch versenden**: optional schreibt der Worker neue Rechnungen sofort fest und
-  mailt sie an den Kunden. Standard bleibt: nur Entwurf.
+  mailt sie an den Kunden. Standard bleibt: nur Entwurf. Scheitert der Versand, bleibt die Rechnung liegen, wird
+  7 Tage lang täglich erneut versucht und die Admins werden benachrichtigt.
+- **Fehlermeldungen per Mail an die Admins** bei Backup, wiederkehrenden Rechnungen, Beleg-Postfach und Kontoabruf.
 - **MCP-Verbindung mit Claude** lässt sich wieder herstellen: Claudes Client-Dokument nennt jetzt zusätzlich den
   Grant-Typ `jwt-bearer`, was zu „Invalid client_id“ führte. Skontio ignoriert Grant-Typen, die es nicht anbietet.
 

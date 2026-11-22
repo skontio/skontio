@@ -138,12 +138,18 @@ Zeiträume werden zu **Entwürfen** – das erledigt der Container `skontio-work
 Mit **„Automatisch festschreiben und per E-Mail senden“** (beim Anlegen, später in der Liste *Wiederkehrend* über
 „Versand“) schreibt der Worker die neue Rechnung sofort fest und mailt sie mit den Standardanhängen an die
 E-Mail-Adresse des Kunden – ohne Prüfung durch dich. Voraussetzungen: SMTP eingerichtet und E-Mail beim Kunden.
-Schlägt etwas fehl, bleibt die Rechnung als Entwurf (oder festgeschrieben, aber unversendet) liegen und der Fehler
-steht im Änderungsprotokoll. Die Knöpfe in der Weboberfläche erzeugen weiterhin nur Entwürfe.
+Schlägt etwas fehl, bleibt die Rechnung als Entwurf (oder festgeschrieben, aber unversendet) liegen, der Fehler
+steht im Änderungsprotokoll, die Admins bekommen eine Mail, und die Liste *Wiederkehrend* zeigt „Versand
+fehlgeschlagen“. Der Worker versucht es 7 Tage lang täglich erneut und verschickt nie zweimal. Die Knöpfe in der Weboberfläche erzeugen weiterhin nur Entwürfe.
 
 Das Mahnwesen (*Übersicht → Mahnwesen*) schlägt fällige Zahlungserinnerungen und Mahnungen vor. Stufen, Fristen
 und Gebühren unter *Mahnwesen → Mahnstufen*. Mahnschreiben werden als PDF archiviert und zusammen mit der
 Rechnung per E-Mail verschickt.
+
+**Meldungen bei Fehlern:** Scheitert eine unbeaufsichtigte Aufgabe (nächtliches Backup, wiederkehrende
+Rechnungen, Beleg-Postfach, Kontoabruf), geht eine Mail an alle aktiven Admins mit E-Mail-Adresse. Tagesaufgaben
+melden nach dem dritten Fehlversuch, Beleg-Postfach und Kontoabruf einmal je Fehlerserie (erst nach einem Erfolg
+wieder). Ohne erreichbaren Mailserver bleibt es beim Log und `skontio doctor worker`.
 
 ## 5c-1. Beleg-Postfach (Rechnungen per E-Mail)
 
