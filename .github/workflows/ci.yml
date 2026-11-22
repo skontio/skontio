@@ -26,6 +26,21 @@ jobs:
           uv export --frozen --no-dev --no-hashes --no-emit-project > requirements-audit.txt
           uvx pip-audit --strict --progress-spinner off -r requirements-audit.txt
 
+  # Passwords, tokens, private keys and the maintainer's private address anywhere in the Git history
+  # (rules: .gitleaks.toml). The pinned image is run directly: the GitHub action needs a licence for organisations.
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Scan the history for secrets
+        run: |
+          docker run --rm -v "$PWD:/repo:ro" \
+            ghcr.io/gitleaks/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f \
+            git /repo --no-banner --redact --config /repo/.gitleaks.toml
+
   test:
     name: test (${{ matrix.database }})
     runs-on: ubuntu-latest
@@ -68,7 +83,7 @@ jobs:
 
   docker:
     runs-on: ubuntu-latest
-    needs: [lint, test]
+    needs: [lint, test, secrets]
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:

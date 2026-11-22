@@ -1,0 +1,28 @@
+#!/bin/sh
+# Stops a push that would publish private data. Installed by tools/install-hooks.sh.
+# 1. Every pattern (extended regex, one per line) in .git/private-patterns – your own e-mail address, hostnames, IPs.
+#    That file stays local and is never committed.
+# 2. gitleaks, when installed (https://github.com/gitleaks/gitleaks): passwords, tokens, private keys.
+# Only commits that are not on origin yet are checked, so rebasing onto a fresh main raises no false alarm.
+zero=0000000000000000000000000000000000000000
+patterns="$(git rev-parse --git-dir)/private-patterns"
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ "$local_sha" = "$zero" ] && continue
+  range="$local_sha --not --remotes=origin"
+  if [ -s "$patterns" ] && git log --format='%an%n%ae%n%cn%n%ce%n%B' $range | grep -qEif "$patterns"; then
+    echo "pre-push: $local_ref enthält in Commit-Angaben einen Treffer aus .git/private-patterns – Push abgebrochen." >&2
+    exit 1
+  fi
+  if [ -s "$patterns" ] && git log -p --format= $range | grep -E '^\+' | grep -qEif "$patterns"; then
+    echo "pre-push: $local_ref enthält in geänderten Dateien einen Treffer aus .git/private-patterns – Push abgebrochen." >&2
+    echo "          Mit 'git log -p $range' suchen." >&2
+    exit 1
+  fi
+  if command -v gitleaks >/dev/null 2>&1; then
+    gitleaks git --no-banner --redact --log-opts="$range" . || {
+      echo "pre-push: gitleaks hat Geheimnisse gefunden – Push abgebrochen." >&2
+      exit 1
+    }
+  fi
+done
+exit 0
