@@ -1,0 +1,17 @@
+# Secret scan (gitleaks): runs in the CI on every PR, on main and weekly, over the whole history.
+# Locally: tools/install-hooks.sh (pre-push). Real values (hostnames, IPs, client IDs) never belong in this file –
+# list those in .git/private-patterns instead (see CONTRIBUTING.md).
+title = "Skontio"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "private-mailbox-address"
+description = "Private e-mail address of the maintainer in a file"
+regex = '''[A-Za-z0-9._%+-]+@mailbox\.org'''
+
+[[allowlists]]
+description = "Invented passwords of the test users (tests/ only)"
+targetRules = ["generic-api-key"]
+paths = ['''^tests/''']
