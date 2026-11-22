@@ -83,8 +83,30 @@ class TestSchedule:
         add_line_from_item(doc, shop.item, quantity=Decimal("1"))
         create_from_invoice(finalize(doc), name="Wartung", interval=1, start_date=today)
         (run,) = scheduler.run_due(timezone.now())
-        assert run.status == JobRun.Status.OK and run.message.startswith("1 Entwurf")
+        assert (
+            run.status == JobRun.Status.OK
+            and run.message == "1 Rechnung(en) angelegt, davon 0 automatisch festgeschrieben"
+        )
         assert Document.objects.filter(status=Document.Status.DRAFT, origin=Document.Origin.RECURRING).count() == 1
+
+    def test_auto_send_finalizes_and_mails(self, shop, settings):
+        from django.core import mail
+
+        settings.WORKER_BACKUP_AT, settings.WORKER_RECURRING_AT = "off", "00:00"
+        settings.MAILERS = {"default": {"BACKEND": "django.core.mail.backends.locmem.EmailBackend"}}
+        today = timezone.localdate()
+        doc = create_draft(
+            shop.company,
+            Document.Type.INVOICE,
+            shop.org,
+            issue_date=today - dt.timedelta(days=40),
+            service_date=today - dt.timedelta(days=40),
+        )
+        add_line_from_item(doc, shop.item, quantity=Decimal("1"))
+        create_from_invoice(finalize(doc), name="Hosting", interval=1, start_date=today, auto_send=True)
+        (run,) = scheduler.run_due(timezone.now())
+        assert run.message == "1 Rechnung(en) angelegt, davon 1 automatisch festgeschrieben"
+        assert len(mail.outbox) == 1
 
 
 class TestLoop:

@@ -152,3 +152,71 @@ class TestWeb:
         client.post(f"/wiederkehrend/{recurring.pk}/umschalten/")
         recurring.refresh_from_db()
         assert not recurring.active
+
+
+class TestAutoSend:
+    @pytest.fixture(autouse=True)
+    def _smtp(self, settings):
+        settings.MAILERS = {"default": {"BACKEND": "django.core.mail.backends.locmem.EmailBackend"}}
+        settings.DEFAULT_FROM_EMAIL = "rechnung@example.org"
+
+    def run(self, shop, **options):
+        from skontio.recurring.services import generate_due
+
+        r = create_from_invoice(
+            source_invoice(shop), name="Hosting", interval=1, start_date=dt.date(2026, 3, 1), **options
+        )
+        return r, generate_due(shop.company, today=dt.date(2026, 3, 1), auto_send=True)
+
+    def test_finalizes_and_mails_when_switched_on(self, shop):
+        from django.core import mail
+
+        _, drafts = self.run(shop, auto_send=True)
+        drafts[0].refresh_from_db()
+        assert drafts[0].status == Document.Status.FINALIZED
+        assert [m.to for m in mail.outbox] == [["a@kunde.example"]]
+
+    def test_stays_a_draft_by_default(self, shop):
+        from django.core import mail
+
+        _, drafts = self.run(shop)
+        drafts[0].refresh_from_db()
+        assert drafts[0].status == Document.Status.DRAFT
+        assert mail.outbox == []
+
+    def test_web_style_run_never_sends(self, shop):
+        from django.core import mail
+
+        from skontio.recurring.services import generate_due
+
+        create_from_invoice(
+            source_invoice(shop), name="Hosting", interval=1, start_date=dt.date(2026, 3, 1), auto_send=True
+        )
+        drafts = generate_due(shop.company, today=dt.date(2026, 3, 1))
+        drafts[0].refresh_from_db()
+        assert drafts[0].status == Document.Status.DRAFT
+        assert mail.outbox == []
+
+    def test_customer_without_email_cannot_be_switched_on(self, shop):
+        shop.org.email = ""
+        shop.org.save()
+        with pytest.raises(RecurringError):
+            create_from_invoice(
+                source_invoice(shop), name="Hosting", interval=1, start_date=dt.date(2026, 3, 1), auto_send=True
+            )
+
+    def test_missing_email_later_leaves_the_draft(self, shop):
+        from django.core import mail
+
+        r = create_from_invoice(
+            source_invoice(shop), name="Hosting", interval=1, start_date=dt.date(2026, 3, 1), auto_send=True
+        )
+        shop.org.email = ""
+        shop.org.save()
+        from skontio.recurring.services import generate_due
+
+        drafts = generate_due(shop.company, today=dt.date(2026, 3, 1), auto_send=True)
+        drafts[0].refresh_from_db()
+        assert drafts[0].status == Document.Status.DRAFT
+        assert mail.outbox == []
+        assert r.runs.count() == 1

@@ -29,6 +29,9 @@ class RecurringForm(forms.Form):
     in_advance = forms.BooleanField(
         label="Im Voraus abrechnen (sonst nach Ablauf des Zeitraums)", required=False, initial=True
     )
+    auto_send = forms.BooleanField(
+        label="Automatisch festschreiben und per E-Mail an den Kunden senden (ohne weitere Prüfung)", required=False
+    )
     end_date = forms.DateField(label="Endet am (optional)", required=False, widget=DATE)
 
 
@@ -85,6 +88,21 @@ def recurring_toggle(request, pk: int):
         entity="recurring_invoice",
         entity_id=recurring.pk,
     )
+    return redirect("recurring_list")
+
+
+@require_POST
+@company_view
+@full_access
+def recurring_toggle_send(request, pk: int):
+    recurring = get_object_or_404(RecurringInvoice, pk=pk, company=request.company)
+    if not recurring.auto_send and not recurring.customer.email:
+        messages.error(request, "Für den automatischen Versand braucht der Kunde eine E-Mail-Adresse.")
+        return redirect("recurring_list")
+    recurring.auto_send = not recurring.auto_send
+    recurring.save(update_fields=["auto_send"])
+    record("recurring.auto_send_on" if recurring.auto_send else "recurring.auto_send_off", actor=request.user,
+           company=request.company, entity="recurring_invoice", entity_id=recurring.pk)  # fmt: skip
     return redirect("recurring_list")
 
 

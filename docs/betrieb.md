@@ -131,9 +131,15 @@ Wesentliches ändert: Steuerstatus, Benutzer, Sicherung, KI-Zugriff, Skontio-Upd
 ## 5c. Wiederkehrende Rechnungen und Mahnwesen
 
 Wiederkehrende Rechnungen (Wartung, Hosting, Abos) legst du an einer Rechnung über „Als wiederkehrend anlegen“
-an. Fällige Zeiträume werden zu **Entwürfen** – festschreiben und versenden bleibt Handarbeit. Das erledigt der
-Container `skontio-worker` täglich um `SKONTIO_RECURRING_AT` (Standard 06:00); von Hand: `skontio recurring`.
-Mehrfache oder parallele Läufe erzeugen keinen Zeitraum doppelt.
+an (die Rechnung muss festgeschrieben sein; als Beginn den Monatsersten nach der Vorlage wählen). Fällige
+Zeiträume werden zu **Entwürfen** – das erledigt der Container `skontio-worker` täglich um `SKONTIO_RECURRING_AT`
+(Standard 06:00); von Hand: `skontio recurring`. Mehrfache oder parallele Läufe erzeugen keinen Zeitraum doppelt.
+
+Mit **„Automatisch festschreiben und per E-Mail senden“** (beim Anlegen, später in der Liste *Wiederkehrend* über
+„Versand“) schreibt der Worker die neue Rechnung sofort fest und mailt sie mit den Standardanhängen an die
+E-Mail-Adresse des Kunden – ohne Prüfung durch dich. Voraussetzungen: SMTP eingerichtet und E-Mail beim Kunden.
+Schlägt etwas fehl, bleibt die Rechnung als Entwurf (oder festgeschrieben, aber unversendet) liegen und der Fehler
+steht im Änderungsprotokoll. Die Knöpfe in der Weboberfläche erzeugen weiterhin nur Entwürfe.
 
 Das Mahnwesen (*Übersicht → Mahnwesen*) schlägt fällige Zahlungserinnerungen und Mahnungen vor. Stufen, Fristen
 und Gebühren unter *Mahnwesen → Mahnstufen*. Mahnschreiben werden als PDF archiviert und zusammen mit der
