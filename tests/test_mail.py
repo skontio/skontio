@@ -181,3 +181,37 @@ class TestMailersFromEnvironment:
 
         monkeypatch.setenv("SKONTIO_MAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
         assert mailers_from_env() == {"default": {"BACKEND": "django.core.mail.backends.console.EmailBackend"}}
+
+
+@pytest.mark.django_db
+class TestSendStatusOnThePage:
+    def login(self, client, django_user_model):
+        client.force_login(django_user_model.objects.create_user("inhaber", is_staff=True))
+
+    def test_unsent_invoice_says_so(self, client, invoice, django_user_model):
+        self.login(client, django_user_model)
+        assert "Noch nicht per E-Mail versendet" in client.get(f"/dokumente/{invoice.pk}/").content.decode()
+
+    def test_sent_shows_date_recipient_and_a_confirmation(self, client, invoice, django_user_model):
+        self.login(client, django_user_model)
+        response = client.post(
+            f"/dokumente/{invoice.pk}/senden/",
+            {"to": "einkauf@kunde.example", "cc": "", "subject": "Rechnung", "body": "Hallo"},
+            follow=True,
+        )
+        page = response.content.decode()
+        assert "E-Mail an einkauf@kunde.example gesendet." in page
+        log = invoice.mail_logs.get()
+        assert f"Per E-Mail versendet am {log.sent_at:%d.%m.%Y}" in page
+        assert "Noch nicht per E-Mail versendet" not in page
+
+    def test_failed_send_is_visible_and_not_called_sent(self, client, invoice, django_user_model, settings):
+        self.login(client, django_user_model)
+        settings.MAILERS = {"default": {"BACKEND": f"{__name__}.FailingBackend"}}
+        client.post(
+            f"/dokumente/{invoice.pk}/senden/",
+            {"to": "einkauf@kunde.example", "cc": "", "subject": "Rechnung", "body": "Hallo"},
+        )
+        page = client.get(f"/dokumente/{invoice.pk}/").content.decode()
+        assert "fehlgeschlagen" in page and "Verbindung zum SMTP-Server abgelehnt" in page
+        assert "Per E-Mail versendet am" not in page

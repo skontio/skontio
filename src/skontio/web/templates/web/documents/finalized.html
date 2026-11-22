@@ -6,6 +6,9 @@
   <p><a class="button secondary" href="/dokumente/">Zur Liste</a></p>
 </div>
 {% if cancelled %}<p class="danger">Diese Rechnung wurde storniert.</p>{% endif %}
+{% if mail_failed %}<p class="danger">Versand per E-Mail am {{ mail_failed.sent_at|date:"d.m.Y H:i" }} Uhr an {{ mail_failed.to|join:", " }} <strong>fehlgeschlagen</strong>{% if mail_failed.error %}: {{ mail_failed.error }}{% endif %}. <a href="#senden">Erneut senden</a></p>{% endif %}
+{% if mail_sent %}<p class="note">✓ Per E-Mail versendet am {{ mail_sent.sent_at|date:"d.m.Y" }} um {{ mail_sent.sent_at|date:"H:i" }} Uhr an {{ mail_sent.to|join:", " }}. <a href="#senden">Versandprotokoll</a></p>
+{% elif not mail_failed and can_finalize and is_invoice and not cancelled %}<p class="muted">Noch nicht per E-Mail versendet. <a href="#senden">Jetzt senden</a></p>{% endif %}
 {% if replacement %}<p class="note">Ersetzt durch <a href="/dokumente/{{ replacement.pk }}/">{{ replacement.number|default:"Entwurf" }}</a> (Rechnungskorrektur).</p>{% endif %}
 {% if doc.replaces %}<p class="note">Ersetzt <a href="/dokumente/{{ doc.replaces.pk }}/">{{ doc.replaces.number }}</a> (Rechnungskorrektur).</p>
 {% if transferable %}<form method="post" action="/dokumente/{{ doc.pk }}/zahlungen-uebernehmen/" class="warn">{% csrf_token %}

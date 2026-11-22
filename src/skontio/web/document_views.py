@@ -7,6 +7,7 @@ import io
 from decimal import Decimal
 from urllib.parse import urlencode
 
+from django.contrib import messages
 from django.db.models import Q
 from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -45,6 +46,7 @@ from skontio.documents.services import (
     update_line,
 )
 from skontio.dunning.services import default_mail as dunning_mail
+from skontio.mail.models import MailLog
 from skontio.mail.services import MailError, default_message, send_document
 from skontio.payments.services import PaymentError, open_amount, payment_status, record_payment
 from skontio.tax.engine import TaxTreatment
@@ -244,7 +246,9 @@ def _finalized_context(doc: Document, **extra) -> dict:
         "net": de_amount(doc.net_total),
         "tax": de_amount(doc.tax_total),
         "children": doc.children.all(),
-        "mail_logs": doc.mail_logs.all(),
+        "mail_logs": (logs := list(doc.mail_logs.all())),
+        "mail_sent": next((log for log in logs if log.status == MailLog.Status.SENT), None),
+        "mail_failed": logs[0] if logs and logs[0].status == MailLog.Status.FAILED else None,
         "send_form": _send_form(doc),
         "can_deliver": doc.doc_type in DELIVERY_BASES,
     }
@@ -649,6 +653,7 @@ def document_send(request, pk: int):
                 sent_by=request.user,
                 extra=data.get("extra") or (),
             )
+            messages.success(request, f"E-Mail an {', '.join(SendForm.split(data['to']))} gesendet.")
             return redirect(f"/dokumente/{doc.pk}/")
         except MailError as exc:
             form.add_error(None, str(exc))

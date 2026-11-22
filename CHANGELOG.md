@@ -25,6 +25,9 @@ Claude-Anbindung funktioniert wieder.
 
 ### Behoben
 
+- **Versandstatus an der Rechnung**: Nach dem Senden bestätigt Skontio „E-Mail an … gesendet“, und oben auf der Seite steht
+  „Per E-Mail versendet am … um … Uhr an …“. Ein fehlgeschlagener Versand erscheint dort mit Fehlertext, eine nie
+  versendete Rechnung mit „Noch nicht per E-Mail versendet“. Vorher stand das nur im eingeklappten Versandprotokoll.
 - **MCP-Verbindung mit Claude** ließ sich nicht mehr herstellen: Claudes Client-Dokument nennt jetzt zusätzlich den
   Grant-Typ `jwt-bearer`, was zu „Invalid client_id“ führte. Skontio ignoriert Grant-Typen, die es nicht anbietet.
 
