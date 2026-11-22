@@ -22,6 +22,7 @@ from django.db.migrations.executor import MigrationExecutor
 from django.utils import timezone
 
 from skontio.core.models import Company, JobRun
+from skontio.documents.models import Document
 
 log = logging.getLogger("skontio.worker")
 
@@ -48,8 +49,11 @@ def _recurring() -> str:
     from skontio.recurring.services import generate_due
 
     today = timezone.localdate()
-    drafts = [draft for company in Company.objects.all() for draft in generate_due(company, today=today)]
-    return f"{len(drafts)} Entwurf/Entwürfe angelegt"
+    drafts = [
+        draft for company in Company.objects.all() for draft in generate_due(company, today=today, auto_send=True)
+    ]
+    sent = Document.objects.exclude(status=Document.Status.DRAFT).filter(pk__in=[d.pk for d in drafts]).count()
+    return f"{len(drafts)} Rechnung(en) angelegt, davon {sent} automatisch festgeschrieben"
 
 
 def parse_time(value: str) -> dt.time | None:

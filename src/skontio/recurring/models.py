@@ -25,6 +25,7 @@ class RecurringInvoice(models.Model):
     in_advance = models.BooleanField("Im Voraus abrechnen", default=True)
     generated = models.PositiveIntegerField(default=0)  # number of periods created so far
     active = models.BooleanField("Aktiv", default=True)
+    auto_send = models.BooleanField("Automatisch festschreiben und per E-Mail versenden", default=False)
     language = models.CharField(max_length=5, choices=DOCUMENT_LANGUAGES, default="de")
     template = models.ForeignKey(
         "documents.DocumentTemplate", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
