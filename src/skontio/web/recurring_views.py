@@ -39,7 +39,14 @@ class RecurringForm(forms.Form):
 def recurring_list(request):
     today = timezone.localdate()
     rows = [
-        {"recurring": r, "next": next_issue_date(r), "due": (n := next_issue_date(r)) is not None and n <= today}
+        {
+            "recurring": r,
+            "next": next_issue_date(r),
+            "due": (n := next_issue_date(r)) is not None and n <= today,
+            "failed": list(
+                r.runs.filter(send_failed_at__isnull=False).select_related("document").order_by("-period_start")[:3]
+            ),
+        }
         for r in RecurringInvoice.objects.filter(company=request.company).select_related("customer")
     ]
     return render(request, "web/recurring/list.html", {"rows": rows, "due_count": sum(r["due"] for r in rows)})

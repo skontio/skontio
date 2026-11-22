@@ -75,6 +75,7 @@ class RecurringRun(models.Model):
     period_start = models.DateField()
     period_end = models.DateField()
     document = models.ForeignKey("documents.Document", on_delete=models.PROTECT, related_name="+")
+    send_failed_at = models.DateTimeField("Automatischer Versand fehlgeschlagen", null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

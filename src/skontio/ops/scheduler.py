@@ -21,6 +21,7 @@ from django.db import IntegrityError, close_old_connections, connection, transac
 from django.db.migrations.executor import MigrationExecutor
 from django.utils import timezone
 
+from skontio.core.alerts import notify_admins
 from skontio.core.models import Company, JobRun
 from skontio.documents.models import Document
 
@@ -46,14 +47,16 @@ def _backup() -> str:
 
 
 def _recurring() -> str:
-    from skontio.recurring.services import generate_due
+    from skontio.recurring.services import generate_due, retry_failed
 
+    retried = retry_failed()
     today = timezone.localdate()
     drafts = [
         draft for company in Company.objects.all() for draft in generate_due(company, today=today, auto_send=True)
     ]
     sent = Document.objects.exclude(status=Document.Status.DRAFT).filter(pk__in=[d.pk for d in drafts]).count()
-    return f"{len(drafts)} Rechnung(en) angelegt, davon {sent} automatisch festgeschrieben"
+    message = f"{len(drafts)} Rechnung(en) angelegt, davon {sent} automatisch festgeschrieben"
+    return f"{message}; {retried} erneut versucht" if retried else message
 
 
 def parse_time(value: str) -> dt.time | None:
@@ -80,13 +83,16 @@ MAILBOX_JOB = "receipt_mail"
 BANK_JOB = "bank_fetch"
 
 
-def _interval(name: str, every: dt.timedelta, run: Callable[[], str], now: dt.datetime | None) -> JobRun | None:
+def _interval(
+    name: str, every: dt.timedelta, run: Callable[[], str], now: dt.datetime | None, *, label: str = ""
+) -> JobRun | None:
     """Jobs that run every few minutes or hours (not once a day). One ``JobRun`` row per day holds the
     latest run – enough for ``skontio doctor worker``."""
     now = now or timezone.now()
     last = JobRun.objects.filter(job=name).order_by("-day").first()
     if last and now - last.started_at < every:
         return None
+    was_failing = bool(last and last.status == JobRun.Status.FAILED)
     try:
         day = timezone.localtime(now).date()
         row, _ = JobRun.objects.get_or_create(job=name, day=day, defaults={"started_at": now})
@@ -100,6 +106,18 @@ def _interval(name: str, every: dt.timedelta, run: Callable[[], str], now: dt.da
     except Exception as exc:  # noqa: BLE001 – e.g. server unreachable; the next run tries again
         row.status, row.message = JobRun.Status.FAILED, f"{type(exc).__name__}: {exc}"[:4000]
         log.error("%s: %s", name, row.message)
+        if not was_failing:  # one mail per streak of failures, not one per attempt
+            title = label or name
+            notify_admins(
+                f"{title} fehlgeschlagen",
+                [
+                    f"{title} ist fehlgeschlagen:",
+                    "",
+                    row.message,
+                    "",
+                    "Skontio versucht es weiter und meldet sich erst wieder, wenn es zwischendurch geklappt hat.",
+                ],
+            )
     row.finished_at = timezone.now()
     row.save(update_fields=["status", "message", "finished_at"])
     return row
@@ -113,7 +131,7 @@ def poll_mailbox(now: dt.datetime | None = None) -> JobRun | None:
     from skontio.expenses import mailbox
 
     every = dt.timedelta(minutes=config["every_minutes"])
-    return _interval(MAILBOX_JOB, every, lambda: mailbox.poll(config), now)
+    return _interval(MAILBOX_JOB, every, lambda: mailbox.poll(config), now, label="Beleg-Postfach")
 
 
 def fetch_banks(now: dt.datetime | None = None) -> JobRun | None:
@@ -123,7 +141,9 @@ def fetch_banks(now: dt.datetime | None = None) -> JobRun | None:
         return None
     from skontio.banking import psd2
 
-    return _interval(BANK_JOB, dt.timedelta(hours=config["every_hours"]), lambda: psd2.sync_all(), now)
+    return _interval(
+        BANK_JOB, dt.timedelta(hours=config["every_hours"]), lambda: psd2.sync_all(), now, label="Kontoabruf"
+    )
 
 
 def migrations_pending() -> bool:
@@ -166,6 +186,11 @@ def run_due(now: dt.datetime | None = None) -> list[JobRun]:
         except Exception as exc:  # noqa: BLE001 – a failing job must not stop the worker
             row.status, row.message = JobRun.Status.FAILED, f"{type(exc).__name__}: {exc}"[:4000]
             log.error("%s fehlgeschlagen (Versuch %s): %s", job.label, row.attempts, row.message)
+            if row.attempts >= MAX_ATTEMPTS:  # last try: nobody else will pick it up today
+                notify_admins(
+                    f"{job.label} fehlgeschlagen",
+                    [f"{job.label} ist nach {row.attempts} Versuchen fehlgeschlagen:", "", row.message],
+                )
         else:
             row.status, row.message = JobRun.Status.OK, message
             log.info("%s: %s", job.label, message)
