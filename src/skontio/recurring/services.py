@@ -3,22 +3,33 @@
 Periods are counted from ``start_date`` (no drift through short months). Billing in advance creates
 the draft on the first day of the period, otherwise on the day after it ends. Missed periods are
 caught up one by one. ``RecurringRun`` is unique per period, so a double click or two cron runs at
-the same time never create the same period twice. Finalizing and sending stay with a person.
+the same time never create the same period twice. Finalizing and sending stay with a person unless the
+recurring invoice has ``auto_send``: then the scheduled run finalizes and mails each new draft (see ``deliver``).
 """
 
 from __future__ import annotations
 
 import calendar
 import datetime as dt
+import logging
 from decimal import Decimal
 
+from django.conf import settings
 from django.db import IntegrityError, transaction
+from django.utils import timezone
 
+from skontio.attachments.services import standard_files
 from skontio.audit.services import record
+from skontio.core.alerts import notify_admins
 from skontio.documents.models import INVOICE_TYPES, Document
-from skontio.documents.services import add_line, create_draft
+from skontio.documents.services import DocumentError, add_line, create_draft, finalize
+from skontio.mail.models import MailLog
+from skontio.mail.services import MailError, default_message, send_document
 from skontio.recurring.models import RecurringInvoice, RecurringLine, RecurringRun
 from skontio.tax.engine import TaxTreatment
+
+log = logging.getLogger(__name__)
+RETRY_DAYS = 7
 
 MAX_CATCH_UP = 24  # never create more than two years of drafts in one go
 
@@ -70,6 +81,7 @@ def create_from_invoice(
     interval: int,
     start_date: dt.date,
     in_advance: bool = True,
+    auto_send: bool = False,
     end_date: dt.date | None = None,
     user=None,
 ) -> RecurringInvoice:
@@ -84,6 +96,8 @@ def create_from_invoice(
         raise RecurringError("Das Ende liegt vor dem Beginn.")
     if not name.strip():
         raise RecurringError("Bitte eine Bezeichnung angeben.")
+    if auto_send and not invoice.customer.email:
+        raise RecurringError("Für den automatischen Versand braucht der Kunde eine E-Mail-Adresse.")
     with transaction.atomic():
         recurring = RecurringInvoice.objects.create(
             company=invoice.company,
@@ -93,6 +107,7 @@ def create_from_invoice(
             start_date=start_date,
             end_date=end_date,
             in_advance=in_advance,
+            auto_send=auto_send,
             language=invoice.language,
             template=invoice.template,
             intro_text=invoice.intro_text,
@@ -190,8 +205,86 @@ def generate(recurring: RecurringInvoice, *, today: dt.date, user=None) -> list[
     return drafts
 
 
-def generate_due(company, *, today: dt.date, user=None) -> list[Document]:
+def _mark_delivery(draft: Document, failed_at) -> None:
+    RecurringRun.objects.filter(document=draft).update(send_failed_at=failed_at)
+
+
+def deliver(recurring: RecurringInvoice, draft: Document, *, notify: bool = True) -> bool:
+    """Finalize a generated draft (if it still is one) and mail it to the customer. On any problem the document
+    stays as far along as it got, the run is marked (``send_failed_at``, retried daily for a week), the failure
+    goes to the audit trail and, with ``notify``, to the admins."""
+    try:
+        if not recurring.customer.email:
+            raise MailError("Der Kunde hat keine E-Mail-Adresse")
+        invoice = finalize(draft) if draft.status == Document.Status.DRAFT else draft
+        subject, body = default_message(invoice)
+        send_document(
+            invoice,
+            to=[recurring.customer.email],
+            subject=subject,
+            body=body,
+            extra=standard_files(invoice.company, invoice.doc_type),
+        )
+    except (DocumentError, MailError) as exc:
+        log.warning("Automatischer Versand von „%s“ fehlgeschlagen: %s", recurring.name, exc)
+        _mark_delivery(draft, timezone.now())
+        record(
+            "recurring.auto_send_failed",
+            company=recurring.company,
+            entity="document",
+            entity_id=draft.pk,
+            data={"recurring": recurring.pk, "error": str(exc)[:300]},
+        )
+        if notify:
+            notify_admins(
+                f"Automatischer Rechnungsversand fehlgeschlagen ({recurring.customer.name})",
+                [
+                    f"Die wiederkehrende Rechnung „{recurring.name}“ für {recurring.customer.name} wurde angelegt,"
+                    " konnte aber nicht automatisch versendet werden:",
+                    "",
+                    str(exc),
+                    "",
+                    f"Die Rechnung liegt hier bereit: {settings.PUBLIC_URL}/dokumente/{draft.pk}/",
+                    f"Skontio versucht es {RETRY_DAYS} Tage lang täglich erneut; du kannst sie auch selbst versenden.",
+                ],
+            )
+        return False
+    _mark_delivery(draft, None)
+    record(
+        "recurring.auto_send",
+        company=recurring.company,
+        entity="document",
+        entity_id=draft.pk,
+        data={"recurring": recurring.pk},
+    )
+    return True
+
+
+def retry_failed(*, now=None) -> int:
+    """Try again for invoices whose automatic delivery failed, for up to ``RETRY_DAYS``. Never mails twice:
+    a document that was sent meanwhile (by hand or by an earlier try) just loses its marker."""
+    now = now or timezone.now()
+    runs = RecurringRun.objects.filter(
+        send_failed_at__gte=now - dt.timedelta(days=RETRY_DAYS), recurring__auto_send=True
+    ).select_related("recurring__customer", "recurring__company", "document")
+    tried = 0
+    for run in runs:
+        if MailLog.objects.filter(document=run.document, status=MailLog.Status.SENT).exists():
+            _mark_delivery(run.document, None)
+            continue
+        tried += 1
+        deliver(run.recurring, run.document, notify=False)
+    return tried
+
+
+def generate_due(company, *, today: dt.date, user=None, auto_send: bool = False) -> list[Document]:
+    """Create due drafts. ``auto_send`` (scheduler and CLI only) also finalizes and mails those of recurring
+    invoices that have it switched on; the web buttons leave every draft for a person to review."""
     drafts = []
     for recurring in due(company, today):
-        drafts += generate(recurring, today=today, user=user)
+        new = generate(recurring, today=today, user=user)
+        if auto_send and recurring.auto_send:
+            for draft in new:
+                deliver(recurring, draft)
+        drafts += new
     return drafts

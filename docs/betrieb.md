@@ -131,13 +131,25 @@ Wesentliches ändert: Steuerstatus, Benutzer, Sicherung, KI-Zugriff, Skontio-Upd
 ## 5c. Wiederkehrende Rechnungen und Mahnwesen
 
 Wiederkehrende Rechnungen (Wartung, Hosting, Abos) legst du an einer Rechnung über „Als wiederkehrend anlegen“
-an. Fällige Zeiträume werden zu **Entwürfen** – festschreiben und versenden bleibt Handarbeit. Das erledigt der
-Container `skontio-worker` täglich um `SKONTIO_RECURRING_AT` (Standard 06:00); von Hand: `skontio recurring`.
-Mehrfache oder parallele Läufe erzeugen keinen Zeitraum doppelt.
+an (die Rechnung muss festgeschrieben sein; als Beginn den Monatsersten nach der Vorlage wählen). Fällige
+Zeiträume werden zu **Entwürfen** – das erledigt der Container `skontio-worker` täglich um `SKONTIO_RECURRING_AT`
+(Standard 06:00); von Hand: `skontio recurring`. Mehrfache oder parallele Läufe erzeugen keinen Zeitraum doppelt.
+
+Mit **„Automatisch festschreiben und per E-Mail senden“** (beim Anlegen, später in der Liste *Wiederkehrend* über
+„Versand“) schreibt der Worker die neue Rechnung sofort fest und mailt sie mit den Standardanhängen an die
+E-Mail-Adresse des Kunden – ohne Prüfung durch dich. Voraussetzungen: SMTP eingerichtet und E-Mail beim Kunden.
+Schlägt etwas fehl, bleibt die Rechnung als Entwurf (oder festgeschrieben, aber unversendet) liegen, der Fehler
+steht im Änderungsprotokoll, die Admins bekommen eine Mail, und die Liste *Wiederkehrend* zeigt „Versand
+fehlgeschlagen“. Der Worker versucht es 7 Tage lang täglich erneut und verschickt nie zweimal. Die Knöpfe in der Weboberfläche erzeugen weiterhin nur Entwürfe.
 
 Das Mahnwesen (*Übersicht → Mahnwesen*) schlägt fällige Zahlungserinnerungen und Mahnungen vor. Stufen, Fristen
 und Gebühren unter *Mahnwesen → Mahnstufen*. Mahnschreiben werden als PDF archiviert und zusammen mit der
 Rechnung per E-Mail verschickt.
+
+**Meldungen bei Fehlern:** Scheitert eine unbeaufsichtigte Aufgabe (nächtliches Backup, wiederkehrende
+Rechnungen, Beleg-Postfach, Kontoabruf), geht eine Mail an alle aktiven Admins mit E-Mail-Adresse. Tagesaufgaben
+melden nach dem dritten Fehlversuch, Beleg-Postfach und Kontoabruf einmal je Fehlerserie (erst nach einem Erfolg
+wieder). Ohne erreichbaren Mailserver bleibt es beim Log und `skontio doctor worker`.
 
 ## 5c-1. Beleg-Postfach (Rechnungen per E-Mail)
 
@@ -253,11 +265,11 @@ Images entstehen automatisch auf GitHub (`ghcr.io/skontio/skontio`):
 
 | Tag | Inhalt | Für |
 |---|---|---|
-| `:0.3` | neueste Version 0.3.x (Fehlerbehebungen) | Produktivbetrieb |
-| `:0.3.0` | genau diese Version | festhalten, zurückgehen |
+| `:0.4` | neueste Version 0.4.x (Fehlerbehebungen) | Produktivbetrieb |
+| `:0.4.0` | genau diese Version | festhalten, zurückgehen |
 | `:edge` | aktueller Stand von `main` | Testinstanz |
 
-**Produktiv:** `CHANGELOG.md` lesen, Image-Tag in der Compose-Datei erhöhen (z. B. `0.3` → `0.4`), App aktualisieren. Vor den
+**Produktiv:** `CHANGELOG.md` lesen, Image-Tag in der Compose-Datei erhöhen (z. B. `0.4` → `0.5`), App aktualisieren. Vor den
 Migrationen legt Skontio automatisch ein Backup `skontio-<datum>-vor-update-<version>.tar` an (wird nicht
 automatisch gelöscht). Zurück geht es mit dem alten Tag;
 haben Migrationen die Datenbank umgebaut, zusätzlich dieses Backup einspielen (Abschnitt 7).
@@ -267,15 +279,15 @@ einen Herkunftsnachweis: gebaut von genau diesem Repository, in genau dieser CI.
 GitHub-CLI:
 
 ```sh
-gh attestation verify oci://ghcr.io/skontio/skontio:0.3 --owner skontio
-docker buildx imagetools inspect ghcr.io/skontio/skontio:0.3 --format '{{json .Manifest.Digest}}'
+gh attestation verify oci://ghcr.io/skontio/skontio:0.4 --owner skontio
+docker buildx imagetools inspect ghcr.io/skontio/skontio:0.4 --format '{{json .Manifest.Digest}}'
 ```
 
 Den ausgegebenen Digest in die Compose-Datei schreiben, dann kann niemand unter demselben Tag ein anderes Image
 nachschieben:
 
 ```yaml
-    image: ghcr.io/skontio/skontio:0.3@sha256:…   # Tag zur Lesbarkeit, Digest gilt
+    image: ghcr.io/skontio/skontio:0.4@sha256:…   # Tag zur Lesbarkeit, Digest gilt
 ```
 
 Die Stückliste zeigt bei einer neuen Sicherheitsmeldung sofort, ob eine Version betroffen ist:

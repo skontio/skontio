@@ -5,9 +5,9 @@
   <h1>Wiederkehrende Rechnungen</h1>
   {% if due_count %}<form method="post" action="/wiederkehrend/erzeugen/">{% csrf_token %}<button type="submit">{{ due_count }} fällige als Entwurf anlegen</button></form>{% endif %}
 </div>
-<p class="muted">Anlegen über eine Rechnung: „Als wiederkehrend anlegen“. Skontio erzeugt nur Entwürfe mit dem passenden
-   Leistungszeitraum; Festschreiben und Versenden bleiben bei dir. Für automatische Entwürfe täglich
-   <code>skontio recurring</code> ausführen.</p>
+<p class="muted">Anlegen über eine Rechnung: „Als wiederkehrend anlegen“. Der Worker legt fällige Rechnungen täglich als Entwurf
+   an. Ist „automatisch versenden“ eingeschaltet, werden sie sofort festgeschrieben und per E-Mail an den Kunden
+   geschickt (mit den Standardanhängen) – ohne weitere Prüfung. Schlägt das fehl, bleibt der Entwurf liegen.</p>
 <p class="muted">Zahlt ein Kunde per Dauerauftrag (ohne Rechnungsnummer im Verwendungszweck)? Ordne die erste Zahlung
    auf der Bankseite zu – Skontio merkt sich die IBAN und bucht weitere Zahlungen automatisch auf die älteste offene
    Rechnung, wenn die automatische Zuordnung eingeschaltet ist.</p>
@@ -16,10 +16,11 @@
   <thead><tr><th>Bezeichnung</th><th class="hide-small">Kunde</th><th>Rhythmus</th><th>Nächste</th><th></th></tr></thead>
   <tbody>{% for row in rows %}{% with r=row.recurring %}
     <tr{% if not r.active %} class="muted"{% endif %}><td>{{ r.name }}{% if r.payer_iban %}<br><small class="muted">Dauerauftrag von {{ r.payer_iban }} wird automatisch zugeordnet</small>
-        {% if can_finalize %}<form method="post" action="/wiederkehrend/{{ r.pk }}/zahler-vergessen/" class="inline-form">{% csrf_token %}<button type="submit" class="link">vergessen</button></form>{% endif %}{% endif %}</td><td class="hide-small">{{ r.customer.name }}</td><td>{{ r.get_interval_display }}</td>
+        {% if can_finalize %}<form method="post" action="/wiederkehrend/{{ r.pk }}/zahler-vergessen/" class="inline-form">{% csrf_token %}<button type="submit" class="link">vergessen</button></form>{% endif %}{% endif %}</td><td class="hide-small">{{ r.customer.name }}</td><td>{{ r.get_interval_display }}{% if r.auto_send %}<br><small class="muted">versendet automatisch</small>{% endif %}{% for run in row.failed %}<br><small><span class="badge danger">Versand fehlgeschlagen</span> <a href="/dokumente/{{ run.document_id }}/">Rechnung {{ run.period_start|date:"m/Y" }}</a></small>{% endfor %}</td>
       <td>{% if row.next %}{{ row.next|date:"d.m.Y" }}{% if row.due %} <span class="badge danger">fällig</span>{% endif %}{% elif r.active %}beendet{% else %}pausiert{% endif %}</td>
       <td>{% if row.due %}<form method="post" action="/wiederkehrend/{{ r.pk }}/erzeugen/" class="inline-form">{% csrf_token %}<button type="submit" class="secondary">Entwurf</button></form>{% endif %}
-        {% if can_finalize %}<form method="post" action="/wiederkehrend/{{ r.pk }}/umschalten/" class="inline-form">{% csrf_token %}<button type="submit" class="link">{% if r.active %}pausieren{% else %}fortsetzen{% endif %}</button></form>{% endif %}</td></tr>
+        {% if can_finalize %}<form method="post" action="/wiederkehrend/{{ r.pk }}/umschalten/" class="inline-form">{% csrf_token %}<button type="submit" class="link">{% if r.active %}pausieren{% else %}fortsetzen{% endif %}</button></form>
+        <form method="post" action="/wiederkehrend/{{ r.pk }}/versand/" class="inline-form">{% csrf_token %}<button type="submit" class="link">{% if r.auto_send %}Versand: manuell{% else %}Versand: automatisch{% endif %}</button></form>{% endif %}</td></tr>
   {% endwith %}{% endfor %}</tbody>
 </table></div>
 {% else %}<p>Noch keine wiederkehrenden Rechnungen.</p>{% endif %}
