@@ -1,13 +1,36 @@
 # Änderungen
 
-## Unveröffentlicht
+## 0.4.0 – 2026-11-22
+
+Wiederkehrende Rechnungen lassen sich automatisch versenden, Fehler im Hintergrund melden sich per Mail, und die
+Claude-Anbindung funktioniert wieder.
+
+### Vor dem Update lesen
+
+- **Image-Tag** in der Compose-Datei von `0.3` auf `0.4` ändern. Die Datenbank wird beim Start automatisch
+  migriert (zwei kleine Felder an wiederkehrenden Rechnungen).
+- **Claude-Konnektor**: Ging die Verbindung mit „Invalid client_id“ nicht mehr, nach dem Update den Konnektor in
+  Claude entfernen und neu hinzufügen.
+- **Admin-Mails**: Für die neuen Fehlermeldungen brauchen die Admins eine E-Mail-Adresse und SMTP muss eingerichtet
+  sein.
+
+### Neu
 
 - **Wiederkehrende Rechnungen automatisch versenden**: optional schreibt der Worker neue Rechnungen sofort fest und
-  mailt sie an den Kunden. Standard bleibt: nur Entwurf. Scheitert der Versand, bleibt die Rechnung liegen, wird
-  7 Tage lang täglich erneut versucht und die Admins werden benachrichtigt.
-- **Fehlermeldungen per Mail an die Admins** bei Backup, wiederkehrenden Rechnungen, Beleg-Postfach und Kontoabruf.
-- **MCP-Verbindung mit Claude** lässt sich wieder herstellen: Claudes Client-Dokument nennt jetzt zusätzlich den
+  mailt sie mit den Standardanhängen an den Kunden. Standard bleibt: nur Entwurf. Scheitert der Versand, bleibt die
+  Rechnung liegen, wird 7 Tage lang täglich erneut versucht, die Admins werden benachrichtigt und die Liste
+  *Wiederkehrend* zeigt „Versand fehlgeschlagen“. Schalter beim Anlegen und in der Liste („Versand“).
+- **Fehlermeldungen per Mail an die Admins** bei Backup, wiederkehrenden Rechnungen, Beleg-Postfach und Kontoabruf
+  (einmal je Fehlerserie, nicht bei jedem Versuch).
+
+### Behoben
+
+- **MCP-Verbindung mit Claude** ließ sich nicht mehr herstellen: Claudes Client-Dokument nennt jetzt zusätzlich den
   Grant-Typ `jwt-bearer`, was zu „Invalid client_id“ führte. Skontio ignoriert Grant-Typen, die es nicht anbietet.
+
+### Sicherheit
+
+- `oauthlib` 4.0.1 (CVE-2026-49272); Debian-Sicherheitsupdates (`apt`, `zlib`) werden beim Bau des Images eingespielt.
 
 ## 0.3.0 – 2026-11-02
 
