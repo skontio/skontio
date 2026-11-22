@@ -1,5 +1,10 @@
 # Änderungen
 
+## Unveröffentlicht
+
+- **MCP-Verbindung mit Claude** lässt sich wieder herstellen: Claudes Client-Dokument nennt jetzt zusätzlich den
+  Grant-Typ `jwt-bearer`, was zu „Invalid client_id“ führte. Skontio ignoriert Grant-Typen, die es nicht anbietet.
+
 ## 0.3.0 – 2026-11-02
 
 Das bisher größte Update: Bank, Belege, Einrichtung, Briefvorlagen und eine gründliche Sicherheitsrunde.

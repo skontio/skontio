@@ -18,8 +18,10 @@ FROM python:3.13-slim-trixie@sha256:ae14d4ce8771606477a81446e7ef429edd6762305fc5
 # pg_dump/pg_restore/psql for Postgres backups from the official PGDG repository. pg_dump must be at
 # least as new as the server; it dumps every older server version, so ship the newest major.
 ARG PG_CLIENT_MAJOR=18
-# WeasyPrint runtime libraries and fonts embedded in PDF/A output
+# WeasyPrint runtime libraries and fonts embedded in PDF/A output.
+# `upgrade` first: the pinned base image lags behind Debian security fixes (the CI scan stops on those).
 RUN apt-get update \
+ && apt-get upgrade -y --no-install-recommends \
  && apt-get install -y --no-install-recommends ca-certificates postgresql-common \
  && /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y \
  && apt-get install -y --no-install-recommends \
