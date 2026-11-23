@@ -244,6 +244,41 @@ periodische ZFS-Snapshots von `tank/apps/skontio` und eine Replikation bzw. Clou
 Vor jedem Update mit Migrationen legt Skontio automatisch ein Backup `skontio-<datum>-vor-update-<version>.tar` an; anders als die
 nächtlichen Backups wird es nicht automatisch gelöscht.
 
+### Externe Sicherung mit Backrest
+
+Die nächtlichen Backups liegen auf demselben NAS wie die Daten. Fällt das NAS aus oder wird gestohlen, sind sie
+mit weg. [Backrest](https://github.com/garethgeorge/backrest) (Weboberfläche für restic) kopiert sie verschlüsselt
+an einen zweiten Ort. Die Menüs heißen je nach Backrest-Version etwas anders; das Vorgehen bleibt gleich.
+
+**Was sichern:**
+
+| Pfad | Warum |
+|---|---|
+| `tank/apps/skontio/backups` | Die `.tar`-Dateien: Datenbank **und** das gesamte Archiv der festgeschriebenen Belege, mit Prüfsummen. Daraus stellt `skontio restore` alles wieder her. |
+| `tank/apps/skontio-secrets` | `secret_key` und die übrigen Geheimnisse. Ohne `secret_key` sind Sitzungen und verschlüsselte Zugangsdaten nach einer Wiederherstellung unbrauchbar. |
+
+Nicht einzeln sichern musst du `data` und `archive`: Beides steckt konsistent in jedem Backup. Eine laufende
+SQLite-Datei direkt zu kopieren kann eine kaputte Kopie ergeben, deshalb immer die fertigen `.tar`-Dateien nehmen.
+
+**Einrichten (einmalig):**
+
+1. Backrest als App auf TrueNAS installieren und die beiden Pfade **schreibgeschützt** (read-only) einbinden.
+2. Ein Repository anlegen: Ziel außerhalb des NAS (S3-kompatibler Speicher wie Backblaze B2, SFTP auf einen anderen
+   Rechner oder per rclone ein Cloud-Speicher). Das **Repository-Passwort** sofort in den Passwort-Manager legen:
+   ohne es sind die Sicherungen unlesbar.
+3. Einen Plan anlegen: beide Pfade, Zeitplan täglich **nach** dem Skontio-Backup (also nach 02:30, z. B. 04:00),
+   Aufbewahrung etwa 7 tägliche, 4 wöchentliche, 12 monatliche Stände. Regelmäßiges *Prune* und *Check* des
+   Repositorys einplanen.
+4. Den ersten Lauf von Hand starten und im Backrest-Protokoll prüfen, dass Snapshots entstanden sind.
+
+Weil jedes `.tar` das ganze Archiv enthält, ist die Sicherung groß, restic speichert gleiche Teile aber nur einmal;
+ab dem zweiten Lauf wächst das Repository nur um das, was neu ist.
+
+**Wiederherstellung testen** (vor dem Ernstfall, z. B. halbjährlich): in Backrest einen Snapshot in einen
+Wegwerf-Ordner zurückspielen, die `.tar`-Datei in `backups` eines **Testsystems** legen (Abschnitt 9) und dort
+`skontio restore … --force` ausführen. Nicht in das laufende System zurückspielen. Erst wenn das klappt, ist die
+Sicherung eine Sicherung. Der Passwort-Manager muss dabei Repository-Passwort und `secret_key` liefern.
+
 ## 7. Wiederherstellen
 
 1. App in TrueNAS stoppen.
