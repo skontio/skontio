@@ -78,3 +78,28 @@ document.addEventListener("click", async (event) => {
     window.prompt("Wert kopieren:", button.dataset.copy);
   }
 });
+
+// Position hinzufügen: Wählt man eine Leistung aus dem Katalog, zeigt das Feld „Einheit“ deren Einheit (und ist
+// gesperrt, denn die Einheit der Leistung gilt). Ohne Leistung (freie Position) ist das Feld wieder frei.
+function syncUnit(itemSelect) {
+  const unit = itemSelect.form?.querySelector('select[name="unit_code"]');
+  if (!unit) {
+    return;
+  }
+  const code = itemSelect.selectedOptions[0]?.dataset.unit;
+  if (code) {
+    unit.value = code;
+    unit.disabled = true;
+  } else {
+    unit.disabled = false;
+  }
+}
+
+document.addEventListener("change", (event) => {
+  if (event.target instanceof HTMLSelectElement && event.target.name === "item") {
+    syncUnit(event.target);
+  }
+});
+const syncAllUnits = () => document.querySelectorAll('select[name="item"]').forEach(syncUnit);
+document.addEventListener("htmx:afterSettle", syncAllUnits);
+syncAllUnits();
