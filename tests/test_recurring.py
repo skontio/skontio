@@ -308,3 +308,11 @@ class TestAutoSend:
         assert drafts[0].status == Document.Status.DRAFT
         assert mail.outbox == []
         assert r.runs.count() == 1
+
+
+def test_version_is_shown_to_signed_in_users_only(client, shop):
+    from skontio import __version__
+
+    assert f"Skontio {__version__}" not in client.get("/anmelden/", follow=True).content.decode()
+    client.force_login(shop.user)
+    assert f"Skontio {__version__}" in client.get("/").content.decode()

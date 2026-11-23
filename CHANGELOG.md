@@ -4,6 +4,7 @@
 
 ### Neu
 
+- **Version in der Oberfläche**: Die laufende Version steht unten auf jeder Seite (nur für angemeldete Nutzer).
 - **Wiederkehrende Rechnungen bearbeiten und löschen**: Eine Serie verhält sich wie eine Vorlage. Bezeichnung,
   Rhythmus, Beginn, Ende, Texte und Positionen lassen sich ändern (Positionen entfernen, ändern, ergänzen); die
   Änderung gilt ab der nächsten Rechnung. Rhythmus und Beginn sind gesperrt, sobald Rechnungen entstanden sind.

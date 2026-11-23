@@ -8,6 +8,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, HttpResponseForbidden
 from django.shortcuts import redirect, render
 
+from skontio import __version__
 from skontio.accounts.roles import drafts_only
 from skontio.core.models import Company
 
@@ -36,7 +37,9 @@ def full_access(view):
 def roles(request) -> dict:
     """Template context: hide actions the current role may not use."""
     user = getattr(request, "user", None)
-    return {"can_finalize": bool(user and user.is_authenticated and not drafts_only(user))}
+    signed_in = bool(user and user.is_authenticated)
+    # the version is shown to signed-in users only, so strangers cannot read it off the login page
+    return {"can_finalize": signed_in and not drafts_only(user), "skontio_version": __version__ if signed_in else ""}
 
 
 def company_view(view):
