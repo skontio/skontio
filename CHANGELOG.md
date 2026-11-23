@@ -1,6 +1,10 @@
 # Änderungen
 
-## Unveröffentlicht
+## 0.5.0 – 2026-11-23
+
+Wiederkehrende Rechnungen lassen sich wie eine Vorlage bearbeiten und löschen, bei manuellem Versand erinnert eine
+Mail ans Festschreiben, und die Version steht in der Oberfläche. Update wie gewohnt per Image-Tag `0.5`; keine
+Migration.
 
 ### Neu
 
