@@ -279,12 +279,33 @@ def retry_failed(*, now=None) -> int:
 
 def generate_due(company, *, today: dt.date, user=None, auto_send: bool = False) -> list[Document]:
     """Create due drafts. ``auto_send`` (scheduler and CLI only) also finalizes and mails those of recurring
-    invoices that have it switched on; the web buttons leave every draft for a person to review."""
+    invoices that have it switched on and tells the admins about the others, which wait for a person to review
+    and finalize them; the web buttons leave every draft for a person to review."""
     drafts = []
+    waiting: list[tuple[RecurringInvoice, Document]] = []
     for recurring in due(company, today):
         new = generate(recurring, today=today, user=user)
         if auto_send and recurring.auto_send:
             for draft in new:
                 deliver(recurring, draft)
+        elif auto_send:
+            waiting += [(recurring, draft) for draft in new]
         drafts += new
+    if waiting:
+        notify_waiting(waiting)
     return drafts
+
+
+def notify_waiting(waiting: list[tuple[RecurringInvoice, Document]]) -> bool:
+    """One mail to the admins: these generated invoices are drafts and need to be finalized by a person."""
+    lines = ["Wiederkehrende Rechnungen warten darauf, geprüft und festgeschrieben zu werden:", ""]
+    lines += [
+        f"- {recurring.name} ({recurring.customer.name}): {settings.PUBLIC_URL}/dokumente/{draft.pk}/"
+        for recurring, draft in waiting
+    ]
+    subject = (
+        "Rechnung zum Festschreiben bereit"
+        if len(waiting) == 1
+        else f"{len(waiting)} Rechnungen zum Festschreiben bereit"
+    )
+    return notify_admins(subject, lines)

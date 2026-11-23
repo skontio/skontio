@@ -1,0 +1,26 @@
+{% extends "web/base.html" %}
+{% block title %}{{ recurring.name }} bearbeiten{% endblock %}
+{% block content %}
+<div class="heading">
+  <h1>{{ recurring.name }}</h1>
+  <p><a class="button secondary" href="/wiederkehrend/">Alle wiederkehrenden Rechnungen</a></p>
+</div>
+<p class="muted">Vorlage für {{ recurring.customer.name }}. Änderungen gelten ab der nächsten erzeugten Rechnung; bereits
+   erzeugte Rechnungen bleiben unverändert.</p>
+<form method="post" class="card form grid2">
+  {% csrf_token %}
+  {% include "web/_fields.html" %}
+  <h2>Positionen</h2>
+  {{ formset.management_form }}
+  {% if formset.non_form_errors %}<div class="errors full" role="alert">{% for e in formset.non_form_errors %}<p>{{ e }}</p>{% endfor %}</div>{% endif %}
+  {% for f in formset %}
+  <fieldset class="full">
+    <legend>{% if f.instance.pk %}Position {{ forloop.counter }}{% else %}Neue Position (leer lassen, wenn nicht gebraucht){% endif %}</legend>
+    {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
+    {% with form=f %}{% for field in f.visible_fields %}{% if field.name != "DELETE" %}{% include "web/_field.html" %}{% endif %}{% endfor %}{% endwith %}
+    {% if f.instance.pk %}{% with field=f.DELETE %}{% include "web/_field.html" %}{% endwith %}{% endif %}
+  </fieldset>
+  {% endfor %}
+  <div class="actions"><button type="submit">Speichern</button> <a href="/wiederkehrend/">Abbrechen</a></div>
+</form>
+{% endblock %}
