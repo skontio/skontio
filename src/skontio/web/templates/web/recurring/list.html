@@ -5,7 +5,8 @@
   <h1>Wiederkehrende Rechnungen</h1>
   {% if due_count %}<form method="post" action="/wiederkehrend/erzeugen/">{% csrf_token %}<button type="submit">{{ due_count }} fällige als Entwurf anlegen</button></form>{% endif %}
 </div>
-<p class="muted">Anlegen über eine Rechnung: „Als wiederkehrend anlegen“. Der Worker legt fällige Rechnungen täglich als Entwurf
+<p class="muted">Anlegen über eine Rechnung: „Als wiederkehrend anlegen“, danach lässt sie sich wie eine Vorlage bearbeiten (Positionen,
+   Texte, Rhythmus). Änderungen gelten ab der nächsten Rechnung. Der Worker legt fällige Rechnungen täglich als Entwurf
    an. Ist „automatisch versenden“ eingeschaltet, werden sie sofort festgeschrieben und per E-Mail an den Kunden
    geschickt (mit den Standardanhängen) – ohne weitere Prüfung. Schlägt das fehl, bleibt der Entwurf liegen.</p>
 <p class="muted">Zahlt ein Kunde per Dauerauftrag (ohne Rechnungsnummer im Verwendungszweck)? Ordne die erste Zahlung
@@ -19,7 +20,9 @@
         {% if can_finalize %}<form method="post" action="/wiederkehrend/{{ r.pk }}/zahler-vergessen/" class="inline-form">{% csrf_token %}<button type="submit" class="link">vergessen</button></form>{% endif %}{% endif %}</td><td class="hide-small">{{ r.customer.name }}</td><td>{{ r.get_interval_display }}{% if r.auto_send %}<br><small class="muted">versendet automatisch</small>{% endif %}{% for run in row.failed %}<br><small><span class="badge danger">Versand fehlgeschlagen</span> <a href="/dokumente/{{ run.document_id }}/">Rechnung {{ run.period_start|date:"m/Y" }}</a></small>{% endfor %}</td>
       <td>{% if row.next %}{{ row.next|date:"d.m.Y" }}{% if row.due %} <span class="badge danger">fällig</span>{% endif %}{% elif r.active %}beendet{% else %}pausiert{% endif %}</td>
       <td>{% if row.due %}<form method="post" action="/wiederkehrend/{{ r.pk }}/erzeugen/" class="inline-form">{% csrf_token %}<button type="submit" class="secondary">Entwurf</button></form>{% endif %}
-        {% if can_finalize %}<form method="post" action="/wiederkehrend/{{ r.pk }}/umschalten/" class="inline-form">{% csrf_token %}<button type="submit" class="link">{% if r.active %}pausieren{% else %}fortsetzen{% endif %}</button></form>
+        {% if can_finalize %}<a href="/wiederkehrend/{{ r.pk }}/bearbeiten/">bearbeiten</a>
+        {% if not r.runs.exists %}<form method="post" action="/wiederkehrend/{{ r.pk }}/loeschen/" class="inline-form" onsubmit="return confirm('„{{ r.name|escapejs }}“ wirklich löschen?')">{% csrf_token %}<button type="submit" class="link">löschen</button></form>{% endif %}
+        <form method="post" action="/wiederkehrend/{{ r.pk }}/umschalten/" class="inline-form">{% csrf_token %}<button type="submit" class="link">{% if r.active %}pausieren{% else %}fortsetzen{% endif %}</button></form>
         <form method="post" action="/wiederkehrend/{{ r.pk }}/versand/" class="inline-form">{% csrf_token %}<button type="submit" class="link">{% if r.auto_send %}Versand: manuell{% else %}Versand: automatisch{% endif %}</button></form>{% endif %}</td></tr>
   {% endwith %}{% endfor %}</tbody>
 </table></div>

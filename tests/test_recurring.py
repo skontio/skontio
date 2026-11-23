@@ -11,7 +11,7 @@ from django.core.management import call_command
 
 from skontio.documents.models import Document
 from skontio.documents.services import add_line_from_item, create_draft, finalize
-from skontio.recurring.models import RecurringRun
+from skontio.recurring.models import RecurringInvoice, RecurringRun
 from skontio.recurring.services import (
     RecurringError,
     add_months,
@@ -154,6 +154,82 @@ class TestWeb:
         assert not recurring.active
 
 
+class TestEditAndDelete:
+    def post_edit(self, client, recurring, **overrides):
+        lines = list(recurring.lines.order_by("position"))
+        data = {
+            "name": recurring.name,
+            "interval": str(recurring.interval),
+            "start_date": recurring.start_date.isoformat(),
+            "in_advance": "on",
+            "intro_text": "Neu",
+            "closing_text": "",
+            "form-TOTAL_FORMS": str(len(lines) + 1),
+            "form-INITIAL_FORMS": str(len(lines)),
+            "form-MIN_NUM_FORMS": "0",
+            "form-MAX_NUM_FORMS": "1000",
+        }
+        for i, line in enumerate(lines):
+            data |= {
+                f"form-{i}-id": str(line.pk),
+                f"form-{i}-text": line.text,
+                f"form-{i}-quantity": str(line.quantity),
+                f"form-{i}-unit_code": line.unit_code,
+                f"form-{i}-unit_price": str(line.unit_price),
+                f"form-{i}-tax_treatment": line.tax_treatment,
+            }
+        n = len(lines)
+        data |= {f"form-{n}-quantity": "1", f"form-{n}-unit_code": "C62", f"form-{n}-tax_treatment": "standard"}
+        data |= overrides
+        return client.post(f"/wiederkehrend/{recurring.pk}/bearbeiten/", data)
+
+    def test_edit_page_and_header_change(self, client, shop):
+        recurring = create_from_invoice(source_invoice(shop), name="X", interval=1, start_date=dt.date(2027, 1, 1))
+        client.force_login(shop.user)
+        assert "Positionen" in client.get(f"/wiederkehrend/{recurring.pk}/bearbeiten/").content.decode()
+        response = self.post_edit(client, recurring, name="Neu", interval="3")
+        assert response["Location"] == "/wiederkehrend/"
+        recurring.refresh_from_db()
+        assert (recurring.name, recurring.interval, recurring.intro_text) == ("Neu", 3, "Neu")
+
+    def test_remove_and_add_lines(self, client, shop):
+        invoice = source_invoice(shop)
+        recurring = create_from_invoice(invoice, name="X", interval=1, start_date=dt.date(2027, 1, 1))
+        client.force_login(shop.user)
+        n = recurring.lines.count()
+        added = {f"form-{n}-text": "Zusatz", f"form-{n}-unit_price": "10", f"form-{n}-quantity": "1"}
+        self.post_edit(client, recurring, **added)
+        assert list(recurring.lines.order_by("position").values_list("text", flat=True))[-1] == "Zusatz"
+        first = recurring.lines.order_by("position").first()
+        self.post_edit(client, recurring, **{"form-0-DELETE": "on"})
+        assert not recurring.lines.filter(pk=first.pk).exists() and recurring.lines.count() == n
+        assert recurring.lines.get().position == 1
+
+    def test_cannot_remove_every_line(self, client, shop):
+        recurring = create_from_invoice(source_invoice(shop), name="X", interval=1, start_date=dt.date(2027, 1, 1))
+        client.force_login(shop.user)
+        response = self.post_edit(client, recurring, **{"form-0-DELETE": "on"})
+        assert response.status_code == 200 and recurring.lines.count() == 1
+
+    def test_schedule_is_locked_after_first_invoice(self, client, shop):
+        recurring = create_from_invoice(source_invoice(shop), name="X", interval=1, start_date=dt.date(2026, 1, 1))
+        generate(recurring, today=dt.date(2026, 1, 1))
+        client.force_login(shop.user)
+        self.post_edit(client, recurring, name="Neu", interval="12", start_date="2030-01-01")
+        recurring.refresh_from_db()
+        assert (recurring.name, recurring.interval, recurring.start_date) == ("Neu", 1, dt.date(2026, 1, 1))
+
+    def test_delete_only_without_runs(self, client, shop):
+        client.force_login(shop.user)
+        fresh = create_from_invoice(source_invoice(shop), name="A", interval=1, start_date=dt.date(2027, 1, 1))
+        client.post(f"/wiederkehrend/{fresh.pk}/loeschen/")
+        assert not RecurringInvoice.objects.filter(pk=fresh.pk).exists()
+        used = create_from_invoice(source_invoice(shop), name="B", interval=1, start_date=dt.date(2026, 1, 1))
+        generate(used, today=dt.date(2026, 1, 1))
+        client.post(f"/wiederkehrend/{used.pk}/loeschen/")
+        assert RecurringInvoice.objects.filter(pk=used.pk).exists()
+
+
 class TestAutoSend:
     @pytest.fixture(autouse=True)
     def _smtp(self, settings):
@@ -167,6 +243,18 @@ class TestAutoSend:
             source_invoice(shop), name="Hosting", interval=1, start_date=dt.date(2026, 3, 1), **options
         )
         return r, generate_due(shop.company, today=dt.date(2026, 3, 1), auto_send=True)
+
+    def test_manual_series_mails_admins_that_a_draft_waits(self, shop):
+        from django.core import mail
+
+        shop.user.email = "inhaber@example.org"
+        shop.user.save()
+        _, drafts = self.run(shop)  # auto_send off
+        drafts[0].refresh_from_db()
+        assert drafts[0].status == Document.Status.DRAFT
+        (note,) = mail.outbox
+        assert "zum Festschreiben" in note.subject and f"/dokumente/{drafts[0].pk}/" in note.body
+        assert note.to == ["inhaber@example.org"]
 
     def test_finalizes_and_mails_when_switched_on(self, shop):
         from django.core import mail
