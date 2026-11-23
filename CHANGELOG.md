@@ -1,5 +1,16 @@
 # Änderungen
 
+## 0.4.1 – 2026-11-23
+
+Wartungsrelease ohne Änderung am Programm: Das Image wird mit aktualisierten Build-Werkzeugen gebaut, dazu eine
+Anleitung für die externe Sicherung mit Backrest. Update wie gewohnt per Image-Tag `0.4`; keine Migration.
+
+### Intern
+
+- GitHub Actions aktualisiert: `docker/login-action` 4.7.0, `docker/metadata-action` 6.2.0,
+  `docker/build-push-action` 7.4.0 (je einzeln getestet, Veröffentlichungslauf grün).
+- Dokumentation: Abschnitt „Externe Sicherung mit Backrest“ in `docs/betrieb.md`.
+
 ## 0.4.0 – 2026-11-22
 
 Wiederkehrende Rechnungen lassen sich automatisch versenden, Fehler im Hintergrund melden sich per Mail, und die
