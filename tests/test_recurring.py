@@ -219,15 +219,17 @@ class TestEditAndDelete:
         recurring.refresh_from_db()
         assert (recurring.name, recurring.interval, recurring.start_date) == ("Neu", 1, dt.date(2026, 1, 1))
 
-    def test_delete_only_without_runs(self, client, shop):
+    def test_delete_keeps_invoices_but_not_while_drafts_wait(self, client, shop):
         client.force_login(shop.user)
-        fresh = create_from_invoice(source_invoice(shop), name="A", interval=1, start_date=dt.date(2027, 1, 1))
-        client.post(f"/wiederkehrend/{fresh.pk}/loeschen/")
-        assert not RecurringInvoice.objects.filter(pk=fresh.pk).exists()
         used = create_from_invoice(source_invoice(shop), name="B", interval=1, start_date=dt.date(2026, 1, 1))
-        generate(used, today=dt.date(2026, 1, 1))
+        (draft,) = generate(used, today=dt.date(2026, 1, 1))
         client.post(f"/wiederkehrend/{used.pk}/loeschen/")
-        assert RecurringInvoice.objects.filter(pk=used.pk).exists()
+        assert RecurringInvoice.objects.filter(pk=used.pk).exists()  # draft still waiting
+        finalize(draft)
+        client.post(f"/wiederkehrend/{used.pk}/loeschen/")
+        assert not RecurringInvoice.objects.filter(pk=used.pk).exists()
+        assert not RecurringRun.objects.exists()
+        assert Document.objects.filter(pk=draft.pk, status=Document.Status.FINALIZED).exists()
 
 
 class TestAutoSend:

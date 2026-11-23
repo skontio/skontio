@@ -8,7 +8,7 @@
 - **Wiederkehrende Rechnungen bearbeiten und löschen**: Eine Serie verhält sich wie eine Vorlage. Bezeichnung,
   Rhythmus, Beginn, Ende, Texte und Positionen lassen sich ändern (Positionen entfernen, ändern, ergänzen); die
   Änderung gilt ab der nächsten Rechnung. Rhythmus und Beginn sind gesperrt, sobald Rechnungen entstanden sind.
-  Löschen geht nur für Serien ohne erzeugte Rechnungen, sonst bleibt „pausieren“.
+  Löschen geht, sobald keine Entwürfe der Serie mehr offen sind; die bisherigen Rechnungen bleiben unverändert.
 - **Hinweis bei manuellem Versand**: Legt der Worker für eine Serie ohne automatischen Versand einen Entwurf an,
   bekommen die Admins eine E-Mail mit Link zur Rechnung, damit sie geprüft und festgeschrieben wird.
 

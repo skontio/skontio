@@ -248,12 +248,15 @@ def recurring_edit(request, pk: int):
 @full_access
 def recurring_delete(request, pk: int):
     recurring = get_object_or_404(RecurringInvoice, pk=pk, company=request.company)
-    if recurring.runs.exists():
-        messages.error(request, "Es sind schon Rechnungen daraus entstanden – bitte pausieren statt löschen.")
+    if recurring.runs.filter(document__status=Document.Status.DRAFT).exists():
+        messages.error(request, "Aus dieser Serie liegen noch Entwürfe vor – bitte erst festschreiben oder verwerfen.")
         return redirect("recurring_list")
     name = recurring.name
     pk_value = recurring.pk
-    recurring.delete()
+    with transaction.atomic():
+        # the invoices themselves stay untouched; only the link between series and invoice goes
+        recurring.runs.all().delete()
+        recurring.delete()
     record("recurring.delete", actor=request.user, company=request.company, entity="recurring_invoice",
            entity_id=pk_value, data={"name": name})  # fmt: skip
     messages.success(request, f"„{name}“ gelöscht.")

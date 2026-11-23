@@ -21,7 +21,7 @@
       <td>{% if row.next %}{{ row.next|date:"d.m.Y" }}{% if row.due %} <span class="badge danger">fällig</span>{% endif %}{% elif r.active %}beendet{% else %}pausiert{% endif %}</td>
       <td>{% if row.due %}<form method="post" action="/wiederkehrend/{{ r.pk }}/erzeugen/" class="inline-form">{% csrf_token %}<button type="submit" class="secondary">Entwurf</button></form>{% endif %}
         {% if can_finalize %}<a href="/wiederkehrend/{{ r.pk }}/bearbeiten/">bearbeiten</a>
-        {% if not r.runs.exists %}<form method="post" action="/wiederkehrend/{{ r.pk }}/loeschen/" class="inline-form" onsubmit="return confirm('„{{ r.name|escapejs }}“ wirklich löschen?')">{% csrf_token %}<button type="submit" class="link">löschen</button></form>{% endif %}
+        <form method="post" action="/wiederkehrend/{{ r.pk }}/loeschen/" class="inline-form" onsubmit="return confirm('„{{ r.name|escapejs }}“ wirklich löschen? Die bisherigen Rechnungen bleiben erhalten.')">{% csrf_token %}<button type="submit" class="link">löschen</button></form>
         <form method="post" action="/wiederkehrend/{{ r.pk }}/umschalten/" class="inline-form">{% csrf_token %}<button type="submit" class="link">{% if r.active %}pausieren{% else %}fortsetzen{% endif %}</button></form>
         <form method="post" action="/wiederkehrend/{{ r.pk }}/versand/" class="inline-form">{% csrf_token %}<button type="submit" class="link">{% if r.auto_send %}Versand: manuell{% else %}Versand: automatisch{% endif %}</button></form>{% endif %}</td></tr>
   {% endwith %}{% endfor %}</tbody>
