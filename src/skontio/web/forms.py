@@ -253,6 +253,18 @@ class HeaderForm(forms.Form):
         return data
 
 
+class ItemSelect(forms.Select):
+    """Catalog picker whose options carry the item's unit (``data-unit``), so the unit field can follow the choice."""
+
+    units: dict = {}
+
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(name, value, label, selected, index, subindex=subindex, attrs=attrs)
+        if code := self.units.get(str(getattr(value, "value", value))):
+            option["attrs"]["data-unit"] = code
+        return option
+
+
 class LineForm(forms.Form):
     item = forms.ModelChoiceField(
         queryset=Item.objects.none(), required=False, label="Aus dem Katalog", empty_label="– freie Position –"
@@ -270,6 +282,7 @@ class LineForm(forms.Form):
         required=False,
         label="Einheit",
         empty_label="Stück (Standard)",
+        help_text="Bei einer Leistung aus dem Katalog gilt deren Einheit.",
     )
     unit_price = forms.DecimalField(
         label="Einzelpreis netto (€)", min_value=0, max_digits=14, decimal_places=4, localize=True, required=False
@@ -291,7 +304,11 @@ class LineForm(forms.Form):
 
     def __init__(self, *args, company, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["item"].queryset = Item.objects.filter(company=company, archived_at__isnull=True)
+        items = Item.objects.filter(company=company, archived_at__isnull=True).select_related("unit")
+        widget = ItemSelect()
+        widget.units = {str(item.pk): item.unit.code for item in items}
+        self.fields["item"].widget = widget  # before the queryset: that setter hands the choices to the widget
+        self.fields["item"].queryset = items
 
     def clean(self):
         data = super().clean()

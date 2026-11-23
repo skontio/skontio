@@ -318,3 +318,14 @@ def test_version_is_shown_to_signed_in_users_only(client, shop):
     assert f"Skontio {__version__}" not in client.get("/anmelden/", follow=True).content.decode()
     client.force_login(shop.user)
     assert f"Skontio {__version__}" in client.get("/").content.decode()
+
+
+def test_item_picker_carries_the_unit_of_each_item(client, shop):
+    from skontio.catalog.services import create_item
+
+    monthly = create_item(shop.company, name="Hosting", unit="MON", net_price=D("25"))
+    doc = create_draft(shop.company, Document.Type.INVOICE, shop.org, issue_date=dt.date(2026, 11, 23))
+    client.force_login(shop.user)
+    page = client.get(f"/dokumente/{doc.pk}/").content.decode()
+    assert f'value="{monthly.pk}" data-unit="MON"' in page
+    assert f'value="{shop.item.pk}" data-unit="HUR"' in page

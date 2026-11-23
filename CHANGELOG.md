@@ -1,5 +1,15 @@
 # Änderungen
 
+## 0.5.1 – 2026-11-24
+
+Kleine Korrektur an der Oberfläche. Update wie gewohnt per Image-Tag `0.5`; keine Migration.
+
+### Behoben
+
+- **Position hinzufügen**: Wählt man eine Leistung aus dem Katalog, zeigt das Feld „Einheit“ jetzt deren Einheit
+  (z. B. „Monat“) statt immer „Stück (Standard)“. Gespeichert wurde die Einheit der Leistung schon vorher richtig;
+  die Anzeige führte nur in die Irre. Bei freien Positionen bleibt das Feld frei wählbar.
+
 ## 0.5.0 – 2026-11-23
 
 Wiederkehrende Rechnungen lassen sich wie eine Vorlage bearbeiten und löschen, bei manuellem Versand erinnert eine
