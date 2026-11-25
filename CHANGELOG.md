@@ -1,17 +1,23 @@
 # Änderungen
 
-## Unveröffentlicht
+## 0.6.0 – 2026-11-25
+
+Skontio hat jetzt wahlweise eine neue Oberfläche, und Angebote trennen einmalige von laufenden Positionen. Update
+wie gewohnt per Image-Tag `0.6`; eine neue Migration (`core` 0010), das automatische Backup vor dem Update greift.
+Das bisherige Aussehen bleibt die Voreinstellung.
 
 ### Neu
 
+- **Angebote: einmalige und laufende Positionen getrennt**: Enthält ein Angebot Positionen mit der Einheit Monat
+  oder Jahr, weist das PDF die Summen getrennt nach „Einmalig“, „Monatlich (pro Monat)“ und „Jährlich (pro Jahr)“
+  aus. Die Einheit „Jahr“ wird in den Dokumenttexten übersetzt (deutsch und englisch).
 - **Oberfläche „Modern“**: Unter Einstellungen → Oberfläche lässt sich das Aussehen von Skontio zwischen „Standard“
   (wie bisher, Voreinstellung) und „Modern“ umschalten. „Modern“ ist eine eigene Bedienoberfläche: dunkle Navigation
   mit Icons (auf schmalen Fenstern eine Leiste, die sich beim Darüberfahren öffnet), Übersicht als Kachelraster mit
   Begrüßung und offenem Betrag, Listenzeilen als schwebende Karten, Filter als Segment-Schalter, Status als Tag mit
   Punkt, eine Befehlspalette (Strg/⌘ + K oder „/“) zum Suchen und Springen, eine schwebende Tab-Leiste am Handy und
   sanfte Einblend-Bewegung (entfällt bei „Bewegung reduzieren“). Das gilt für alle Nutzer der Installation; PDFs
-  bleiben unverändert. Eine eigene `theme.css` aus `SKONTIO_THEME_DIR` greift in beiden Varianten. Neue Migration
-  (`core` 0010).
+  bleiben unverändert. Eine eigene `theme.css` aus `SKONTIO_THEME_DIR` greift in beiden Varianten.
 
 ## 0.5.1 – 2026-11-24
 
