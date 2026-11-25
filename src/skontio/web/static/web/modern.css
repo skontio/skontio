@@ -55,7 +55,7 @@ kbd { font: 600 .72rem/1 var(--font-text); padding: 3px 6px; border-radius: 6px;
 .palette-open span { flex: 1; text-align: left; white-space: nowrap; }
 .sidebar .navgroup { margin: 0 0 6px; }
 .sidebar .navgroup h2 { color: var(--rail-muted); font-size: .68rem; margin: 18px 12px 6px; opacity: .85; white-space: nowrap; }
-.sidebar .navlink { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 14px; color: var(--rail-muted); white-space: nowrap; }
+.sidebar .navlink { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 14px; color: var(--rail-muted); line-height: 1.3; }
 .sidebar .navlink:hover { background: var(--rail-hover); color: var(--rail-ink); }
 .sidebar .navlink[aria-current="page"] { background: var(--rail-active); color: #fff; font-weight: 700; box-shadow: none; }
 .sidebar .navlink[aria-current="page"] .ico { stroke: var(--rail-accent); }
@@ -68,10 +68,14 @@ kbd { font: 600 .72rem/1 var(--font-text); padding: 3px 6px; border-radius: 6px;
 @media (min-width: 861px) and (max-width: 1199px) {
   .shell { grid-template-columns: var(--rail-width) minmax(0, 1fr); }
   .content { grid-column: 2; }
-  .sidebar { position: fixed; inset: 0 auto 0 0; width: var(--rail-width); height: 100vh; overflow: hidden; z-index: 30;
+  .sidebar { position: fixed; inset: 0 auto 0 0; width: var(--rail-width); height: 100vh; overflow-x: hidden; overflow-y: auto; scrollbar-width: none; z-index: 30;
              transition: width .22s cubic-bezier(.2, .7, .2, 1), box-shadow .22s; }
-  .sidebar:hover, .sidebar:focus-within { width: var(--side); overflow-y: auto; box-shadow: 12px 0 40px -8px rgba(0, 0, 0, .5); }
-  .sidebar:not(:hover):not(:focus-within) :is(.navlink span, .brand span, .new span, .palette-open span, .palette-open kbd, .logout span, h2) { opacity: 0; }
+  .sidebar .navlink { white-space: nowrap; }
+  .sidebar:hover, .sidebar:focus-within { width: var(--side); scrollbar-width: thin; box-shadow: 12px 0 40px -8px rgba(0, 0, 0, .5); }
+  .sidebar:not(:hover):not(:focus-within) :is(.navlink span, .brand span, .new span, .palette-open span, .palette-open kbd, .logout span) { opacity: 0; }
+  /* collapsed: group titles shrink to thin dividers so every icon fits */
+  .sidebar:not(:hover):not(:focus-within) .navgroup h2 { font-size: 0; height: 1px; margin: 10px 14px; padding: 0; background: var(--rail-hover); overflow: hidden; }
+  .sidebar:not(:hover):not(:focus-within) .navlink, .sidebar:not(:hover):not(:focus-within) .logout button.link { padding-block: 8px; }
 }
 @media (min-width: 861px) {
   .page { max-width: 1240px; padding: 40px 48px 24px; }
@@ -98,11 +102,14 @@ kbd { font: 600 .72rem/1 var(--font-text); padding: 3px 6px; border-radius: 6px;
 
 /* ---- page heading ---------------------------------------------------------------------------- */
 .heading h1 { font-size: clamp(1.9rem, 2.4vw + 1rem, 2.7rem); }
-.heading { margin-bottom: 24px; }
+.heading { margin-bottom: 24px; justify-content: flex-start; gap: 12px; }
+.heading h1 { margin-right: auto; }
 
 /* ---- surfaces -------------------------------------------------------------------------------- */
 .card, .panel { border: 0; border-radius: var(--radius); box-shadow: var(--shadow); padding: 22px 24px; }
 .panel { padding: 20px 22px; }
+.panel.next { box-shadow: 0 0 0 2px var(--marker), var(--shadow); }
+.sheet .card, .sheet .panel { box-shadow: none; border: 1px solid var(--rule); }
 .sheet { border-radius: var(--radius-sm); }
 @media (max-width: 640px) { .sheet { border-radius: 0; } }
 .cards { gap: 20px; }
