@@ -300,11 +300,11 @@ Images entstehen automatisch auf GitHub (`ghcr.io/skontio/skontio`):
 
 | Tag | Inhalt | Für |
 |---|---|---|
-| `:0.5` | neueste Version 0.5.x (Fehlerbehebungen) | Produktivbetrieb |
-| `:0.5.0` | genau diese Version | festhalten, zurückgehen |
+| `:0.6` | neueste Version 0.6.x (Fehlerbehebungen) | Produktivbetrieb |
+| `:0.6.0` | genau diese Version | festhalten, zurückgehen |
 | `:edge` | aktueller Stand von `main` | Testinstanz |
 
-**Produktiv:** `CHANGELOG.md` lesen, Image-Tag in der Compose-Datei erhöhen (z. B. `0.4` → `0.5`), App aktualisieren. Vor den
+**Produktiv:** `CHANGELOG.md` lesen, Image-Tag in der Compose-Datei erhöhen (z. B. `0.5` → `0.6`), App aktualisieren. Vor den
 Migrationen legt Skontio automatisch ein Backup `skontio-<datum>-vor-update-<version>.tar` an (wird nicht
 automatisch gelöscht). Zurück geht es mit dem alten Tag;
 haben Migrationen die Datenbank umgebaut, zusätzlich dieses Backup einspielen (Abschnitt 7).
@@ -314,15 +314,15 @@ einen Herkunftsnachweis: gebaut von genau diesem Repository, in genau dieser CI.
 GitHub-CLI:
 
 ```sh
-gh attestation verify oci://ghcr.io/skontio/skontio:0.5 --owner skontio
-docker buildx imagetools inspect ghcr.io/skontio/skontio:0.5 --format '{{json .Manifest.Digest}}'
+gh attestation verify oci://ghcr.io/skontio/skontio:0.6 --owner skontio
+docker buildx imagetools inspect ghcr.io/skontio/skontio:0.6 --format '{{json .Manifest.Digest}}'
 ```
 
 Den ausgegebenen Digest in die Compose-Datei schreiben, dann kann niemand unter demselben Tag ein anderes Image
 nachschieben:
 
 ```yaml
-    image: ghcr.io/skontio/skontio:0.5@sha256:…   # Tag zur Lesbarkeit, Digest gilt
+    image: ghcr.io/skontio/skontio:0.6@sha256:…   # Tag zur Lesbarkeit, Digest gilt
 ```
 
 Die Stückliste zeigt bei einer neuen Sicherheitsmeldung sofort, ob eine Version betroffen ist:
