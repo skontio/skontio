@@ -1,0 +1,96 @@
+/* Skontio "Modern": ruhige Oberfläche nach Swiss-Style. Wird nur geladen, wenn die Firma unter
+   Einstellungen → Oberfläche „Modern" gewählt hat – nach theme.css und app.css, vor einem eigenen theme.css.
+   Gleiche Selektoren wie app.css, deshalb gewinnt die spätere Datei; Mobile-Regeln stehen in Media Queries. */
+
+:root {
+  --ink: #1b2a41; --muted: #56647a; --ground: #edf0f3; --paper: #ffffff; --rule: #d5dbe2; --rule-strong: #aab4c1;
+  --blue: #2f4fb5; --blue-deep: #233c8c; --on-blue: #ffffff; --blue-wash: #e7ecfa;
+  --red: #b8322b; --red-wash: #fbe9e7; --green: #2d7350; --green-wash: #e3f1e9;
+  --marker: #f3d34a; --marker-wash: #fcf3c4;
+  --sheet-shadow: 0 1px 0 var(--rule), 0 8px 24px -12px rgba(27, 42, 65, .25);
+  --font-text: "Atkinson", system-ui, sans-serif; --font-head: "Barlow SC", "Atkinson", system-ui, sans-serif;
+  --gap: 16px; --side: 232px; --tabbar: 64px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e4e8ee; --muted: #9aa6b5; --ground: #12161d; --paper: #1a2029; --rule: #2c3441; --rule-strong: #47536a;
+    --blue: #8ea6f0; --blue-deep: #b3c3f6; --on-blue: #0e1730; --blue-wash: #1f2a4a;
+    --red: #f08a82; --red-wash: #3a1d1c; --green: #7cc49b; --green-wash: #16302a;
+    --marker: #e9c53a; --marker-wash: #3a3214;
+    --sheet-shadow: 0 0 0 1px var(--rule);
+    color-scheme: dark;
+  }
+}
+
+/* ---- base ---- */
+body { -webkit-font-smoothing: antialiased; }
+:focus-visible { border-radius: var(--radius-sm); }
+h1 { font-weight: 700; letter-spacing: 0; }
+button, .button, .navlink, .tab, input, select, textarea, .card, .panel, table.list tbody tr td {
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease; }
+
+/* ---- shell ---- */
+.sidebar { padding: 22px 14px; }
+.brand { display: inline-flex; align-items: center; gap: 10px; padding: 4px 10px 18px; }
+.brand::before { content: ""; width: 12px; height: 12px; border-radius: 3px; background: var(--blue); flex: none; }
+.navgroup h2 { font: 700 .72rem/1 var(--font-text); margin: 16px 10px 6px; text-transform: uppercase; letter-spacing: .08em; }
+.navlink { padding: 8px 10px; border-radius: var(--radius-sm); }
+.navlink[aria-current="page"] { color: var(--blue-deep); font-weight: 700; box-shadow: none; }
+@media (min-width: 861px) {
+  .page { max-width: 1180px; padding: 36px 40px 24px; }
+  .disclaimer { max-width: 1180px; padding: 16px 40px 28px; }
+}
+
+/* ---- surfaces ---- */
+.card { border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px 22px; }
+.panel { border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px 20px; }
+.sheet { border-radius: var(--radius-sm); }
+@media (max-width: 640px) { .sheet { border-radius: 0; } }
+
+/* ---- status tags: text + dot, never colour alone ---- */
+.stamp { display: inline-flex; align-items: center; gap: 6px; font: 600 .78rem/1 var(--font-text); letter-spacing: .01em;
+         padding: 5px 10px 5px 8px; border: 1px solid currentColor; border-radius: 99px; background: var(--paper); transform: none; }
+.stamp::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex: none; }
+.stamp.big { font-size: .95rem; padding: 7px 14px 7px 12px; border-width: 1px; transform: none; }
+.stamp.draft::before { background: transparent; border: 1.5px solid currentColor; }
+.stamp.final { background: var(--blue-wash); }
+.stamp.paid { background: var(--green-wash); }
+.stamp.overdue, .stamp.cancelled { background: var(--red-wash); }
+.sheet > .stamp.big { top: 36px; right: 40px; opacity: 1; }
+@media (max-width: 640px) { .sheet > .stamp.big { top: 18px; right: 14px; font-size: .85rem; } }
+
+/* ---- helpers ---- */
+.warn { padding: 12px 16px; border-radius: var(--radius-sm); }
+p.danger, div.danger { padding: 12px 16px; border-radius: var(--radius-sm); }
+.note { background: var(--blue-wash); padding: 12px 16px; border-radius: var(--radius-sm); }
+.sheet .note { background: var(--blue-wash); }
+
+/* ---- forms and buttons ---- */
+input, select, textarea { border-radius: var(--radius-sm); }
+input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid var(--blue); outline-offset: 1px; }
+input[type="file"]::file-selector-button { border-radius: var(--radius-sm); }
+fieldset { border-radius: var(--radius); padding: 14px 18px; }
+button, .button { border-radius: var(--radius-sm); }
+button.danger:hover, .button.danger:hover { background: var(--red-wash); color: var(--red); border-color: var(--red); }
+.sidebar .logout button.link:hover { border-radius: var(--radius-sm); }
+
+/* ---- tables ---- */
+.table-scroll { border-radius: var(--radius); box-shadow: var(--shadow); }
+.sheet .table-scroll { border-radius: 0; box-shadow: none; }
+table.list th { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; background: var(--ground); border-bottom: 1px solid var(--rule); }
+table.list tbody tr:hover td { background: var(--blue-wash); }
+.sheet table.list th { background: var(--paper); text-transform: none; letter-spacing: 0; font-size: .85rem; border-bottom: 2px solid var(--ink); }
+pre.snippet { border-radius: var(--radius-sm); }
+.layout-option { border-radius: var(--radius); }
+
+/* ---- dashboard ---- */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--gap); margin: 0 0 24px; }
+.kpi { background: var(--paper); border: 1px solid var(--rule); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px 20px; display: grid; gap: 2px; align-content: start; }
+.kpi .label { color: var(--muted); font-size: .8rem; font-weight: 600; }
+.kpi .value { font: 700 1.9rem/1.1 var(--font-head); color: var(--ink); }
+.kpi .value small { font: 400 .9rem var(--font-text); color: var(--muted); }
+.kpi.alert { border-color: var(--red); background: var(--red-wash); }
+.kpi.alert .value { color: var(--red); }
+a.kpi { text-decoration: none; color: inherit; }
+a.kpi:hover { border-color: var(--blue); }

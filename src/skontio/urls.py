@@ -7,7 +7,7 @@ from skontio.attachments import views as attachment_views
 from skontio.mcp import views as mcp_views
 from skontio.mcp.auth import mcp_endpoint
 from skontio.web import accounting_views as accounting
-from skontio.web import assistant_views, transfer_views
+from skontio.web import assistant_views, transfer_views, ui_settings
 from skontio.web import numbering_views as numbering
 from skontio.web import procedure_views as procedure
 from skontio.web import security_views as security
@@ -58,6 +58,7 @@ urlpatterns = [
     path("einstellungen/textbausteine/", layouts.text_blocks, name="text_blocks"),
     path("einstellungen/nummernkreise/", numbering.numbering, name="numbering"),
     path("einstellungen/buchhaltung/", accounting.ledger, name="ledger"),
+    path("einstellungen/oberflaeche/", ui_settings.ui_theme, name="ui_theme"),
     path("einstellungen/gesamtexport/", transfer_views.full_export, name="full_export"),
     path("auswertungen/datev/", accounting.datev_export, name="datev_export"),
     path("einstellungen/steuerstatus/", taxstatus.tax_status, name="tax_status"),

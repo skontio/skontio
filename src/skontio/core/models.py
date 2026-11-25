@@ -8,6 +8,11 @@ from skontio.payments.link import validate_template as validate_payment_link
 DOCUMENT_LANGUAGES = [("de", "Deutsch"), ("en", "Englisch")]
 
 
+class UiTheme(models.TextChoices):
+    STANDARD = "standard", "Standard"
+    MODERN = "modern", "Modern"
+
+
 class Company(models.Model):
     """A legal entity issuing documents. Every business table is scoped to one company."""
 
@@ -81,6 +86,8 @@ class Company(models.Model):
     onboarding = models.JSONField(default=dict, blank=True)
     # Bank: book incoming payments without a click when the match is unambiguous (banking.services.auto_match)
     auto_match_payments = models.BooleanField("Zahlungseingänge automatisch zuordnen", default=False)
+    # Look of the web interface (not of the PDFs): "standard" keeps the classic look, "modern" loads web/modern.css
+    ui_theme = models.CharField("Oberfläche", max_length=10, choices=UiTheme.choices, default=UiTheme.STANDARD)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

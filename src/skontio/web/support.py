@@ -10,7 +10,7 @@ from django.shortcuts import redirect, render
 
 from skontio import __version__
 from skontio.accounts.roles import drafts_only
-from skontio.core.models import Company
+from skontio.core.models import Company, UiTheme
 
 
 def current_company() -> Company | None:
@@ -39,7 +39,10 @@ def roles(request) -> dict:
     user = getattr(request, "user", None)
     signed_in = bool(user and user.is_authenticated)
     # the version is shown to signed-in users only, so strangers cannot read it off the login page
-    return {"can_finalize": signed_in and not drafts_only(user), "skontio_version": __version__ if signed_in else ""}
+    context = {"can_finalize": signed_in and not drafts_only(user), "skontio_version": __version__ if signed_in else ""}
+    # the interface look is a company setting; the login pages follow it too
+    context["ui_modern"] = Company.objects.order_by("pk").values_list("ui_theme", flat=True).first() == UiTheme.MODERN
+    return context
 
 
 def company_view(view):

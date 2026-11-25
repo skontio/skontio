@@ -1,5 +1,15 @@
 # Änderungen
 
+## Unveröffentlicht
+
+### Neu
+
+- **Oberfläche „Modern“**: Unter Einstellungen → Oberfläche lässt sich das Aussehen von Skontio zwischen „Standard“
+  (wie bisher, Voreinstellung) und „Modern“ umschalten. „Modern“ bringt ruhigere Flächen, runde Karten, Status als
+  Tag mit Punkt statt gekippter Stempel, einen sichtbaren Fokusring und eine Kennzahlenleiste auf der Übersicht.
+  Das gilt für alle Nutzer der Installation; PDFs bleiben unverändert. Eigene `theme.css` aus `SKONTIO_THEME_DIR`
+  greift in beiden Varianten. Neue Migration (`core` 0010).
+
 ## 0.5.1 – 2026-11-24
 
 Kleine Korrektur an der Oberfläche. Update wie gewohnt per Image-Tag `0.5`; keine Migration.

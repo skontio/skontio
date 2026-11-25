@@ -13,7 +13,8 @@
 <link rel="preload" href="{% static 'web/fonts/atkinson-hyperlegible-next-400.woff2' %}" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="{% static 'web/fonts/barlow-semi-condensed-600.woff2' %}" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="{% asset 'web/theme.css' %}">
-<link rel="stylesheet" href="{% asset 'web/app.css' %}">{% custom_theme %}
+<link rel="stylesheet" href="{% asset 'web/app.css' %}">{% if ui_modern %}
+<link rel="stylesheet" href="{% asset 'web/modern.css' %}">{% endif %}{% custom_theme %}
 <script src="{% static 'web/vendor/htmx.min.js' %}" defer></script>
 <script src="{% asset 'web/app.js' %}" defer></script>
 </head>
