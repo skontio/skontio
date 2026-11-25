@@ -12,6 +12,12 @@
 {% for c in bank_expiring %}<p class="warn" role="status">Die Bankfreigabe für {{ c.bank_name }} endet am {{ c.valid_until|date:"d.m.Y" }}.
   <a href="/bank/verbinden/">Jetzt erneuern</a></p>{% endfor %}
 
+<div class="kpis" aria-label="Kennzahlen">
+  <a class="kpi" href="/dokumente/"><span class="label">Offen insgesamt</span><span class="value">{{ open_total }} <small>€</small></span></a>
+  <a class="kpi{% if overdue %} alert{% endif %}" href="/dokumente/"><span class="label">Überfällig</span><span class="value">{{ overdue|length }}</span></a>
+  <a class="kpi" href="/dokumente/"><span class="label">Entwürfe</span><span class="value">{{ drafts }}</span></a>
+</div>
+
 <div class="desk">
   <section class="card">
     <h2>Jetzt zu tun</h2>
