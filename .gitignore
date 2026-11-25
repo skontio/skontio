@@ -17,6 +17,9 @@ var/
 secrets/
 *.key
 
+# personal Compose file for the own NAS (real hostnames, IDs); the tracked deploy/truenas/compose.yaml is the template
+compose.local.yaml
+
 # downloaded validators (fetched by tools/validators/fetch.sh)
 tools/validators/.cache/
 
