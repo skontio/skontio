@@ -178,11 +178,11 @@ class TestCatalog:
     def test_archive_hides_item(self, app, company):
         app.post(
             "/leistungen/neu/",
-            {"kind": "service", "name": "Alt", "unit": "C62", "net_price": "1", "tax_treatment": "standard"},
+            {"kind": "service", "name": "Zebrastreifen", "unit": "C62", "net_price": "1", "tax_treatment": "standard"},
         )
         item = Item.objects.get()
         assert app.post(f"/leistungen/{item.pk}/archivieren/").status_code == 302
-        assert "Alt" not in app.get("/leistungen/").content.decode()
+        assert "Zebrastreifen" not in app.get("/leistungen/").content.decode()
 
 
 @pytest.mark.django_db
