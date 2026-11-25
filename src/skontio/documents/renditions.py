@@ -37,6 +37,49 @@ class RenditionError(ValueError):
     pass
 
 
+RECURRING_UNITS = ("MON", "ANN")  # Einheit Monat/Jahr = laufender Betrag je Zeitraum (nur im Angebot getrennt summiert)
+
+
+def _totals_view(t: Lang, totals) -> dict:
+    return {
+        "line_total": t.amount(totals.line_total),
+        "net_total": t.amount(totals.tax_basis_total),
+        "grand_total": t.money(totals.grand_total),
+        "rows": [
+            {
+                "vat_on": t("vat_on", rate=t.percent(b.rate), basis=t.amount(b.basis)),
+                "tax": t.amount(b.tax),
+                "allowance": t.amount(b.allowance) if b.allowance else "",
+                "rate": t.percent(b.rate),
+            }
+            for b in totals.breakdown
+        ],
+    }
+
+
+def _quote_blocks(t: Lang, document: Document, lines: list, inputs: list[LineInput]) -> list[dict]:
+    """Quote with recurring positions: one total per billing period instead of one mixed sum. For a
+    recurring position the quantity is the term (12 months), the unit price the amount per period."""
+    if document.doc_type != Type.QUOTE or not any(line.unit_code in RECURRING_UNITS for line in lines):
+        return []
+    blocks = []
+    for key in ("once", *RECURRING_UNITS):
+        picked = [
+            (line, inp)
+            for line, inp in zip(lines, inputs, strict=True)
+            if (line.unit_code if line.unit_code in RECURRING_UNITS else "once") == key
+        ]
+        if not picked:
+            continue
+        block_inputs = [
+            inp if key == "once" else LineInput(Decimal("1"), inp.unit_price, inp.tax, inp.discount_percent)
+            for _, inp in picked
+        ]
+        totals = calculate(block_inputs, document_discount_percent=document.document_discount_percent)
+        blocks.append({"title": t(f"block_{key}"), **_totals_view(t, totals)})
+    return blocks
+
+
 def _view(document: Document, *, draft: tuple[list[LineInput], dict, dict] | None = None) -> dict:
     """Template context. Finalized documents use their snapshot only; ``draft`` = (resolved line
     inputs, seller data, buyer data) renders a preview of a draft from current master data."""
@@ -166,6 +209,7 @@ def _view(document: Document, *, draft: tuple[list[LineInput], dict, dict] | Non
             "tax_basis_total": t.amount(totals.tax_basis_total),
             "grand_total": t.money(totals.grand_total),
         },
+        "blocks": _quote_blocks(t, document, lines, inputs),
         "grand_label": t("grand_total") if show_rates else t("invoice_total"),
         "tax_notes": tax_notes,
         "deductions": [
