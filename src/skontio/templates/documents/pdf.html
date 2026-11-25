@@ -62,7 +62,19 @@
   </tbody>
 </table>
 
+{% for block in blocks %}
 <table class="totals">
+  <tr><td colspan="2"><strong>{{ block.title }}</strong></td></tr>
+  <tr><td>{{ t.line_total }}</td><td class="num">{{ block.line_total }}</td></tr>
+  {% for row in block.rows %}{% if row.allowance %}<tr><td>{{ t.discount }} {{ doc_discount }}{% if show_rates %} ({{ row.rate }}){% endif %}</td><td class="num">−{{ row.allowance }}</td></tr>{% endif %}{% endfor %}
+  {% if show_rates %}
+    <tr><td>{{ t.net_total }}</td><td class="num">{{ block.net_total }}</td></tr>
+    {% for row in block.rows %}<tr><td>{{ row.vat_on }}</td><td class="num">{{ row.tax }}</td></tr>{% endfor %}
+  {% endif %}
+  <tr class="grand"><td>{{ grand_label }}</td><td class="num">{{ block.grand_total }}</td></tr>
+</table>
+{% endfor %}
+{% if not blocks %}<table class="totals">
   <tr><td>{{ t.line_total }}</td><td class="num">{{ totals.line_total }}</td></tr>
   {% for subtotal in subtotals %}{% if subtotal.allowance %}<tr><td>{{ t.discount }} {{ doc_discount }}{% if show_rates %} ({{ subtotal.rate }}){% endif %}</td><td class="num">−{{ subtotal.allowance }}</td></tr>{% endif %}{% endfor %}
   {% if show_rates %}
@@ -75,6 +87,7 @@
   <tr class="grand"><td>{{ due_label }}</td><td class="num">{{ due_total }}</td></tr>
   {% endif %}
 </table>
+{% endif %}
 
 {% for note in tax_notes %}<div class="note">{{ note }}</div>{% endfor %}
 {% if labor_text %}<div class="note">{{ labor_text }}</div>{% endif %}
