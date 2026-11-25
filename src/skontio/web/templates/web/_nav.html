@@ -1,31 +1,31 @@
 {% load skontio_ui %}<div class="navgroup">
   <h2>Verkauf</h2>
-  <a class="navlink" href="/" {% nav_current "/" %}>Übersicht</a>
-  <a class="navlink" href="/dokumente/" {% nav_current "/dokumente/" %}>Dokumente</a>
-  <a class="navlink" href="/kunden/" {% nav_current "/kunden/" %}>Kontakte</a>
-  <a class="navlink" href="/leistungen/" {% nav_current "/leistungen/" %}>Leistungen</a>
-  <a class="navlink" href="/wiederkehrend/" {% nav_current "/wiederkehrend/" %}>Wiederkehrend</a>
-  <a class="navlink" href="/mahnwesen/" {% nav_current "/mahnwesen/" %}>Mahnwesen</a>
-  <a class="navlink" href="/postausgang/" {% nav_current "/postausgang/" %}>Postausgang</a>
+  <a class="navlink" href="/" {% nav_current "/" %}>{% nav_icon "home" %}<span>Übersicht</span></a>
+  <a class="navlink" href="/dokumente/" {% nav_current "/dokumente/" %}>{% nav_icon "doc" %}<span>Dokumente</span></a>
+  <a class="navlink" href="/kunden/" {% nav_current "/kunden/" %}>{% nav_icon "users" %}<span>Kontakte</span></a>
+  <a class="navlink" href="/leistungen/" {% nav_current "/leistungen/" %}>{% nav_icon "tag" %}<span>Leistungen</span></a>
+  <a class="navlink" href="/wiederkehrend/" {% nav_current "/wiederkehrend/" %}>{% nav_icon "repeat" %}<span>Wiederkehrend</span></a>
+  <a class="navlink" href="/mahnwesen/" {% nav_current "/mahnwesen/" %}>{% nav_icon "bell" %}<span>Mahnwesen</span></a>
+  <a class="navlink" href="/postausgang/" {% nav_current "/postausgang/" %}>{% nav_icon "send" %}<span>Postausgang</span></a>
 </div>
 <div class="navgroup">
   <h2>Ausgaben und Bank</h2>
-  <a class="navlink" href="/ausgaben/" {% nav_current "/ausgaben/" "/ausgaben/belege/" %}>Ausgaben</a>
-  <a class="navlink" href="/ausgaben/belege/" {% nav_current "/ausgaben/belege/" %}>Belegeingang</a>
-  <a class="navlink" href="/eingang/" {% nav_current "/eingang/" %}>E-Rechnungen</a>
-  <a class="navlink" href="/einnahmen/" {% nav_current "/einnahmen/" %}>Sonstige Einnahmen</a>
-  {% if can_finalize %}<a class="navlink" href="/bank/" {% nav_current "/bank/" %}>Bank</a>{% endif %}
+  <a class="navlink" href="/ausgaben/" {% nav_current "/ausgaben/" "/ausgaben/belege/" %}>{% nav_icon "receipt" %}<span>Ausgaben</span></a>
+  <a class="navlink" href="/ausgaben/belege/" {% nav_current "/ausgaben/belege/" %}>{% nav_icon "inbox" %}<span>Belegeingang</span></a>
+  <a class="navlink" href="/eingang/" {% nav_current "/eingang/" %}>{% nav_icon "mail" %}<span>E-Rechnungen</span></a>
+  <a class="navlink" href="/einnahmen/" {% nav_current "/einnahmen/" %}>{% nav_icon "income" %}<span>Sonstige Einnahmen</span></a>
+  {% if can_finalize %}<a class="navlink" href="/bank/" {% nav_current "/bank/" %}>{% nav_icon "bank" %}<span>Bank</span></a>{% endif %}
 </div>
 <div class="navgroup">
   <h2>Steuern</h2>
-  <a class="navlink" href="/auswertungen/euer/" {% nav_current "/auswertungen/euer" %}>EÜR</a>
-  <a class="navlink" href="/auswertungen/ustva/" {% nav_current "/auswertungen/ustva/" %}>Umsatzsteuer</a>
-  <a class="navlink" href="/auswertungen/zm/" {% nav_current "/auswertungen/zm/" %}>Zusammenfassende Meldung</a>
-  {% if can_finalize %}<a class="navlink" href="/auswertungen/datev/" {% nav_current "/auswertungen/datev/" %}>DATEV-Export</a>{% endif %}
-  {% if user.is_staff %}<a class="navlink" href="/einstellungen/steuerstatus/" {% nav_current "/einstellungen/steuerstatus/" %}>Steuerstatus</a>{% endif %}
+  <a class="navlink" href="/auswertungen/euer/" {% nav_current "/auswertungen/euer" %}>{% nav_icon "chart" %}<span>EÜR</span></a>
+  <a class="navlink" href="/auswertungen/ustva/" {% nav_current "/auswertungen/ustva/" %}>{% nav_icon "percent" %}<span>Umsatzsteuer</span></a>
+  <a class="navlink" href="/auswertungen/zm/" {% nav_current "/auswertungen/zm/" %}>{% nav_icon "globe" %}<span>Zusammenfassende Meldung</span></a>
+  {% if can_finalize %}<a class="navlink" href="/auswertungen/datev/" {% nav_current "/auswertungen/datev/" %}>{% nav_icon "download" %}<span>DATEV-Export</span></a>{% endif %}
+  {% if user.is_staff %}<a class="navlink" href="/einstellungen/steuerstatus/" {% nav_current "/einstellungen/steuerstatus/" %}>{% nav_icon "shield" %}<span>Steuerstatus</span></a>{% endif %}
 </div>
 <div class="navgroup bottom">
-  <a class="navlink" href="/assistent/" {% nav_current "/assistent/" %}>Assistent</a>
-  {% if user.is_staff %}<a class="navlink" href="/einrichtung/" {% nav_current "/einrichtung/|/einstellungen/" "/einstellungen/steuerstatus/" %}>Einstellungen</a>{% endif %}
-  <form method="post" action="/auth/logout" class="logout">{% csrf_token %}<button type="submit" class="link">Abmelden</button></form>
+  <a class="navlink" href="/assistent/" {% nav_current "/assistent/" %}>{% nav_icon "sparkle" %}<span>Assistent</span></a>
+  {% if user.is_staff %}<a class="navlink" href="/einrichtung/" {% nav_current "/einrichtung/|/einstellungen/" "/einstellungen/steuerstatus/" %}>{% nav_icon "gear" %}<span>Einstellungen</span></a>{% endif %}
+  <form method="post" action="/auth/logout" class="logout">{% csrf_token %}<button type="submit" class="link">{% nav_icon "logout" %}<span>Abmelden</span></button></form>
 </div>

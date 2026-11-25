@@ -12,7 +12,7 @@
     {% for value, label in themes %}
     <label class="check"><input type="radio" name="ui_theme" value="{{ value }}"{% if value == company.ui_theme %} checked{% endif %}>
       <span><strong>{{ label }}</strong><br>
-      <small class="muted">{% if value == "modern" %}Ruhigere Flächen, runde Karten, Status als Tag mit Punkt und eine Kennzahlenleiste auf der Übersicht.{% else %}Das bisherige Aussehen mit Papier-Optik und Stempeln.{% endif %}</small></span></label>
+      <small class="muted">{% if value == "modern" %}Dunkle Navigation mit Icons, Übersicht als Kachelraster, schwebende Listenzeilen, Befehlspalette (Strg K) und sanfte Bewegung.{% else %}Das bisherige Aussehen mit Papier-Optik und Stempeln.{% endif %}</small></span></label>
     {% endfor %}
   </fieldset>
   <button type="submit">Speichern</button>

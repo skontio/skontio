@@ -34,15 +34,15 @@ def page(client) -> str:
 def test_standard_is_the_default_and_loads_no_modern_css(admin, company):
     assert company.ui_theme == "standard"
     body = page(admin)
-    assert "web/app.css" in body and "web/modern.css" not in body and 'class="kpis"' not in body
+    assert "web/app.css" in body and "web/modern.css" not in body and 'class="hero"' not in body
 
 
-def test_modern_adds_stylesheet_after_app_css_and_the_kpi_row(admin, company):
+def test_modern_adds_stylesheet_after_app_css_and_the_hero(admin, company):
     assert admin.post(URL, {"ui_theme": "modern"}).status_code == 302
     company.refresh_from_db()
     assert company.ui_theme == "modern"
     body = page(admin)
-    assert body.index("web/app.css") < body.index("web/modern.css") and 'class="kpis"' in body
+    assert body.index("web/app.css") < body.index("web/modern.css") and 'class="hero"' in body
 
 
 def test_can_switch_back(admin, company):

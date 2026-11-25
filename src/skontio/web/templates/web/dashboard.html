@@ -12,11 +12,18 @@
 {% for c in bank_expiring %}<p class="warn" role="status">Die Bankfreigabe für {{ c.bank_name }} endet am {{ c.valid_until|date:"d.m.Y" }}.
   <a href="/bank/verbinden/">Jetzt erneuern</a></p>{% endfor %}
 
-{% if ui_modern %}<div class="kpis" aria-label="Kennzahlen">
-  <a class="kpi" href="/dokumente/"><span class="label">Offen insgesamt</span><span class="value">{{ open_total }} <small>€</small></span></a>
-  <a class="kpi{% if overdue %} alert{% endif %}" href="/dokumente/"><span class="label">Überfällig</span><span class="value">{{ overdue|length }}</span></a>
-  <a class="kpi" href="/dokumente/"><span class="label">Entwürfe</span><span class="value">{{ drafts }}</span></a>
-</div>{% endif %}
+{% if ui_modern %}{% now "G" as hour %}<section class="hero" aria-label="Überblick">
+  <a class="tile hero-main" href="/dokumente/">
+    <span class="hero-hello">{% if hour|add:"0" < 11 %}Guten Morgen{% elif hour|add:"0" < 18 %}Guten Tag{% else %}Guten Abend{% endif %}, das steht aus</span>
+    <span class="hero-figure">{{ open_total }}&nbsp;€</span>
+    <span class="hero-sub">{% if overdue %}{{ overdue|length }} davon überfällig{% else %}Nichts überfällig{% endif %}</span>
+  </a>
+  <a class="tile{% if overdue %} alert{% endif %}" href="/dokumente/"><span class="label">Überfällig</span><span class="value">{{ overdue|length }}</span></a>
+  <a class="tile" href="/dokumente/"><span class="label">Entwürfe</span><span class="value">{{ drafts }}</span></a>
+  {% if status %}<a class="tile wide" href="/einstellungen/steuerstatus/"><span class="label">Kleinunternehmer-Grenze {{ status.year }}</span>
+    <span class="value">{{ revenue }}&nbsp;€ <small>von {{ limit }}&nbsp;€</small></span>
+    <progress max="100" value="{{ ruler.current|floatformat:"0u" }}" aria-label="Anteil der Jahresgrenze"></progress></a>{% endif %}
+</section>{% endif %}
 
 <div class="desk">
   <section class="card">
