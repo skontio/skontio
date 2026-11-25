@@ -32,7 +32,8 @@
 /* ---- base ------------------------------------------------------------------------------------ */
 body { -webkit-font-smoothing: antialiased; }
 :focus-visible { border-radius: var(--radius-sm); }
-h1 { font-weight: 700; letter-spacing: -.005em; }
+h1 { font-weight: 700; letter-spacing: -.005em; overflow-wrap: break-word; hyphens: auto; }
+::placeholder { color: var(--muted); opacity: 1; }
 h2 { font-weight: 700; }
 .ico { width: 22px; height: 22px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 kbd { font: 600 .72rem/1 var(--font-text); padding: 3px 6px; border-radius: 6px; border: 1px solid currentColor; opacity: .75; white-space: nowrap; }
@@ -152,6 +153,11 @@ button.link, .sidebar button.link { box-shadow: none; transform: none; }
 .filters a:hover { color: var(--ink); background: color-mix(in srgb, var(--paper) 55%, transparent); }
 .filters a[aria-current="page"] { background: var(--paper); color: var(--ink); box-shadow: 0 1px 2px rgba(20, 21, 43, .12), 0 4px 10px -4px rgba(20, 21, 43, .2); }
 
+/* ---- period filter (EÜR): a row of label + date fields instead of full-width stacked inputs ---- */
+form[aria-label="Zeitraum"] { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 20px; }
+form[aria-label="Zeitraum"] input { width: auto; flex: 0 1 190px; }
+form[aria-label="Zeitraum"] label { color: var(--muted); font-size: .9rem; }
+
 /* ---- lists: rows float as cards -------------------------------------------------------------- */
 .page > .table-scroll { background: none; border: 0; box-shadow: none; border-radius: 0; padding: 0 2px 8px; }
 .page > .table-scroll > table.list { border-collapse: separate; border-spacing: 0 8px; background: none; }
@@ -217,6 +223,7 @@ main form[role="search"] input[type="search"] { margin-bottom: 0; }
 
 /* ---- sign-in --------------------------------------------------------------------------------- */
 .auth { background: radial-gradient(60% 50% at 15% 10%, var(--blue-wash), transparent 70%), radial-gradient(50% 40% at 90% 90%, var(--blue-wash), transparent 70%), var(--ground); }
+.auth .brand { display: flex; align-items: center; padding-left: 0; }
 .auth .sheet { border-radius: 28px; box-shadow: 0 30px 60px -30px rgba(20, 21, 43, .45), 0 0 0 1px var(--rule); }
 
 /* ---- motion: things rise into place, staggered; nothing moves with reduced-motion ------------- */
