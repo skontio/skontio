@@ -13,15 +13,18 @@
 <link rel="preload" href="{% static 'web/fonts/atkinson-hyperlegible-next-400.woff2' %}" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="{% static 'web/fonts/barlow-semi-condensed-600.woff2' %}" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="{% asset 'web/theme.css' %}">
-<link rel="stylesheet" href="{% asset 'web/app.css' %}">{% custom_theme %}
+<link rel="stylesheet" href="{% asset 'web/app.css' %}">{% if ui_modern %}
+<link rel="stylesheet" href="{% asset 'web/modern.css' %}">{% endif %}{% custom_theme %}
 <script src="{% static 'web/vendor/htmx.min.js' %}" defer></script>
-<script src="{% asset 'web/app.js' %}" defer></script>
+<script src="{% asset 'web/app.js' %}" defer></script>{% if ui_modern %}
+<script src="{% asset 'web/modern.js' %}" defer></script>{% endif %}
 </head>
 <body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
 <div class="shell">
   <aside class="sidebar" aria-label="Hauptmenü">
-    <a class="brand" href="/">Skontio</a>
-    <a class="button new" href="/dokumente/neu/?typ=invoice">Neue Rechnung</a>
+    <a class="brand" href="/"><span>Skontio</span></a>
+    <a class="button new" href="/dokumente/neu/?typ=invoice">{% nav_icon "plus" %}<span>Neue Rechnung</span></a>{% if ui_modern %}
+    <button type="button" class="palette-open" data-palette-open aria-haspopup="dialog">{% nav_icon "search" %}<span>Suchen …</span><kbd>Strg K</kbd></button>{% endif %}
     <form class="quicksearch" method="get" action="/suche/" role="search"><label class="visually-hidden" for="quicksearch">Alles durchsuchen</label><input id="quicksearch" type="search" name="q" placeholder="Suchen …" maxlength="100"></form>
     <nav aria-label="Bereiche">{% include "web/_nav.html" %}</nav>
   </aside>
@@ -53,5 +56,14 @@
     <nav class="sheet-menu" aria-label="Alle Bereiche">{% include "web/_nav.html" %}</nav>
   </details>
 </nav>
+{% if ui_modern %}<dialog id="palette" class="palette" aria-label="Suchen und springen">
+  <form method="get" action="/suche/" role="search">
+    <label class="visually-hidden" for="palette-q">Suchen oder springen</label>
+    <input id="palette-q" type="search" name="q" placeholder="Suchen oder springen …" autocomplete="off" maxlength="100"
+           role="combobox" aria-expanded="true" aria-controls="palette-list" aria-autocomplete="list">
+  </form>
+  <ul id="palette-list" class="palette-list" role="listbox" aria-label="Treffer"></ul>
+  <p class="palette-hint"><kbd>↑</kbd> <kbd>↓</kbd> wählen · <kbd>↵</kbd> öffnen · <kbd>Esc</kbd> schließen</p>
+</dialog>{% endif %}
 </body>
 </html>

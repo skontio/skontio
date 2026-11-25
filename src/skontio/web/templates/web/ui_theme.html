@@ -1,0 +1,20 @@
+{% extends "web/base.html" %}
+{% block title %}Oberfläche{% endblock %}
+{% block content %}
+<div class="heading"><h1>Oberfläche</h1></div>
+{% include "web/_settings_nav.html" %}
+<p>So sieht Skontio im Browser aus. Das gilt für alle, die sich anmelden. Rechnungen und PDFs bleiben unverändert –
+   deren Gestaltung stellst du unter „Vorlagen“ ein.</p>
+<form method="post" class="form">
+  {% csrf_token %}
+  <fieldset class="card">
+    <legend>Aussehen</legend>
+    {% for value, label in themes %}
+    <label class="check"><input type="radio" name="ui_theme" value="{{ value }}"{% if value == company.ui_theme %} checked{% endif %}>
+      <span><strong>{{ label }}</strong><br>
+      <small class="muted">{% if value == "modern" %}Dunkle Navigation mit Icons, Übersicht als Kachelraster, schwebende Listenzeilen, Befehlspalette (Strg K) und sanfte Bewegung.{% else %}Das bisherige Aussehen mit Papier-Optik und Stempeln.{% endif %}</small></span></label>
+    {% endfor %}
+  </fieldset>
+  <button type="submit">Speichern</button>
+</form>
+{% endblock %}
